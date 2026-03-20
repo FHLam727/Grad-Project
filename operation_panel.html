@@ -679,9 +679,22 @@
       <div class="logo">MR</div>
       <div class="brand-text">Macau Resort Analytics</div>
     </div>
-    <div class="nav-right">
-      <div>Market Report</div>
-      <div class="last-updated" id="lastUpdated">Last Sync: —</div>
+    <div class="nav-right" style="flex-direction:row; align-items:center; gap:14px;">
+      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
+        <span style="font-size:13px; font-weight:600; color:var(--text);" id="nav-username">—</span>
+        <span class="last-updated" id="lastUpdated">Last Sync: —</span>
+      </div>
+      <div id="nav-avatar" style="
+        width:34px; height:34px; border-radius:50%;
+        background:linear-gradient(135deg,var(--brand),var(--brand2));
+        display:grid; place-items:center;
+        font-size:12px; font-weight:700; color:#fff; flex-shrink:0;">—</div>
+      <button onclick="handleSignOut()" style="
+        padding:7px 16px; border-radius:10px; border:none; cursor:pointer;
+        background:rgba(220,38,38,0.10); color:#B91C1C;
+        font-size:12.5px; font-weight:600; font-family:var(--font);
+        transition:.15s ease;" onmouseover="this.style.background='rgba(220,38,38,0.18)'"
+        onmouseout="this.style.background='rgba(220,38,38,0.10)'">Sign Out</button>
     </div>
   </div>
 
@@ -691,6 +704,21 @@
       <!-- Left: Filters -->
       <aside class="card card-pad">
         <h1 class="sidebar-title">Filters</h1>
+
+        <div class="section">
+          <h4>Organisers</h4>
+          <div class="grid-3">
+            <label class="check"><input type="checkbox" name="operator" value="wynn" checked> Wynn</label>
+            <label class="check"><input type="checkbox" name="operator" value="sands" checked> Sands</label>
+            <label class="check"><input type="checkbox" name="operator" value="galaxy" checked> Galaxy</label>
+
+            <label class="check"><input type="checkbox" name="operator" value="mgm" checked> MGM</label>
+            <label class="check"><input type="checkbox" name="operator" value="melco" checked> Melco</label>
+            <label class="check"><input type="checkbox" name="operator" value="sjm" checked> SJM</label>
+
+            <label class="check"><input type="checkbox" name="operator" value="government" checked> Government</label>
+          </div>
+        </div>
 
         <div class="section">
           <h4>Event Categories</h4>
@@ -706,21 +734,6 @@
             <label class="check"><input type="checkbox" name="category" value="food" checked> Food</label>
             <label class="check"><input type="checkbox" name="category" value="shopping" checked> Shopping</label>
             <label class="check"><input type="checkbox" name="category" value="gaming" checked> Gaming</label>
-          </div>
-        </div>
-
-        <div class="section">
-          <h4>Operators</h4>
-          <div class="grid-3">
-            <label class="check"><input type="checkbox" name="operator" value="wynn" checked> Wynn</label>
-            <label class="check"><input type="checkbox" name="operator" value="sands" checked> Sands</label>
-            <label class="check"><input type="checkbox" name="operator" value="galaxy" checked> Galaxy</label>
-
-            <label class="check"><input type="checkbox" name="operator" value="mgm" checked> MGM</label>
-            <label class="check"><input type="checkbox" name="operator" value="melco" checked> Melco</label>
-            <label class="check"><input type="checkbox" name="operator" value="sjm" checked> SJM</label>
-
-            <label class="check"><input type="checkbox" name="operator" value="government" checked> Government</label>
           </div>
         </div>
 
@@ -744,18 +757,74 @@
 
         <div class="section">
           <h4>Date Range</h4>
-          <div class="grid-2">
-            <div>
-              <label class="field-label" for="fromDate">From</label>
-              <input id="fromDate" type="date" />
-            </div>
-            <div>
-              <label class="field-label" for="toDate">To</label>
-              <input id="toDate" type="date" />
+
+          <!-- Mode toggle -->
+          <div style="display:flex;gap:0;margin-bottom:12px;border:1px solid rgba(15,23,42,0.12);border-radius:12px;overflow:hidden;">
+            <button id="toggleMonthly" onclick="setDateMode('monthly')" type="button" style="flex:1;padding:8px 0;font-size:12px;font-weight:650;border:none;cursor:pointer;transition:.15s;background:var(--brand);color:#fff;">Monthly</button>
+            <button id="toggleQuarterly" onclick="setDateMode('quarterly')" type="button" style="flex:1;padding:8px 0;font-size:12px;font-weight:650;border:none;cursor:pointer;transition:.15s;background:transparent;color:var(--muted);">Quarterly</button>
+          </div>
+
+          <!-- Monthly picker -->
+          <div id="monthlyPicker">
+            <div class="grid-2">
+              <div>
+                <label class="field-label">Year</label>
+                <select id="monthYear">
+                  <option value="2024">2024</option>
+                  <option value="2025">2025</option>
+                  <option value="2026" selected>2026</option>
+                  <option value="2027">2027</option>
+                </select>
+              </div>
+              <div>
+                <label class="field-label">Month</label>
+                <select id="monthSelect">
+                  <option value="01">January</option>
+                  <option value="02">February</option>
+                  <option value="03" selected>March</option>
+                  <option value="04">April</option>
+                  <option value="05">May</option>
+                  <option value="06">June</option>
+                  <option value="07">July</option>
+                  <option value="08">August</option>
+                  <option value="09">September</option>
+                  <option value="10">October</option>
+                  <option value="11">November</option>
+                  <option value="12">December</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          <div class="error" id="dateError">Invalid date range: “To” cannot be earlier than “From”.</div>
+          <!-- Quarterly picker -->
+          <div id="quarterlyPicker" style="display:none;">
+            <div class="grid-2">
+              <div>
+                <label class="field-label">Year</label>
+                <select id="quarterYear">
+                  <option value="2024">2024</option>
+                  <option value="2025">2025</option>
+                  <option value="2026" selected>2026</option>
+                  <option value="2027">2027</option>
+                </select>
+              </div>
+              <div>
+                <label class="field-label">Quarter</label>
+                <select id="quarterSelect">
+                  <option value="Q1">Q1 (Jan–Mar)</option>
+                  <option value="Q2">Q2 (Apr–Jun)</option>
+                  <option value="Q3">Q3 (Jul–Sep)</option>
+                  <option value="Q4">Q4 (Oct–Dec)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hidden date values consumed by existing JS -->
+          <input id="fromDate" type="hidden" value="" />
+          <input id="toDate" type="hidden" value="" />
+
+          <div class="error" id="dateError">Invalid date range.</div>
 
           <div class="btn-row">
             <button class="btn btn-primary" id="applyBtn" type="button">Apply Filters</button>
@@ -783,7 +852,7 @@
             <div id="analyticsContent" class="analytics-render-area">
               <div id="gamingEmpty" class="empty-state">
                 <h4>Ready for Market Analysis</h4>
-                <p>Select operators and categories to start deep analysis.</p>
+                <p>Select organisers and categories to start deep analysis.</p>
               </div>
             </div>
           </section>
@@ -792,7 +861,7 @@
           <section class="block">
             <div class="block-head">
               <div>
-                <h3 class="block-title">Operator Perspective</h3>
+                <h3 class="block-title">Organiser Perspective</h3>
                 <div class="block-sub">Action-oriented suggestions based on current market mix.</div>
               </div>
               <div class="pill ai">Strategy AI</div>
@@ -804,7 +873,7 @@
               </div>
 
               <div class="focus-card">
-                <p class="focus-title">Focus Operator</p>
+                <p class="focus-title">Focus Organiser</p>
                 <select id="perspectiveOperator">
                   <option value="Wynn">Wynn</option>
                   <option value="Sands">Sands</option>
@@ -814,7 +883,7 @@
                   <option value="SJM">SJM</option>
                   <option value="Government">Government</option>
                 </select>
-                <p class="focus-desc">Select an operator to see specific strategic recommendations.</p>
+                <p class="focus-desc">Select an organiser to see specific strategic recommendations.</p>
               </div>
             </div>
           </section>
@@ -829,7 +898,7 @@
 
             <div class="tile-row">
               <div class="tile">
-                <p class="tile-k">Operators & No. of Events</p>
+                <p class="tile-k">Organisers & No. of Events</p>
                 <p class="tile-v" id="tileOperatorSplit">—</p>
               </div>
               <div class="tile">
@@ -855,6 +924,31 @@
   </div>
 
   <script>
+    // ── Session guard (URL params — Safari file:// safe) ─────
+    const _sp = new URLSearchParams(window.location.search);
+    const _session = _sp.get('first_name') ? {
+      first_name : _sp.get('first_name'),
+      last_name  : _sp.get('last_name'),
+      email      : _sp.get('email'),
+      position   : _sp.get('position'),
+    } : null;
+
+    if (!_session) {
+      window.location.href = 'login_page.html';
+    } else {
+      const fullName = _session.first_name + ' ' + _session.last_name;
+      document.addEventListener('DOMContentLoaded', function() {
+        const uEl = document.getElementById('nav-username');
+        const aEl = document.getElementById('nav-avatar');
+        if (uEl) uEl.textContent = fullName;
+        if (aEl) aEl.textContent = (_session.first_name[0] + _session.last_name[0]).toUpperCase();
+      });
+    }
+
+    function handleSignOut() {
+      window.location.href = 'login_page.html';
+    }
+
     const DEMO = {
       lastUpdatedISO: new Date().toISOString(),
 
@@ -1119,7 +1213,7 @@
         col.innerHTML = `
           <div class="suggestion-card">
             <div class="accent"></div>
-            <div class="suggestion-text">No recommendations available for this operator.</div>
+            <div class="suggestion-text">No recommendations available for this organiser.</div>
           </div>
         `;
         return;
@@ -1336,7 +1430,7 @@
                 <div class="summary-stat">
                     <div class="summary-stat-label">Total Events</div>
                     <div class="summary-stat-value">${totalEvents}</div>
-                    <div class="summary-stat-sub">${activeOpCount} active operator${activeOpCount !== 1 ? 's' : ''}</div>
+                    <div class="summary-stat-sub">${activeOpCount} active organiser${activeOpCount !== 1 ? 's' : ''}</div>
                 </div>
                 <div class="summary-stat">
                     <div class="summary-stat-label">Most Active</div>
@@ -1352,7 +1446,7 @@
             </div>
             <div class="summary-breakdown-row">
                 <div class="summary-section" style="flex:2;">
-                    <div class="summary-section-title">🏢 Operators — ranked by events</div>
+                    <div class="summary-section-title">🏢 Organisers — ranked by events</div>
                     <div class="summary-chips">${opChipsHtml || '<span style="color:rgba(15,23,42,0.4);font-size:12px;">—</span>'}</div>
                 </div>
                 <div class="summary-section" style="flex:2;">
@@ -1655,18 +1749,56 @@
       if (this.value.trim()) { _addTag(this.value); this.value = ""; }
     });
 
+    // ── Date mode toggle (Monthly / Quarterly) ───────────────
+    const QUARTER_RANGES = {
+      Q1: ['01-01', '03-31'],
+      Q2: ['04-01', '06-30'],
+      Q3: ['07-01', '09-30'],
+      Q4: ['10-01', '12-31'],
+    };
+
+    let _dateMode = 'monthly';
+
+    function setDateMode(mode) {
+      _dateMode = mode;
+      const isMo = mode === 'monthly';
+      $('monthlyPicker').style.display  = isMo ? '' : 'none';
+      $('quarterlyPicker').style.display = isMo ? 'none' : '';
+      $('toggleMonthly').style.background   = isMo ? 'var(--brand)' : 'transparent';
+      $('toggleMonthly').style.color        = isMo ? '#fff' : 'var(--muted)';
+      $('toggleQuarterly').style.background = isMo ? 'transparent' : 'var(--brand)';
+      $('toggleQuarterly').style.color      = isMo ? 'var(--muted)' : '#fff';
+    }
+
+    function resolveDateRange() {
+      if (_dateMode === 'monthly') {
+        const y = $('monthYear').value;
+        const m = $('monthSelect').value;
+        const lastDay = new Date(parseInt(y), parseInt(m), 0).getDate();
+        $('fromDate').value = `${y}-${m}-01`;
+        $('toDate').value   = `${y}-${m}-${String(lastDay).padStart(2,'0')}`;
+      } else {
+        const y = $('quarterYear').value;
+        const q = $('quarterSelect').value;
+        const [start, end] = QUARTER_RANGES[q];
+        $('fromDate').value = `${y}-${start}`;
+        $('toDate').value   = `${y}-${end}`;
+      }
+    }
+
     $("applyBtn").addEventListener("click", async () => {
         // flush any partially typed keyword
         var partial = document.getElementById("kwInput").value.trim();
         if (partial) { _addTag(partial); document.getElementById("kwInput").value = ""; }
 
         const rawInput = $("keywords").value.trim();  // comma-joined tags
+        resolveDateRange();
         const fromDate = $("fromDate").value; 
         const toDate = $("toDate").value;
         const selectedCats = getSelectedValues("category");
         const selectedOps = getSelectedValues("operator");
 
-        if (selectedOps.length === 0) return alert("請至少選擇一個營運商");
+        if (selectedOps.length === 0) return alert("請至少選擇一個組織者");
 
         stopPoll(); // 停止舊的 poll
 
@@ -1691,8 +1823,11 @@
       setAllCheckbox("category", true);
       setAllCheckbox("operator", true);
       _tags = []; _renderTags();
-      $("fromDate").value = "";
-      $("toDate").value = "";
+      setDateMode('monthly');
+      $('monthYear').value   = '2026';
+      $('monthSelect').value = '03';
+      $('fromDate').value = "";
+      $('toDate').value = "";
       $("dateError").style.display = "none";
       fillResults(DEMO);
     });
