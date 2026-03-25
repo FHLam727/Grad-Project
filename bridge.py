@@ -48,7 +48,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-client = OpenAI(api_key="sk-06452010eeff43f59e36f4d86d4d5076", base_url="https://api.deepseek.com")
+client = OpenAI(api_key="sk-ec64f5296ab34389a632b48aa8c28600", base_url="https://api.deepseek.com")
 
 # ── 繁簡轉換（共用 trad_simp 模組） ──────────────────────────────────────────
 try:
@@ -1133,8 +1133,9 @@ Category 判斷規則：
 @app.post("/api/hot-themes")
 async def hot_themes(payload: dict):
     """
-    接收 event names + descriptions，用 DeepSeek 返回 2-3 個 semantic hot themes。
-    payload: { "events": [ {"name": "...", "description": "..."}, ... ] }
+    接收 event names + descriptions + heat_score，用 DeepSeek 返回 2-3 個 semantic hot themes，
+    並帶回對應活動序號，方便前端 click filter。
+    payload: { "events": [ {"name": "...", "description": "...", "heat_score": 87.5}, ... ] }
     """
     events = payload.get("events", [])
     if not events:
@@ -1144,8 +1145,14 @@ async def hot_themes(payload: dict):
     for i, ev in enumerate(events[:200], 1):
         name = (ev.get("name") or "").strip()
         desc = (ev.get("description") or ev.get("desc") or "").strip()[:80]
+        heat = ev.get("heat_score")
+        try:
+            heat_num = float(heat)
+        except Exception:
+            heat_num = None
         if name:
-            lines.append(f"{i}. {name}{'：' + desc if desc else ''}")
+            heat_prefix = f"[heat {heat_num:.1f}] " if heat_num is not None else ""
+            lines.append(f"{i}. {heat_prefix}{name}{'：' + desc if desc else ''}")
 
     if not lines:
         return {"themes": []}
@@ -1155,11 +1162,26 @@ async def hot_themes(payload: dict):
 
 {event_list}
 
+以上列表已經大致按 heat score 由高到低排列，heat 越高代表越值得優先參考。
+
 請分析以上活動，識別出 2-3 個最突出嘅市場主題（hot themes）。
 主題應該係具體嘅概念，例如「韓星演唱會」、「葡萄酒品鑑」、「沉浸式體驗」、「非遺文化」，而唔係籠統嘅字眼如「活動」、「體驗」、「娛樂」。
 每個主題用 3-8 個字表達，繁體中文。
+每個主題要帶返對應活動序號 indices，方便前端點擊後篩選相關活動。
+優先選擇高 heat、而且主題明確嘅活動。
+如果活動名或描述出現 aespa、EXO、UPPOOM、FANMEETING、見面會、韓團、韓星 等線索，應優先歸納為「韓流演唱會」「韓團見面會」呢類主題，
+唔好拆成太零碎嘅藝人名主題。
+但要小心唔好誤判非韓國藝人：
+- TYSON YOSHI 明確係香港歌手，唔可以歸入韓流/韓團主題
+- Kiri T 明確係香港歌手，唔可以歸入韓流/韓團主題
+- 只有當活動明確指向韓國藝人、韓團、K-pop、韓星見面會時，先可以歸入韓流相關主題
 
-只返回 JSON array，例如：["韓星演唱會熱潮", "精品葡萄酒文化", "沉浸式視覺體驗"]
+只返回 JSON array，例如：
+[
+  {{"theme":"韓流演唱會熱潮","indices":[1,2,4]}},
+  {{"theme":"澳門當代藝術推廣","indices":[3,6]}},
+  {{"theme":"經典音樂會重溫","indices":[5,7]}}
+]
 唔需要任何解釋，只輸出 JSON array。"""
 
     try:
@@ -1175,7 +1197,22 @@ async def hot_themes(payload: dict):
             themes = []
         try:
             from trad_simp import to_trad as _to_trad
-            themes = [_to_trad(t) for t in themes[:3]]
+            normalized = []
+            for item in themes[:3]:
+                if isinstance(item, str):
+                    normalized.append({"theme": _to_trad(item), "indices": []})
+                    continue
+                if not isinstance(item, dict):
+                    continue
+                theme = _to_trad(str(item.get("theme") or "").strip())
+                indices = item.get("indices") or []
+                if not theme:
+                    continue
+                normalized.append({
+                    "theme": theme,
+                    "indices": [int(i) for i in indices if str(i).isdigit()]
+                })
+            themes = normalized
         except Exception:
             themes = themes[:3]
         print(f"🔥 Hot themes: {themes}")

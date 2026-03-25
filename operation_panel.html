@@ -607,6 +607,95 @@
         color: #C2410C;
         border: 1px solid rgba(234,88,12,0.20);
     }
+    .theme-chip-btn {
+        appearance: none;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        padding: 4px 12px;
+        font-size: 12px;
+        font-weight: 650;
+        cursor: pointer;
+        transition: .15s ease;
+        font-family: var(--font);
+    }
+    .theme-chip-btn:hover {
+        transform: translateY(-1px);
+        filter: brightness(0.98);
+    }
+    .theme-chip-btn.active {
+        box-shadow: 0 0 0 2px rgba(15,23,42,0.08);
+    }
+    /* ===== Activity Heatmap ===== */
+    .heatmap-scroll {
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .heatmap-table {
+      border-collapse: collapse;
+      border-spacing: 0;
+      table-layout: auto;
+    }
+    .heatmap-table th {
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(15,23,42,0.55);
+      padding: 0 0 6px 0;
+      text-align: center;
+      white-space: nowrap;
+      letter-spacing: .2px;
+    }
+    .heatmap-table th.row-label {
+      text-align: right;
+      padding-right: 10px;
+      padding-bottom: 6px;
+      min-width: 100px;
+      font-size: 11px;
+    }
+    .heatmap-cell {
+      width: 48px;
+      height: 48px;
+      text-align: center;
+      vertical-align: middle;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: filter .15s;
+      user-select: none;
+      border: 1px solid rgba(255,255,255,0.6);
+    }
+    .heatmap-cell:hover { filter: brightness(0.88); }
+    .heatmap-cell.zero {
+      background: #F1F5F9;
+      color: rgba(15,23,42,0.25);
+      font-size: 12px;
+      cursor: default;
+    }
+    .heatmap-cell.zero:hover { filter: none; }
+    .heatmap-row-label {
+      font-size: 12px;
+      font-weight: 550;
+      color: rgba(15,23,42,0.75);
+      white-space: nowrap;
+      text-align: right;
+      padding-right: 10px;
+      vertical-align: middle;
+    }
+    .heatmap-legend {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 14px;
+      font-size: 11px;
+      color: rgba(15,23,42,0.50);
+      font-weight: 600;
+    }
+    .heatmap-legend-bar {
+      display: flex;
+      border-radius: 3px;
+      overflow: hidden;
+      height: 10px;
+      width: 100px;
+    }
     .hot-tag {
         font-size: 10px;
         font-weight: 700;
@@ -945,6 +1034,7 @@
                 <div id="heatAvgBarWrap" style="position:relative;">
                   <canvas id="heatAvgBarChart"></canvas>
                 </div>
+                <div id="heatAvgMissingOps" style="margin-top:10px;font-size:11.5px;color:var(--muted);"></div>
               </div>
 
               <!-- RIGHT: Heat Tier Breakdown -->
@@ -954,6 +1044,7 @@
                 <div id="heatTierWrap" style="position:relative;">
                   <canvas id="heatTierChart"></canvas>
                 </div>
+                <div id="heatTierMissingOps" style="margin-top:10px;font-size:11.5px;color:var(--muted);"></div>
                 <div style="display:flex;gap:16px;margin-top:10px;font-size:11.5px;color:var(--muted);">
                   <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#1E40AF;display:inline-block;"></span>High (≥ 60)</span>
                   <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#60A5FA;display:inline-block;"></span>Mid (30–59)</span>
@@ -963,6 +1054,42 @@
 
             </div>
 
+          </section>
+
+          <!-- Block #2.5: Activity Heatmap -->
+          <section class="block" id="activityHeatmapBlock">
+            <div class="block-head">
+              <div>
+                <h3 class="block-title">Activity Heatmap</h3>
+                <div class="block-sub">Number of activities per category (column) x organiser (row). Cell colour = average heat score (0-100); deeper red = hotter. Click any cell to filter the Events list.</div>
+              </div>
+            </div>
+
+            <div id="hmFilterBanner" style="display:none;align-items:center;justify-content:space-between;gap:10px;
+              background:rgba(37,99,235,0.07);border:1px solid rgba(37,99,235,0.20);border-radius:14px;
+              padding:10px 14px;margin-bottom:14px;flex-wrap:wrap;">
+              <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#1D4ED8;">
+                <span style="font-size:16px;">🔍</span>
+                <span id="hmFilterLabel">Filtering events…</span>
+              </div>
+              <button onclick="clearChartFilter()" style="padding:5px 12px;border-radius:8px;border:1px solid rgba(37,99,235,0.25);
+                background:rgba(37,99,235,0.10);color:#1D4ED8;font-size:12px;font-weight:650;cursor:pointer;
+                font-family:var(--font);white-space:nowrap;">✕ Clear filter</button>
+            </div>
+
+            <div class="heatmap-scroll">
+              <table class="heatmap-table" id="heatmapTable">
+                <thead><tr id="heatmapHeaderRow"></tr></thead>
+                <tbody id="heatmapBody"></tbody>
+              </table>
+            </div>
+
+            <div class="heatmap-legend">
+              <span>0</span>
+              <div id="heatmapLegendBar" class="heatmap-legend-bar"></div>
+              <span id="heatmapLegendMax">100</span>
+              <span style="margin-left:2px; color:rgba(15,23,42,0.40);">heat score</span>
+            </div>
           </section>
 
           <!-- Block #3: Organiser Perspective -->
@@ -1185,6 +1312,12 @@
     const OPERATOR_ID_TO_NAME = {
       wynn:"Wynn", sands:"Sands", galaxy:"Galaxy", mgm:"MGM", melco:"Melco", sjm:"SJM", government:"Government"
     };
+    let _hasAppliedFilters = false;
+    let _appliedFilterState = {
+      operators: ["wynn","sands","galaxy","mgm","melco","sjm","government"],
+      categories: ["concert","exhibition","experience","sport","crossover","accommodation","food","shopping","gaming"]
+    };
+    const _hotThemesCache = new Map();
 
     function formatUpdate(iso){
       const d = new Date(iso);
@@ -1210,6 +1343,15 @@
 
     function getSelectedValues(name){
       return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(x => x.value);
+    }
+
+    function _analyticsOps() { return _appliedFilterState.operators || []; }
+    function _analyticsCats() { return _appliedFilterState.categories || []; }
+    function _setAppliedFiltersFromUI() {
+      _appliedFilterState = {
+        operators: getSelectedValues("operator"),
+        categories: getSelectedValues("category")
+      };
     }
 
     function setAllCheckbox(name, checked){
@@ -1498,34 +1640,131 @@
     };
 
     // ── Hot Themes via DeepSeek (semantic) ───────────────────
+    let _activeThemeFilter = null;
+
     async function fetchHotThemes(catData) {
+        const cacheKey = JSON.stringify(
+            Object.entries(catData)
+                .flatMap(([cat, acts]) => (acts || []).map(act => [
+                    cat,
+                    (act.operator || '').toLowerCase(),
+                    act.name || '',
+                    act.description || act.desc || '',
+                    Number.parseFloat(act.heat_score) || 0,
+                    act.__activityKey || ''
+                ]))
+                .sort((a, b) => a.join('|').localeCompare(b.join('|')))
+        );
+        if (_hotThemesCache.has(cacheKey)) return _hotThemesCache.get(cacheKey);
+
         const events = [];
         for (const acts of Object.values(catData)) {
             for (const act of acts) {
                 if (act.name) events.push({
+                    activityKey: act.__activityKey,
+                    operator: (act.operator || '').toLowerCase(),
                     name: act.name,
-                    description: act.description || act.desc || ""
+                    description: act.description || act.desc || "",
+                    heat_score: Number.parseFloat(act.heat_score) || 0
                 });
             }
         }
         if (events.length === 0) return [];
+        events.sort((a, b) => (b.heat_score - a.heat_score) || a.name.localeCompare(b.name));
         try {
             const resp = await fetch("http://127.0.0.1:9038/api/hot-themes", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ events })
+                body: JSON.stringify({
+                    events: events.map(({ name, description, heat_score }) => ({ name, description, heat_score }))
+                })
             });
             const data = await resp.json();
-            return Array.isArray(data.themes) ? data.themes : [];
+            if (!Array.isArray(data.themes)) return [];
+            const themes = data.themes.slice(0, 3).map(item => {
+                if (typeof item === 'string') return { theme: item, keys: [] };
+                const indices = Array.isArray(item.indices) ? item.indices : [];
+                const matchedEvents = indices
+                    .map(i => events[i - 1])
+                    .filter(Boolean);
+                const heatValues = matchedEvents
+                    .map(ev => ev.heat_score)
+                    .filter(v => Number.isFinite(v));
+                const themeHeat = heatValues.length
+                    ? heatValues.reduce((sum, v) => sum + v, 0) / heatValues.length
+                    : 0;
+                const operators = [...new Set(matchedEvents
+                    .map(ev => ev.operator)
+                    .filter(Boolean)
+                    .map(op => OP_LABELS[op] || (op.charAt(0).toUpperCase() + op.slice(1))))];
+                return {
+                    theme: item.theme || '',
+                    heatScore: themeHeat,
+                    operators,
+                    keys: indices
+                        .map(i => events[i - 1]?.activityKey)
+                        .filter(Boolean)
+                };
+            })
+            .filter(item => item.theme)
+            .sort((a, b) => (b.heatScore - a.heatScore) || a.theme.localeCompare(b.theme));
+            _hotThemesCache.set(cacheKey, themes);
+            return themes;
         } catch (e) {
             console.warn("hot-themes fetch failed:", e);
             return [];
         }
     }
 
+    function syncThemeCardVisibility() {
+        const cards = document.querySelectorAll('#analyticsContent [data-activity-key]');
+        const sections = document.querySelectorAll('#analyticsContent .cat-section');
+        const hasThemeFilter = _activeThemeFilter && Array.isArray(_activeThemeFilter.keys) && _activeThemeFilter.keys.length > 0;
+        const keySet = hasThemeFilter ? new Set(_activeThemeFilter.keys) : null;
+
+        cards.forEach(card => {
+            const shouldShow = !hasThemeFilter || keySet.has(card.dataset.activityKey);
+            card.style.display = shouldShow ? '' : 'none';
+        });
+
+        sections.forEach(section => {
+            const visible = Array.from(section.querySelectorAll('[data-activity-key]')).some(card => card.style.display !== 'none');
+            section.style.display = visible ? '' : 'none';
+        });
+    }
+
+    function renderThemeFilterState() {
+        const slot = document.getElementById('hotThemesSlot');
+        const clearBtn = document.getElementById('hotThemesClearBtn');
+        if (!slot) return;
+        slot.querySelectorAll('.theme-chip-btn').forEach(btn => {
+            btn.classList.toggle('active', !!_activeThemeFilter && btn.dataset.theme === _activeThemeFilter.theme);
+        });
+        if (clearBtn) clearBtn.style.display = _activeThemeFilter ? 'inline-flex' : 'none';
+    }
+
+    function applyHotThemeFilter(theme, keys) {
+        if (!Array.isArray(keys) || !keys.length) return;
+        _activeThemeFilter = { theme, keys };
+        syncThemeCardVisibility();
+        renderThemeFilterState();
+    }
+
+    function clearHotThemeFilter() {
+        _activeThemeFilter = null;
+        syncThemeCardVisibility();
+        renderThemeFilterState();
+    }
+
+    function clearResultsSummaryFilters() {
+        clearHotThemeFilter();
+        clearChartFilter();
+    }
+
     // ── Summary Banner（event cards 上方）─────────────────────
     async function buildSummaryBanner(catData, filterParams) {
         const { fromDate, toDate } = filterParams || {};
+        _activeThemeFilter = null;
 
         // ── Aggregate stats ───────────────────────────────────
         const totalEvents = Object.values(catData).reduce((s,a) => s + a.length, 0);
@@ -1580,7 +1819,10 @@
         banner.innerHTML = `
             <div class="summary-top-row">
                 <div class="summary-title">📊 Results Summary</div>
-                ${dateRangeHtml}
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <button onclick="clearResultsSummaryFilters()" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;border:1px solid rgba(37,99,235,0.18);background:rgba(37,99,235,0.08);color:#1D4ED8;font-size:11px;font-weight:650;cursor:pointer;font-family:var(--font);">✕ Clear filter</button>
+                    ${dateRangeHtml}
+                </div>
             </div>
             <div class="summary-stats-row">
                 <div class="summary-stat">
@@ -1595,8 +1837,11 @@
                 </div>
                 <div class="summary-stat" style="grid-column: span 2;">
                     <div class="summary-stat-label">🔥 Hot Themes</div>
-                    <div id="hotThemesSlot" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
-                        <span style="color:rgba(15,23,42,0.35);font-size:12px;font-style:italic;">Analysing themes…</span>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;">
+                        <div id="hotThemesSlot" style="display:flex;flex-wrap:wrap;gap:6px;">
+                            <span style="color:rgba(15,23,42,0.35);font-size:12px;font-style:italic;">Analysing themes…</span>
+                        </div>
+                        <button id="hotThemesClearBtn" onclick="clearHotThemeFilter()" style="display:none;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;border:1px solid rgba(37,99,235,0.18);background:rgba(37,99,235,0.08);color:#1D4ED8;font-size:11px;font-weight:650;cursor:pointer;font-family:var(--font);">✕ Clear filter</button>
                     </div>
                 </div>
             </div>
@@ -1617,16 +1862,40 @@
             const slot = banner.querySelector('#hotThemesSlot');
             if (!slot) return;
             const hotColors = ['#DC2626','#D97706','#7C3AED'];
-            slot.innerHTML = themes.length
-                ? themes.map((kw, i) => `
-                    <span class="summary-chip" style="
-                        background:${hotColors[i % hotColors.length]}14;
-                        color:${hotColors[i % hotColors.length]};
-                        border:1px solid ${hotColors[i % hotColors.length]}30;
-                        font-size:12px;padding:4px 12px;">
-                        🔥 ${kw}
-                    </span>`).join('')
-                : `<span style="color:rgba(15,23,42,0.4);font-size:12px;font-style:italic;">Not enough data</span>`;
+            if (!themes.length) {
+                slot.innerHTML = `<span style="color:rgba(15,23,42,0.4);font-size:12px;font-style:italic;">Not enough data</span>`;
+                renderThemeFilterState();
+                return;
+            }
+            slot.innerHTML = '';
+            themes.forEach((item, i) => {
+                const color = hotColors[i % hotColors.length];
+                const btn = document.createElement('button');
+                btn.className = 'theme-chip-btn';
+                btn.dataset.theme = item.theme;
+                btn.style.background = `${color}14`;
+                btn.style.color = color;
+                btn.style.borderColor = `${color}30`;
+                const heatLabel = Number.isFinite(item.heatScore) ? ` · 🔥${item.heatScore.toFixed(0)}` : '';
+                const opLabel = item.operators && item.operators.length ? ` · ${item.operators.join(' + ')}` : '';
+                btn.textContent = `🔥 ${item.theme}${heatLabel}${opLabel}`;
+                if (!item.keys || !item.keys.length) {
+                    btn.disabled = true;
+                    btn.style.cursor = 'default';
+                    btn.style.opacity = '0.65';
+                } else {
+                    btn.title = 'Click to filter related events';
+                    btn.addEventListener('click', () => {
+                        if (_activeThemeFilter && _activeThemeFilter.theme === item.theme) {
+                            clearHotThemeFilter();
+                        } else {
+                            applyHotThemeFilter(item.theme, item.keys);
+                        }
+                    });
+                }
+                slot.appendChild(btn);
+            });
+            renderThemeFilterState();
         });
 
         return banner;
@@ -1667,6 +1936,23 @@
             container.innerHTML += `<div style="text-align:center;padding:40px;color:gray;">
                 No matching activities found. Results will refresh automatically once crawling completes.</div>`;
             return;
+        }
+
+        const activityKeyCount = {};
+        for (const acts of Object.values(catData)) {
+            acts.forEach((act, idx) => {
+                const rawKey = [
+                    act.operator || '',
+                    act.sub_type || act.category || '',
+                    act.name || '',
+                    act.date || '',
+                    act.location || '',
+                    Array.isArray(act.source_post_ids) ? act.source_post_ids.join(',') : ''
+                ].join('|').toLowerCase();
+                const count = (activityKeyCount[rawKey] || 0) + 1;
+                activityKeyCount[rawKey] = count;
+                act.__activityKey = `${rawKey}|${count}|${idx}`;
+            });
         }
 
         // ── 插入 Summary Banner ───────────────────────────────
@@ -1816,6 +2102,7 @@
         `;
         el.onmouseenter = () => el.style.boxShadow = '0 4px 16px rgba(0,0,0,0.10)';
         el.onmouseleave = () => el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)';
+        if (act.__activityKey) el.dataset.activityKey = act.__activityKey;
 
         // Heat badge
         const heatScore = act.heat_score != null ? parseFloat(act.heat_score) : null;
@@ -1973,6 +2260,8 @@
         const selectedOps = getSelectedValues("operator");
 
         if (selectedOps.length === 0) return alert("請至少選擇一個組織者");
+        _hasAppliedFilters = true;
+        _setAppliedFiltersFromUI();
 
         stopPoll(); // 停止舊的 poll
 
@@ -2003,6 +2292,11 @@
       $("fromDate").value = "";
       $("toDate").value = "";
       $("dateError").style.display = "none";
+      _hasAppliedFilters = false;
+      _appliedFilterState = {
+        operators: ["wynn","sands","galaxy","mgm","melco","sjm","government"],
+        categories: ["concert","exhibition","experience","sport","crossover","accommodation","food","shopping","gaming"]
+      };
       fillResults(DEMO);
     });
 
@@ -2081,9 +2375,11 @@ function applyChartFilter(operatorName, catKey) {
 
   const banner = document.getElementById('chartFilterBanner');
   const label  = document.getElementById('chartFilterLabel');
+  const hmBanner = document.getElementById('hmFilterBanner');
   const catCfg = CHART_CAT_CONFIG[catKey] || { label: catKey, color: '#6B7280' };
   const opColor = CHART_OP_COLORS[operatorName] || '#6B7280';
   if (banner) banner.style.display = 'flex';
+  if (hmBanner) hmBanner.style.display = 'none';
   if (label) label.innerHTML =
     `Showing: <span style="color:${opColor};font-weight:700;">${operatorName}</span>` +
     ` · <span style="color:${catCfg.color};font-weight:700;">${catCfg.label}</span> events`;
@@ -2123,7 +2419,9 @@ function applyChartFilter(operatorName, catKey) {
 function clearChartFilter() {
   _chartFilter = { operator: null, catKey: null };
   const banner = document.getElementById('chartFilterBanner');
+  const hmBanner = document.getElementById('hmFilterBanner');
   if (banner) banner.style.display = 'none';
+  if (hmBanner) hmBanner.style.display = 'none';
 
   const container = document.getElementById('analyticsContent');
   if (container) {
@@ -2386,6 +2684,8 @@ function refreshAnalyticsCharts(rawSummaries) {
   const sel = document.getElementById('doughnutOperatorSelect');
   renderDoughnutChart(sel ? sel.value : 'Wynn');
   renderBarChart();
+  if (typeof window._rebuildHeatAvgChart === 'function') window._rebuildHeatAvgChart();
+  if (typeof window._rebuildHeatmap === 'function') window._rebuildHeatmap();
 }
 
 // Doughnut operator selector
@@ -2409,7 +2709,7 @@ const _OP_TITLE_ORDER = ['Wynn','Sands','Galaxy','MGM','Melco','SJM','Government
 function syncDoughnutOps() {
   const sel     = document.getElementById('doughnutOperatorSelect');
   if (!sel) return;
-  const checked = _checkedOps(); // lowercase
+  const checked = _analyticsOps();
   const current = sel.value;
   sel.innerHTML = _OP_TITLE_ORDER
     .filter(op => checked.includes((_OP_LC[op] || op.toLowerCase())))
@@ -2470,7 +2770,9 @@ window.fillResults = function(data) {
   const sel = document.getElementById('doughnutOperatorSelect');
   renderDoughnutChart(sel ? sel.value : 'Wynn');
   renderBarChart();
+  if (typeof window._rebuildHeatAvgChart === 'function') window._rebuildHeatAvgChart();
   if (typeof window._rebuildTierChart === 'function') window._rebuildTierChart();
+  if (typeof window._rebuildHeatmap === 'function') window._rebuildHeatmap();
 };
 
 // Initial render
@@ -2482,10 +2784,13 @@ const _OP_LABEL = { wynn:'Wynn \u2605', melco:'Melco', mgm:'MGM', galaxy:'Galaxy
 const _OP_LC    = { Melco:'melco', Wynn:'wynn', MGM:'mgm', Galaxy:'galaxy', Sands:'sands', SJM:'sjm', Government:'government' };
 function _checkedOps()  { return typeof getSelectedValues==='function' ? getSelectedValues('operator') : []; }
 function _checkedCats() { return typeof getSelectedValues==='function' ? getSelectedValues('category') : []; }
+function _selectedOpTitles() {
+  return _OP_TITLE_ORDER.filter(op => _analyticsOps().includes(_OP_LC[op] || op.toLowerCase()));
+}
 
 // ── Heat Tier Breakdown Chart ─────────────────────────────────────────────────
 (function() {
-  const ALL_OPS  = ['Melco','Wynn','MGM','Galaxy','Sands','SJM'];
+  const ALL_OPS  = ['Melco','Wynn','MGM','Galaxy','Sands','SJM','Government'];
   const TIER_HIGH = '#1E40AF', TIER_MID = '#60A5FA', TIER_LOW = '#CBD5E1';
   let _tf = { op:null, tier:null };
   let _tc = null;
@@ -2495,6 +2800,7 @@ function _checkedCats() { return typeof getSelectedValues==='function' ? getSele
     Melco:{high:29,mid:23,low:10,total:62}, Wynn:{high:8,mid:20,low:5,total:33},
     MGM:{high:8,mid:45,low:7,total:60},     Galaxy:{high:13,mid:25,low:17,total:55},
     Sands:{high:13,mid:42,low:28,total:83}, SJM:{high:7,mid:39,low:23,total:69},
+    Government:{high:0,mid:2,low:0,total:2},
   };
 
   // Compute tier counts from live _chartCatData; falls back to DEMO_TIER if no heat_score found
@@ -2507,7 +2813,8 @@ function _checkedCats() { return typeof getSelectedValues==='function' ? getSele
         const opRaw = (a.operator||'').toLowerCase();
         const opKey = ALL_OPS.find(o => (_OP_LC[o]||o.toLowerCase()) === opRaw);
         if (!opKey) continue;
-        const hs = typeof a.heat_score === 'number' ? a.heat_score : null;
+        const hs = Number.parseFloat(a.heat_score);
+        if (!Number.isFinite(hs)) continue;
         if (hs === null) continue;
         hasLiveData = true;
         result[opKey].total++;
@@ -2523,12 +2830,8 @@ function _checkedCats() { return typeof getSelectedValues==='function' ? getSele
     return result;
   }
 
-  function activeOps(tierData) {
-    const chk = _checkedOps();
-    return ALL_OPS.filter(op =>
-      chk.includes(_OP_LC[op]||op.toLowerCase()) &&
-      tierData[op] && tierData[op].total > 0
-    );
+  function activeOps() {
+    return _selectedOpTitles().filter(op => ALL_OPS.includes(op));
   }
 
   function bgColors(ops, tier, active) {
@@ -2539,13 +2842,15 @@ function _checkedCats() { return typeof getSelectedValues==='function' ? getSele
   function buildTierChart() {
     const canvas = document.getElementById('heatTierChart');
     const wrap   = document.getElementById('heatTierWrap');
+    const note   = document.getElementById('heatTierMissingOps');
     if (!canvas) return;
 
     const tierData = computeTierData();
-    const ops = activeOps(tierData);
+    const ops = activeOps();
 
     if (!ops.length) {
       wrap.style.height = '60px';
+      if (note) note.textContent = '';
       if (_tc) { _tc.destroy(); _tc = null; }
       return;
     }
@@ -2555,6 +2860,11 @@ function _checkedCats() { return typeof getSelectedValues==='function' ? getSele
       const d = tierData[op];
       return d.total ? Math.round(d[tier] / d.total * 100) : 0;
     };
+
+    const zeroOps = ops.filter(op => (tierData[op]?.total || 0) === 0);
+    if (note) {
+      note.textContent = zeroOps.length ? `No activities in current results: ${zeroOps.join(', ')}` : '';
+    }
 
     const mkDs = (tier, label) => ({
       label, _tier: tier,
@@ -2656,7 +2966,7 @@ function _checkedCats() { return typeof getSelectedValues==='function' ? getSele
     if (!_tc) return;
     const active = (_tf.op && _tf.tier) ? _tf : null;
     _tc.data.datasets.forEach(ds => {
-      ds.backgroundColor = bgColors(ops || activeOps(computeTierData()), ds._tier, active);
+      ds.backgroundColor = bgColors(ops || activeOps(), ds._tier, active);
     });
     _tc.update('none');
   }
@@ -2677,7 +2987,8 @@ function _checkedCats() { return typeof getSelectedValues==='function' ? getSele
     for (const [cat, acts] of Object.entries(_chartCatData)) {
       const m = acts.filter(a => {
         const om = (a.operator||'').toLowerCase() === op.toLowerCase();
-        const hm = typeof a.heat_score==='number' ? a.heat_score>=minS && a.heat_score<maxS : true;
+        const hs = Number.parseFloat(a.heat_score);
+        const hm = Number.isFinite(hs) ? hs >= minS && hs < maxS : true;
         return om && hm;
       });
       if (m.length) filtered[cat] = m;
@@ -2707,19 +3018,9 @@ function _checkedCats() { return typeof getSelectedValues==='function' ? getSele
 
 // ── Avg Heat by Category Chart ───────────────────────────────────────────────
 (function() {
-  const HEAT_CAT_DATA = {
-    concert:       { melco:57.7, wynn:54.0, sands:50.2, mgm:50.0, galaxy:42.4, sjm:33.7 },
-    food:          { melco:59.6, wynn:50.0, mgm:43.4, sjm:41.6, sands:41.5, galaxy:31.8 },
-    exhibition:    { melco:69.8, sjm:52.7, sands:50.9, galaxy:48.2, mgm:43.9, wynn:43.6 },
-    experience:    { melco:63.7, mgm:53.9, wynn:49.6, sands:49.5, galaxy:38.6, sjm:28.7 },
-    crossover:     { melco:68.3, wynn:53.9, sands:45.4, sjm:44.3, mgm:42.8, galaxy:31.7 },
-    shopping:      { galaxy:62.9, wynn:56.4, sands:42.8, sjm:35.1, mgm:18.6 },
-    accommodation: { wynn:64.0, melco:59.1, mgm:54.8, sands:40.7, galaxy:36.4, sjm:33.9 },
-    sport:         { melco:83.3, sands:71.8, galaxy:63.1 },
-  };
   const CAT_LABELS = {
     concert:'Concert', food:'Food', exhibition:'Exhibition', experience:'Experience',
-    crossover:'Crossover', shopping:'Shopping', accommodation:'Accommodation', sport:'Sport'
+    crossover:'Crossover', shopping:'Shopping', accommodation:'Accommodation', sport:'Sport', gaming:'Gaming'
   };
 
   let selectedCat = null;
@@ -2728,18 +3029,36 @@ function _checkedCats() { return typeof getSelectedValues==='function' ? getSele
 
   // Get categories that are both checked in sidebar AND have data
   function activeCats() {
-    const chk = _checkedCats();
-    return Object.keys(HEAT_CAT_DATA).filter(c => chk.includes(c));
+    return _analyticsCats();
   }
 
-  // Get operators that are checked in sidebar AND have data for the current cat
-  function activeOpsForCat(cat) {
-    const chk    = _checkedOps();
-    const catRow = HEAT_CAT_DATA[cat] || {};
-    return Object.entries(catRow)
-      .filter(([op]) => chk.includes(op))
-      .sort((a,b) => b[1]-a[1])
-      .map(([op]) => op);
+  const DEMO_HEAT_AVG = {
+    concert:       { melco:{avg:57.7,count:3}, wynn:{avg:54.0,count:2}, sands:{avg:50.2,count:3}, mgm:{avg:50.0,count:2}, galaxy:{avg:42.4,count:1}, sjm:{avg:33.7,count:2}, government:{avg:0,count:0} },
+    food:          { melco:{avg:59.6,count:2}, wynn:{avg:50.0,count:2}, mgm:{avg:43.4,count:2}, sjm:{avg:41.6,count:2}, sands:{avg:41.5,count:3}, galaxy:{avg:31.8,count:3}, government:{avg:0,count:0} },
+    exhibition:    { melco:{avg:69.8,count:3}, sjm:{avg:52.7,count:2}, sands:{avg:50.9,count:2}, galaxy:{avg:48.2,count:3}, mgm:{avg:43.9,count:1}, wynn:{avg:43.6,count:2}, government:{avg:0,count:0} },
+    experience:    { melco:{avg:63.7,count:2}, mgm:{avg:53.9,count:3}, wynn:{avg:49.6,count:3}, sands:{avg:49.5,count:2}, galaxy:{avg:38.6,count:2}, sjm:{avg:28.7,count:1}, government:{avg:35.0,count:2} },
+    crossover:     { melco:{avg:68.3,count:3}, wynn:{avg:53.9,count:1}, sands:{avg:45.4,count:3}, sjm:{avg:44.3,count:1}, mgm:{avg:42.8,count:2}, galaxy:{avg:31.7,count:2}, government:{avg:0,count:0} },
+    shopping:      { galaxy:{avg:62.9,count:3}, wynn:{avg:56.4,count:2}, sands:{avg:42.8,count:2}, sjm:{avg:35.1,count:2}, mgm:{avg:18.6,count:1}, melco:{avg:0,count:0}, government:{avg:0,count:0} },
+    accommodation: { wynn:{avg:64.0,count:3}, melco:{avg:59.1,count:2}, mgm:{avg:54.8,count:3}, sands:{avg:40.7,count:2}, galaxy:{avg:36.4,count:2}, sjm:{avg:33.9,count:1}, government:{avg:0,count:0} },
+    sport:         { melco:{avg:83.3,count:3}, sands:{avg:71.8,count:2}, galaxy:{avg:63.1,count:2}, wynn:{avg:0,count:0}, mgm:{avg:0,count:0}, sjm:{avg:0,count:0}, government:{avg:0,count:0} },
+    gaming:        { wynn:{avg:62.0,count:3}, sands:{avg:55.0,count:3}, galaxy:{avg:0,count:0}, mgm:{avg:0,count:0}, melco:{avg:0,count:0}, sjm:{avg:0,count:0}, government:{avg:0,count:0} }
+  };
+
+  function heatRowsForCat(cat) {
+    const rowMap = {};
+    _selectedOpTitles().forEach(op => {
+      const opLc = _OP_LC[op] || op.toLowerCase();
+      const acts = (_chartCatData[cat] || []).filter(a => (a.operator || '').toLowerCase() === opLc);
+      const scored = acts
+        .map(a => Number.parseFloat(a.heat_score))
+        .filter(v => Number.isFinite(v));
+      const demoCell = DEMO_HEAT_AVG[cat]?.[opLc] || { avg: 0, count: 0 };
+      rowMap[opLc] = {
+        count: acts.length || (!_hasAppliedFilters ? demoCell.count : 0),
+        avg: scored.length ? scored.reduce((sum, v) => sum + v, 0) / scored.length : (!_hasAppliedFilters ? demoCell.avg : 0),
+      };
+    });
+    return rowMap;
   }
 
   function buildPills() {
@@ -2771,13 +3090,27 @@ function _checkedCats() { return typeof getSelectedValues==='function' ? getSele
   function renderHeatAvgChart() {
     const canvas = document.getElementById('heatAvgBarChart');
     const wrap   = document.getElementById('heatAvgBarWrap');
+    const note   = document.getElementById('heatAvgMissingOps');
     if (!canvas) return;
     if (!selectedCat) { buildPills(); if (!selectedCat) return; }
 
-    const ops    = activeOpsForCat(selectedCat);
-    const maxVal = ops.length ? HEAT_CAT_DATA[selectedCat][ops[0]] : 0;
-    const values = ops.map(op => HEAT_CAT_DATA[selectedCat][op]);
+    const opTitles = _selectedOpTitles();
+    const rowMap = heatRowsForCat(selectedCat);
+    const ops = opTitles
+      .map(op => _OP_LC[op] || op.toLowerCase())
+      .sort((a, b) => {
+        const diff = (rowMap[b]?.avg || 0) - (rowMap[a]?.avg || 0);
+        if (diff !== 0) return diff;
+        return (rowMap[b]?.count || 0) - (rowMap[a]?.count || 0);
+      });
+    const values = ops.map(op => rowMap[op]?.avg || 0);
+    const maxVal = values.length ? Math.max(...values) : 0;
     const labels = ops.map(op => _OP_LABEL[op] || op);
+    const zeroOps = ops.filter(op => (rowMap[op]?.count || 0) === 0).map(op => (_OP_LABEL[op] || op).replace(' ★', ''));
+
+    if (note) {
+      note.textContent = zeroOps.length ? `No ${CAT_LABELS[selectedCat] || selectedCat} activities: ${zeroOps.join(', ')}` : '';
+    }
 
     wrap.style.height = (ops.length * 48 + 40) + 'px';
     if (heatAvgChart) { heatAvgChart.destroy(); heatAvgChart = null; }
@@ -2790,13 +3123,15 @@ function _checkedCats() { return typeof getSelectedValues==='function' ? getSele
         const ff=getComputedStyle(document.body).fontFamily||'sans-serif';
         const meta=chart.getDatasetMeta(0);
         meta.data.forEach((bar,i) => {
-          const val=values[i], op=ops[i], isMax=val===maxVal;
+          const val=values[i], op=ops[i], isMax=val===maxVal && maxVal > 0, count=rowMap[op]?.count || 0;
           const bRight=x.getPixelForValue(val), bLeft=x.getPixelForValue(0);
           const bw=bRight-bLeft, by=bar.y;
           ctx.save();
           ctx.font='700 12px '+ff; ctx.fillStyle='rgba(0,0,0,0.82)';
           ctx.textBaseline='middle';
-          if (bw>40) {
+          if (count === 0) {
+            ctx.textAlign='left'; ctx.fillText('0', bLeft + 5, by);
+          } else if (bw>40) {
             ctx.textAlign='right'; ctx.fillText(val.toFixed(1), bRight-8, by);
           } else {
             ctx.textAlign='left'; ctx.fillText(val.toFixed(1), bRight+5, by);
@@ -2841,7 +3176,8 @@ function _checkedCats() { return typeof getSelectedValues==='function' ? getSele
             _activeHabOp=null; _updateHabColors(); clearChartFilter(); return;
           }
           const i=els[0].index, op=ops[i];
-          const opTitle={wynn:'Wynn',melco:'Melco',mgm:'MGM',galaxy:'Galaxy',sands:'Sands',sjm:'SJM'}[op]||op;
+          if ((rowMap[op]?.count || 0) === 0) return;
+          const opTitle={wynn:'Wynn',melco:'Melco',mgm:'MGM',galaxy:'Galaxy',sands:'Sands',sjm:'SJM',government:'Government'}[op]||op;
           if (_activeHabOp===op) {
             _activeHabOp=null; _updateHabColors(); clearChartFilter();
           } else {
@@ -2852,7 +3188,12 @@ function _checkedCats() { return typeof getSelectedValues==='function' ? getSele
           legend:{display:false},
           tooltip:{ callbacks:{
             title: ctx => ctx[0].label.replace(' \u2605',''),
-            label: ctx => ['  Avg heat: '+ctx.parsed.x.toFixed(1),'  Click to filter events'],
+            label: ctx => {
+              const op = ops[ctx.dataIndex];
+              const count = rowMap[op]?.count || 0;
+              if (!count) return ['  No events in this category'];
+              return ['  Avg heat: '+ctx.parsed.x.toFixed(1), `  ${count} event${count !== 1 ? 's' : ''}`, '  Click to filter events'];
+            },
           }}
         },
         scales:{
@@ -2883,8 +3224,200 @@ function _checkedCats() { return typeof getSelectedValues==='function' ? getSele
     })
   );
 
+  window._rebuildHeatAvgChart = function() {
+    _activeHabOp = null;
+    buildPills();
+    renderHeatAvgChart();
+  };
+
   buildPills();
   renderHeatAvgChart();
+})();
+
+// ── Activity Heatmap ─────────────────────────────────────────────────────────
+(function() {
+  const HM_OP_ORDER = ['Wynn', 'Sands', 'Galaxy', 'MGM', 'Melco', 'SJM', 'Government'];
+  const HM_OP_LC_MAP = {
+    Wynn: 'wynn',
+    Sands: 'sands',
+    Galaxy: 'galaxy',
+    MGM: 'mgm',
+    Melco: 'melco',
+    SJM: 'sjm',
+    Government: 'government'
+  };
+  const HM_CAT_ORDER = ['concert', 'exhibition', 'experience', 'sport', 'crossover', 'accommodation', 'food', 'shopping', 'gaming'];
+  const HM_CAT_LABELS = {
+    concert: 'Concert',
+    exhibition: 'Exhibition',
+    experience: 'Experience',
+    sport: 'Sport',
+    crossover: 'Crossover',
+    accommodation: 'Hotel',
+    food: 'Food',
+    shopping: 'Shopping',
+    gaming: 'Gaming'
+  };
+  const HM_CAT_ICONS = {
+    concert: '🎤',
+    exhibition: '🖼️',
+    experience: '✨',
+    sport: '🏅',
+    crossover: '🤝',
+    accommodation: '🏨',
+    food: '🍽️',
+    shopping: '🛍️',
+    gaming: '🎰'
+  };
+  const DEMO_CELLS = {
+    concert:       { wynn:{n:2,h:54.0}, sands:{n:3,h:50.2}, galaxy:{n:1,h:42.4}, mgm:{n:2,h:50.0}, melco:{n:3,h:57.7}, sjm:{n:2,h:33.7}, government:{n:0,h:null} },
+    food:          { wynn:{n:2,h:50.0}, sands:{n:3,h:41.5}, galaxy:{n:3,h:31.8}, mgm:{n:2,h:43.4}, melco:{n:2,h:59.6}, sjm:{n:2,h:41.6}, government:{n:1,h:29.0} },
+    exhibition:    { wynn:{n:2,h:43.6}, sands:{n:2,h:50.9}, galaxy:{n:3,h:48.2}, mgm:{n:1,h:43.9}, melco:{n:3,h:69.8}, sjm:{n:2,h:52.7}, government:{n:1,h:34.0} },
+    experience:    { wynn:{n:3,h:49.6}, sands:{n:2,h:49.5}, galaxy:{n:2,h:38.6}, mgm:{n:3,h:53.9}, melco:{n:2,h:63.7}, sjm:{n:1,h:28.7}, government:{n:2,h:35.0} },
+    crossover:     { wynn:{n:1,h:53.9}, sands:{n:3,h:45.4}, galaxy:{n:2,h:31.7}, mgm:{n:2,h:42.8}, melco:{n:3,h:68.3}, sjm:{n:1,h:44.3}, government:{n:1,h:30.0} },
+    shopping:      { wynn:{n:2,h:56.4}, sands:{n:2,h:42.8}, galaxy:{n:3,h:62.9}, mgm:{n:1,h:18.6}, melco:{n:1,h:27.0}, sjm:{n:2,h:35.1}, government:{n:0,h:null} },
+    accommodation: { wynn:{n:3,h:64.0}, sands:{n:2,h:40.7}, galaxy:{n:2,h:36.4}, mgm:{n:3,h:54.8}, melco:{n:2,h:59.1}, sjm:{n:1,h:33.9}, government:{n:0,h:null} },
+    sport:         { wynn:{n:1,h:44.0}, sands:{n:2,h:71.8}, galaxy:{n:2,h:63.1}, mgm:{n:1,h:39.0}, melco:{n:3,h:83.3}, sjm:{n:1,h:34.0}, government:{n:1,h:37.0} },
+    gaming:        { wynn:{n:3,h:62.0}, sands:{n:3,h:55.0}, galaxy:{n:1,h:41.0}, mgm:{n:1,h:36.0}, melco:{n:1,h:33.0}, sjm:{n:1,h:31.0}, government:{n:0,h:null} },
+  };
+
+  function hmColour(value) {
+    const v = Math.max(0, Math.min(100, Number(value) || 0));
+    const ratio = v / 100;
+    const stops = [
+      [255, 245, 245],
+      [254, 205, 211],
+      [251, 113, 133],
+      [225, 29, 72],
+      [136, 19, 55]
+    ];
+    const pos = ratio * (stops.length - 1);
+    const lo = Math.floor(pos);
+    const hi = Math.min(stops.length - 1, lo + 1);
+    const t = pos - lo;
+    const r = Math.round(stops[lo][0] + (stops[hi][0] - stops[lo][0]) * t);
+    const g = Math.round(stops[lo][1] + (stops[hi][1] - stops[lo][1]) * t);
+    const b = Math.round(stops[lo][2] + (stops[hi][2] - stops[lo][2]) * t);
+    return {
+      bg: `rgb(${r},${g},${b})`,
+      text: ratio < 0.55 ? '#3B0A15' : '#fff',
+      border: 'transparent'
+    };
+  }
+
+  function buildHeatmap() {
+    const headerRow = document.getElementById('heatmapHeaderRow');
+    const body = document.getElementById('heatmapBody');
+    const legendBar = document.getElementById('heatmapLegendBar');
+    const legendMax = document.getElementById('heatmapLegendMax');
+    if (!headerRow || !body) return;
+
+    const activeOps = HM_OP_ORDER.filter(op => _analyticsOps().includes(HM_OP_LC_MAP[op]));
+    const activeCats = HM_CAT_ORDER.filter(cat => _analyticsCats().includes(cat));
+
+    headerRow.innerHTML = '';
+    body.innerHTML = '';
+
+    if (!activeOps.length || !activeCats.length) {
+      if (legendBar) legendBar.innerHTML = '';
+      if (legendMax) legendMax.textContent = '100';
+      return;
+    }
+
+    const hasLiveData = _hasAppliedFilters && Object.values(_chartCatData).some(acts => acts && acts.length > 0);
+
+    function cellN(cat, op) {
+      if (!hasLiveData) return DEMO_CELLS[cat]?.[HM_OP_LC_MAP[op]]?.n || 0;
+      return (_chartCatData[cat] || []).filter(a => (a.operator || '').toLowerCase() === HM_OP_LC_MAP[op]).length;
+    }
+
+    function cellH(cat, op) {
+      if (!hasLiveData) return DEMO_CELLS[cat]?.[HM_OP_LC_MAP[op]]?.h ?? null;
+      const matching = (_chartCatData[cat] || []).filter(a => (a.operator || '').toLowerCase() === HM_OP_LC_MAP[op]);
+      const scored = matching
+        .map(a => Number.parseFloat(a.heat_score))
+        .filter(v => Number.isFinite(v));
+      if (scored.length) {
+        return scored.reduce((sum, v) => sum + v, 0) / scored.length;
+      }
+      return DEMO_CELLS[cat]?.[HM_OP_LC_MAP[op]]?.h ?? null;
+    }
+
+    const corner = document.createElement('th');
+    corner.className = 'row-label';
+    headerRow.appendChild(corner);
+
+    activeCats.forEach(cat => {
+      const th = document.createElement('th');
+      th.innerHTML = `${HM_CAT_ICONS[cat] || '📍'}<br>${HM_CAT_LABELS[cat] || cat}`;
+      th.style.lineHeight = '1.3';
+      headerRow.appendChild(th);
+    });
+
+    activeOps.forEach(op => {
+      const tr = document.createElement('tr');
+      const lbl = document.createElement('td');
+      lbl.className = 'heatmap-row-label';
+      lbl.textContent = op;
+      tr.appendChild(lbl);
+
+      activeCats.forEach(cat => {
+        const n = cellN(cat, op);
+        const h = cellH(cat, op);
+        const td = document.createElement('td');
+
+        if (n === 0) {
+          td.className = 'heatmap-cell zero';
+          td.textContent = '0';
+        } else {
+          const clr = hmColour(h != null ? h : 40);
+          td.className = 'heatmap-cell';
+          td.style.background = clr.bg;
+          td.style.color = clr.text;
+          td.style.borderColor = clr.border;
+          td.innerHTML = `<div style="font-size:14px;font-weight:750;line-height:1.2;">${n}</div>${h != null ? `<div style="font-size:10px;font-weight:600;margin-top:2px;opacity:0.9;">🔥${h.toFixed(0)}</div>` : ''}`;
+          td.title = `${op} x ${HM_CAT_LABELS[cat] || cat}: ${n} event${n !== 1 ? 's' : ''}${h != null ? ` · avg heat ${h.toFixed(1)}` : ''}`;
+          td.addEventListener('click', () => {
+            applyChartFilter(op, cat);
+            const sel = document.getElementById('doughnutOperatorSelect');
+            if (sel) sel.value = op;
+            const hmBanner = document.getElementById('hmFilterBanner');
+            const hmLabel = document.getElementById('hmFilterLabel');
+            const opColor = CHART_OP_COLORS[op] || '#6B7280';
+            const catCfg = CHART_CAT_CONFIG[cat] || { label: HM_CAT_LABELS[cat] || cat, color: '#6B7280' };
+            if (hmBanner) hmBanner.style.display = 'flex';
+            if (hmLabel) {
+              hmLabel.innerHTML =
+                `Showing: <span style="color:${opColor};font-weight:700;">${op}</span>` +
+                ` · <span style="color:${catCfg.color};font-weight:700;">${catCfg.label}</span> events`;
+            }
+          });
+        }
+
+        tr.appendChild(td);
+      });
+
+      body.appendChild(tr);
+    });
+
+    if (legendBar) {
+      legendBar.innerHTML = '';
+      for (let i = 0; i <= 20; i++) {
+        const swatch = document.createElement('div');
+        swatch.style.cssText = `flex:1;background:${hmColour(i / 20 * 100).bg};`;
+        legendBar.appendChild(swatch);
+      }
+    }
+    if (legendMax) legendMax.textContent = '100';
+  }
+
+  window._rebuildHeatmap = buildHeatmap;
+
+  document.querySelectorAll('input[name="operator"], input[name="category"]').forEach(cb =>
+    cb.addEventListener('change', buildHeatmap)
+  );
+
+  setTimeout(buildHeatmap, 0);
 })();
 </script>
 
