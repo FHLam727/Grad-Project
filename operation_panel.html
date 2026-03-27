@@ -256,62 +256,200 @@
     }
     .event-desc b{font-weight:650;color: rgba(15,23,42,0.80);}
 
-    /* ===== Operator Perspective ===== */
-    .persp-grid{
-      display:grid;
-      grid-template-columns: 1.6fr 1fr;
-      gap:14px;
-      align-items:stretch;
-      margin-top:6px;
-    }
-
-    .suggestion-card{
+    /* ===== DeepSeek Strategy Prompt ===== */
+    .prompt-panel{
+      margin-top:8px;
       display:flex;
-      gap:12px;
+      flex-direction:column;
+      gap:14px;
+      padding:18px;
+      border-radius:20px;
+      border:1px solid rgba(37,99,235,0.12);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92)),
+        radial-gradient(circle at top right, rgba(37,99,235,0.08), transparent 40%);
+      box-shadow: var(--cardShadow);
+    }
+    .prompt-meta{
+      display:flex;
       align-items:flex-start;
-      padding:14px 14px;
-      border-radius:18px;
-      border:1px solid rgba(15,23,42,0.08);
-      background:rgba(255,255,255,0.86);
-      box-shadow: var(--cardShadow);
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
     }
-    .accent{
-      width:4px;
-      border-radius:10px;
-      background: var(--accentBar);
-      box-shadow: 0 0 0 4px var(--accentBarSoft);
-      flex:0 0 auto;
-      margin-top:2px;
+    .prompt-meta p{
+      margin:0;
     }
-    .suggestion-text{
-      font-size:15px;   /* reduced */
-      font-weight:600;
-      color: rgba(15,23,42,0.86);
-      line-height:1.4;
+    .prompt-meta-title{
+      font-size:15px;
+      font-weight:750;
+      color:rgba(15,23,42,0.88);
     }
-
-    .focus-card{
-      padding:14px 14px;
-      border-radius:18px;
-      border:1px solid rgba(15,23,42,0.08);
-      background:rgba(255,255,255,0.86);
-      box-shadow: var(--cardShadow);
+    .prompt-meta-sub{
+      margin-top:4px !important;
+      font-size:13px;
+      line-height:1.5;
+      color:rgba(15,23,42,0.58);
+      max-width:760px;
+    }
+    .prompt-actions{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .prompt-btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      padding:8px 14px;
+      border-radius:999px;
+      border:1px solid rgba(37,99,235,0.18);
+      background:rgba(37,99,235,0.08);
+      color:#1D4ED8;
+      font-size:12px;
+      font-weight:700;
+      cursor:pointer;
+      font-family:var(--font);
+      transition:background .15s ease, border-color .15s ease, transform .15s ease;
+    }
+    .prompt-btn:hover{
+      background:rgba(37,99,235,0.12);
+      border-color:rgba(37,99,235,0.28);
+      transform:translateY(-1px);
+    }
+    .prompt-btn.secondary{
+      background:rgba(15,23,42,0.04);
+      color:rgba(15,23,42,0.72);
+      border-color:rgba(15,23,42,0.10);
+    }
+    .prompt-btn.secondary:hover{
+      background:rgba(15,23,42,0.07);
+      border-color:rgba(15,23,42,0.18);
+    }
+    .prompt-list{
+      margin:0;
+      padding:0;
+      list-style:none;
       display:flex;
       flex-direction:column;
       gap:10px;
     }
-    .focus-title{
-      font-size:14px;
-      font-weight:650;
-      color: rgba(15,23,42,0.62);
-      margin:0;
+    .prompt-item{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      padding:14px 16px;
+      border-radius:16px;
+      background:rgba(255,255,255,0.92);
+      box-shadow: inset 0 0 0 1px rgba(15,23,42,0.08);
+      color:rgba(15,23,42,0.84);
     }
-    .focus-desc{
+    .prompt-item-index{
+      flex:0 0 auto;
+      min-width:24px;
+      height:24px;
+      border-radius:999px;
+      background:rgba(37,99,235,0.10);
+      color:#1D4ED8;
+      font-size:12px;
+      font-weight:800;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      margin-top:1px;
+    }
+    .prompt-item-text{
+      font-size:13.5px;
+      line-height:1.6;
+    }
+    .prompt-item-title{
       font-size:13px;
-      font-weight:550;
-      color: rgba(15,23,42,0.55);
-      line-height:1.35;
-      margin:0;
+      font-weight:800;
+      color:rgba(15,23,42,0.88);
+      margin-bottom:2px;
+    }
+    .prompt-item-body{
+      font-size:13.5px;
+      line-height:1.6;
+      color:rgba(15,23,42,0.78);
+    }
+    .prompt-item-body .event-ref{
+      font-weight:800;
+      color:#0F172A;
+    }
+    .prompt-item-body .op-ref{
+      font-weight:800;
+    }
+    .prompt-item-body .prompt-block + .prompt-block{
+      margin-top:16px;
+      padding-top:4px;
+    }
+    .prompt-item-body .rec-line{
+      display:block;
+      margin-top:8px;
+    }
+    .prompt-item-body .cat-line{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      margin-top:10px;
+      padding:4px 12px;
+      border-radius:999px;
+      border:1px solid rgba(139,92,246,0.24);
+      background:rgba(139,92,246,0.08);
+      font-weight:800;
+      color:#7C3AED;
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,0.5);
+    }
+    .prompt-item-body .heat-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      margin-left:8px;
+      padding:2px 8px;
+      border-radius:999px;
+      border:1px solid rgba(249,115,22,0.24);
+      background:rgba(249,115,22,0.08);
+      color:#C2410C;
+      font-weight:800;
+      font-size:12px;
+      line-height:1.2;
+      white-space:nowrap;
+    }
+    .prompt-foot{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .prompt-status{
+      font-size:12px;
+      font-weight:600;
+      color:rgba(15,23,42,0.52);
+    }
+    .compare-note{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      margin-top:10px;
+      padding:7px 12px;
+      border-radius:999px;
+      background:rgba(245,158,11,0.10);
+      border:1px solid rgba(245,158,11,0.22);
+      color:#B45309;
+      font-size:12px;
+      font-weight:700;
+      letter-spacing:.01em;
+    }
+    .compare-note-dot{
+      width:10px;
+      height:10px;
+      border-radius:999px;
+      background:#F59E0B;
+      box-shadow:0 0 0 4px rgba(245,158,11,0.16);
+      flex:0 0 auto;
     }
 
     /* ===== Market Intelligence Summary ===== */
@@ -972,6 +1110,7 @@
               <div>
                 <h3 class="block-title">Analytics Charts</h3>
                 <div class="block-sub">Click any segment or bar to filter the Events list above.</div>
+                <div class="compare-note"><span class="compare-note-dot"></span>Comparison between Selected organisers and Wynn</div>
               </div>
             </div>
 
@@ -997,7 +1136,7 @@
                 <div style="font-size:11.5px;color:var(--muted);margin-bottom:10px;">click to filter</div>
                 <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
                   <label style="font-size:11.5px;font-weight:600;color:var(--muted);white-space:nowrap;">View for</label>
-                  <select id="doughnutOperatorSelect" style="flex:1;min-width:0;padding:7px 10px;border-radius:10px;border:1px solid rgba(15,23,42,0.12);background:#F9FAFB;font-size:12px;font-family:var(--font);">
+                  <select id="doughnutOperatorSelect" style="flex:1;min-width:0;padding:7px 10px;border-radius:10px;border:1.5px solid rgba(245,158,11,0.28);background:linear-gradient(180deg, #FFFDF8, #FFF7ED);font-size:12px;font-family:var(--font);font-weight:700;color:#92400E;box-shadow:0 1px 0 rgba(255,255,255,0.85) inset;">
                     <option value="Wynn">Wynn</option>
                     <option value="Sands">Sands</option>
                     <option value="Galaxy">Galaxy</option>
@@ -1019,14 +1158,15 @@
                 </div>
               </div>
 
-              <!-- RIGHT: Horizontal Bar -->
+              <!-- RIGHT: Event Count by Category -->
               <div>
                 <div style="font-size:13px;font-weight:700;margin-bottom:2px;color:var(--text);">Event Distribution by Category</div>
-                <div style="font-size:11.5px;color:var(--muted);margin-bottom:10px;">Click a bar segment to filter events</div>
-                <div style="position:relative;height:300px;">
-                  <canvas id="barChart" style="cursor:pointer;"></canvas>
+                <div style="font-size:11.5px;color:var(--muted);margin-bottom:12px;">Select a category to compare organisers</div>
+                <div id="evtCatFilter" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;"></div>
+                <div id="evtCountBarWrap" style="position:relative;">
+                  <canvas id="evtCountBarChart" style="cursor:pointer;"></canvas>
                 </div>
-                <div id="barLegend" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;justify-content:flex-start;"></div>
+                <div id="evtCountMissingOps" style="margin-top:8px;font-size:11.5px;color:var(--muted);"></div>
               </div>
 
             </div>
@@ -1104,62 +1244,31 @@
           <section class="block">
             <div class="block-head">
               <div>
-                <h3 class="block-title">Organiser Perspective</h3>
-                <div class="block-sub">Action-oriented suggestions based on current market mix.</div>
+                <h3 class="block-title">Wynn's Market Performance & Positioning</h3>
+                <div class="block-sub">Analysis of Wynn's strength and potential improvements, as well as AI recommendations made to Wynn.</div>
               </div>
-              <div class="pill ai">Strategy AI</div>
+              <div class="pill ai">Recommendations by AI</div>
             </div>
 
-            <div class="persp-grid">
-              <div id="suggestionsCol" style="display:flex; flex-direction:column; gap:12px;">
-                <!-- injected -->
+              <ul id="strategyPromptList" class="prompt-list">
+                <li class="prompt-item">
+                  <span class="prompt-item-index">1</span>
+                  <div class="prompt-item-text">
+                    <div class="prompt-item-title">Loading</div>
+                    <div class="prompt-item-body">Building Wynn comparison points…</div>
+                  </div>
+                </li>
+              </ul>
+              <div class="prompt-foot">
+                <div id="strategyPromptStatus" class="prompt-status">Waiting for analytics data…</div>
               </div>
-
-              <div class="focus-card">
-                <p class="focus-title">Focus Organiser</p>
-                <select id="perspectiveOperator">
-                  <option value="Wynn">Wynn</option>
-                  <option value="Sands">Sands</option>
-                  <option value="Galaxy">Galaxy</option>
-                  <option value="MGM">MGM</option>
-                  <option value="Melco">Melco</option>
-                  <option value="SJM">SJM</option>
-                  <option value="Government">Government</option>
-                </select>
-                <p class="focus-desc">Select an organiser to see specific strategic recommendations.</p>
-              </div>
-            </div>
           </section>
 
-          <!-- Block #4: Market Intelligence Summary -->
-          <section class="block">
-            <div class="block-head">
-              <div>
-                <h3 class="block-title">Market Summary</h3>
-              </div>
-            </div>
-
-            <div class="tile-row">
-              <div class="tile">
-                <p class="tile-k">Organisers & No. of Events</p>
-                <p class="tile-v" id="tileOperatorSplit">—</p>
-              </div>
-              <div class="tile">
-                <p class="tile-k">Hot Themes</p>
-                <p class="tile-v" id="tileThemes">—</p>
-              </div>
-              <div class="tile">
-                <p class="tile-k">Expected Visitor Range</p>
-                <p class="tile-v" id="tileFootfall">—</p>
-              </div>
-            </div>
-
-            <!-- Updated Button Container with Same Color Buttons -->
-            <div class="button-container">
-              <a class="action-btn" id="archivedLink" href="./archived.html">View Archived Reports</a>
-              <a class="action-btn" href="./download_report.html">Download Report</a>
-            </div>
-          </section>
+          <!-- Buttons — no wrapper card -->
+          <div class="button-container">
+            <a class="action-btn" id="archivedLink" href="./archived.html">View Archived Reports</a>
+            <a class="action-btn" href="./download_report.html">Download Report</a>
+          </div>
         </div>
       </main>
 
@@ -1211,27 +1320,30 @@
       gamingByOperator: {
         Wynn: [
           {
-            name:"VIP Poker Tournament",
-            overview:"Invite-only tournament with premium lounge access.",
+            name:"Private Gaming Masters Series",
+            overview:"Invitation-based premium table-games weekend designed for high-value guests.",
             predictedVisitors:"800 – 1,200",
-            location:"VIP Gaming Salon",
-            highlights:"Member-only registration; premium service staffing; late-night peak expected."
+            location:"Premium Gaming Salon",
+            highlights:"VIP hosting, premium lounge access, and late-night traffic expected.",
+            category:"gaming"
           },
           {
-            name:"Blackjack Challenge",
-            overview:"High-roller table event with member perks.",
+            name:"Elite Table Privileges Weekend",
+            overview:"Members-only premium gaming activation with layered loyalty rewards.",
             predictedVisitors:"500 – 900",
-            location:"Premium Mass Floor",
-            highlights:"Reward tiers for repeat play; recommend queue & pit coverage during peak hours."
+            location:"Signature Table Zone",
+            highlights:"Focus on repeat visitation, service quality, and premium spend capture.",
+            category:"gaming"
           }
         ],
         Sands: [
           {
-            name:"Slot Championship",
-            overview:"Weekend slot competition with prizes.",
+            name:"Jackpot Weekend Series",
+            overview:"Mass-premium gaming weekend with prize mechanics and broad participation.",
             predictedVisitors:"1,200 – 1,800",
             location:"Main Gaming Floor",
-            highlights:"Broad participation expected; signage and prize-claim process should be streamlined."
+            highlights:"High public visibility and strong footfall concentration across prime hours.",
+            category:"gaming"
           }
         ],
         Galaxy: [],
@@ -1244,74 +1356,57 @@
       nonGamingByOperator: {
         Wynn: [
           {
-            name:"Arena Concert Night",
-            overview:"Live performance driving weekend traffic and hotel bookings.",
+            name:"Luxury Music Showcase",
+            overview:"Premium entertainment night aimed at driving resort traffic and hotel stays.",
             predictedVisitors:"6,000 – 9,000",
             location:"Grand Theater",
-            highlights:"Strong pre-event F&B demand; post-event transport surge likely within 30–60 minutes."
+            highlights:"Strong potential to lift dining, room conversion, and post-show spend.",
+            category:"concert"
           }
         ],
         Galaxy: [
           {
-            name:"Food Festival",
-            overview:"Seasonal food event with celebrity chefs.",
+            name:"Signature Gourmet Weekend",
+            overview:"Food-led lifestyle activation with strong visual and social-sharing appeal.",
             predictedVisitors:"3,000 – 5,500",
             location:"Convention Hall A",
-            highlights:"High social sharing potential; manage reservation flow and waiting times."
+            highlights:"Can pull leisure audiences and boost dining-led destination traffic.",
+            category:"food"
           }
         ],
-        Sands: [],
+        Sands: [
+          {
+            name:"Art Central Preview Experience",
+            overview:"Art and lifestyle showcase targeting culturally engaged premium visitors.",
+            predictedVisitors:"1,500 – 2,500",
+            location:"Cotai Expo Gallery",
+            highlights:"Useful for content, partnerships, and premium non-gaming positioning.",
+            category:"exhibition"
+          },
+          {
+            name:"Immersive Light Installation Series",
+            overview:"Visual exhibition experience designed to sustain footfall beyond peak hours.",
+            predictedVisitors:"2,000 – 3,200",
+            location:"Integrated Resort Atrium",
+            highlights:"Good for social amplification and all-day traffic smoothing.",
+            category:"exhibition"
+          }
+        ],
         MGM: [],
         Melco: [],
         SJM: [],
         Government: [
           {
-            name:"Macau Tourism & Safety Briefing",
-            overview:"Public-sector briefing to align operators on peak-period readiness.",
+            name:"Tourism Readiness Forum",
+            overview:"Industry coordination session around visitor readiness and operating standards.",
             predictedVisitors:"200 – 350",
-            location:"Government Conference Center",
-            highlights:"Cross-operator coordination; focus on crowd management, transport capacity, and incident response."
+            location:"Macau Conference Centre",
+            highlights:"Highlights public-sector emphasis on cross-property service and transport readiness.",
+            category:"experience"
           }
         ]
       },
 
-      perspective: {
-        Wynn: [
-          "Double down on non-gaming bundles (hotel + F&B) to increase stay length.",
-          "Stagger gaming events to avoid overlap with citywide festivals.",
-          "Pre-allocate staffing for check-in and queue management if forecast exceeds capacity."
-        ],
-        Sands: [
-          "Use multiple mid-size activations to smooth footfall and reduce congestion risk.",
-          "Pair promotions with transport/room bundles to capture weekend traffic from nearby cities.",
-          "Co-market non-gaming attractions to protect overall share of voice when gaming is quiet."
-        ],
-        Galaxy: [
-          "Maximize earned media via influencer-friendly experiences around food/entertainment themes.",
-          "Bundle ticketing + dining reservations to reduce friction and improve journey quality.",
-          "Increase shuttle frequency and wayfinding during peaks to protect satisfaction."
-        ],
-        MGM: [
-          "Differentiate with niche cultural events to drive premium positioning and higher-value traffic.",
-          "Capture overflow when competitors host mega concerts via targeted last-minute offers.",
-          "Strengthen retention through loyalty sign-ups and follow-up offers post-event."
-        ],
-        Melco: [
-          "Focus on 1–2 signature events with clear positioning to rebuild consistent attention.",
-          "Coordinate with hotel inventory to avoid price spikes that can depress conversion.",
-          "Improve bilingual service and on-site wayfinding during peaks."
-        ],
-        SJM: [
-          "Deploy crowd-control and staffing plans for forecasted spikes to protect experience.",
-          "Avoid head-to-head scheduling; concentrate budget on segments with highest conversion potential.",
-          "Pilot smaller recurring events to build stable demand rather than one-off campaigns."
-        ],
-        Government: [
-          "Align transport, queue management, and safety messaging across operators for peak periods.",
-          "Use forecasted spikes to trigger joint coordination: incident response and signage standards.",
-          "Publish multi-language advisories to reduce friction and complaints during surges."
-        ]
-      }
     };
 
     const $ = (id) => document.getElementById(id);
@@ -1508,31 +1603,680 @@
       return { hasAny:true, total, ranges, operatorCounts };
     }
 
-    function renderPerspective(operatorName){
-      const col = $("suggestionsCol");
-      col.innerHTML = "";
+    function fmtNum(n) {
+      return Number.isFinite(n) ? n.toFixed(1) : "0.0";
+    }
 
-      const recs = (DEMO.perspective && DEMO.perspective[operatorName]) ? DEMO.perspective[operatorName] : [];
-      const show = recs.slice(0, 2);
+    function titleCaseWord(v) {
+      return (v || "").split(/[\s_-]+/).filter(Boolean).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
+    }
 
-      if(show.length === 0){
-        col.innerHTML = `
-          <div class="suggestion-card">
-            <div class="accent"></div>
-            <div class="suggestion-text">No recommendations available for this organiser.</div>
+    function promptOperatorRef(name) {
+      const color = (typeof CHART_OP_COLORS !== "undefined" && CHART_OP_COLORS[name]) ? CHART_OP_COLORS[name] : "#0F172A";
+      return `<span class="op-ref" style="color:${color};">${name}</span>`;
+    }
+
+    function promptCategoryRef(catKey, fallbackLabel) {
+      const cfg = CAT_CONFIG[catKey] || {};
+      const label = (cfg.label || fallbackLabel || titleCaseWord(catKey || "")).toLowerCase().replace(/\b\w/g, m => m.toUpperCase());
+      return `<span class="cat-line">${cfg.icon || "📍"} ${label}</span>`;
+    }
+
+    function promptBlock(lines) {
+      return `<div class="prompt-block">${lines.join("")}</div>`;
+    }
+
+    function promptHeatLine(opTitle, count, avg) {
+      const heatBadge = count > 0 ? `<span class="heat-badge">🔥 平均 ${fmtNum(avg)}</span>` : "";
+      return `<span class="rec-line">${promptOperatorRef(opTitle)}: ${count}${heatBadge}</span>`;
+    }
+
+    function promptTextLine(text) {
+      return `<span class="rec-line">${text}</span>`;
+    }
+
+    function promptEventRef(name) {
+      return `<span class="event-ref">「${name || "未命名活動"}」</span>`;
+    }
+
+    function escapeRegex(str) {
+      return String(str || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+
+    function normalizeEventName(name) {
+      return String(name || "")
+        .toLowerCase()
+        .replace(/[「」《》"'`]/g, "")
+        .replace(/\s+/g, "")
+        .trim();
+    }
+
+    function resolvePromptEventMeta(name, events = []) {
+      const needle = normalizeEventName(name);
+      if (!needle) return null;
+      const candidates = (events || []).filter(ev => normalizeEventName(ev.name) === needle);
+      if (!candidates.length) return null;
+      return candidates.slice().sort((a, b) => (b.heat || 0) - (a.heat || 0))[0];
+    }
+
+    function formatAiRecommendationText(text, events = []) {
+      let html = String(text || "");
+      html = html.replace(/(Wynn|Sands|Galaxy|Melco|MGM|SJM|Government)\1+/g, "$1");
+      html = html.replace(/\b(Wynn|Sands|Galaxy|Melco|MGM|SJM|Government)\s*\1\b/g, "$1");
+      ["Government", "Galaxy", "Melco", "Sands", "Wynn", "MGM", "SJM"].forEach(op => {
+        const rx = new RegExp(`\\b${escapeRegex(op)}\\b\\s*[《「]([^》」]+)[》」]`, "g");
+        html = html.replace(rx, (_, name) => `${promptOperatorRef(op)}${promptEventRef(name)}`);
+      });
+      html = html.replace(/《([^》]+)》/g, (_, name) => {
+        const meta = resolvePromptEventMeta(name, events);
+        return meta ? `${promptOperatorRef(meta.operator)}${promptEventRef(name)}` : promptEventRef(name);
+      });
+      html = html.replace(/「([^」]+)」/g, (_, name) => {
+        const meta = resolvePromptEventMeta(name, events);
+        return meta ? `${promptOperatorRef(meta.operator)}${promptEventRef(name)}` : promptEventRef(name);
+      });
+      ["Government", "Galaxy", "Melco", "Sands", "Wynn", "MGM", "SJM"].forEach(op => {
+        html = html.replace(new RegExp(`\\b${op}\\b`, "g"), promptOperatorRef(op));
+        const badge = promptOperatorRef(op);
+        while (html.includes(`${badge}${badge}`)) html = html.replace(`${badge}${badge}`, badge);
+        while (html.includes(`${badge} ${badge}`)) html = html.replace(`${badge} ${badge}`, badge);
+      });
+      return html;
+    }
+
+    function cleanRecommendationLead(text) {
+      return String(text || "")
+        .replace(/^\s*建議\s*Wynn\s*/i, "")
+        .replace(/^\s*Wynn\s*/i, "")
+        .replace(/^\s*現時\s*Wynn\s+[A-Za-z]+\s*熱度為零[，,、 ]*/i, "")
+        .replace(/^\s*現時\s*Wynn\s+[A-Za-z]+\s*熱度偏低（?🔥?\d+(?:\.\d+)?）?[，,、 ]*/i, "")
+        .replace(/^\s*反映內容吸引力不足[。．]?\s*/i, "")
+        .replace(/^\s*未有舉辦\s*[A-Za-z]+\s*，?\s*但市場已有[^。]*[。．]?\s*/i, "")
+        .replace(/^\s*Wynn\s*未有舉辦\s*[A-Za-z]+\s*，?\s*但市場已有[^。]*[。．]?\s*/i, "")
+        .replace(/^\s*目前未有舉辦\s*[A-Za-z]+\s*類別活動[，,、 ]*但市場已有相關活動[，,、 ]*顯示此類別仍有補足空間[。．]?\s*/i, "")
+        .replace(/^\s*對比\s*[A-Za-z]+[「《]/i, match => match.replace(/^對比/i, ""))
+        .trim();
+    }
+
+    function sanitizeLeaderRecommendationText(item, text) {
+      let next = String(text || "");
+      if (item?.catKey === "concert") {
+        next = next
+          .replace(/[，,、]?\s*推出結合米芝蓮晚宴與水療體驗的\s*VIP\s*套票/gi, "")
+          .replace(/[，,、]?\s*推出「?演唱會\s*\+\s*米芝蓮晚宴\s*\+\s*水療」?\s*VIP\s*套票/gi, "")
+          .replace(/[，,、]?\s*推出結合米芝蓮晚宴的\s*VIP\s*套票/gi, "")
+          .replace(/[，,、]?\s*推出含米芝蓮晚宴的\s*VIP\s*套票/gi, "")
+          .replace(/[，,、]?\s*推出高端晚宴\s*\+\s*VIP\s*套票/gi, "")
+          .replace(/[，,、]?\s*並結合米芝蓮晚宴與會員優先預訂/gi, "")
+          .replace(/[，,、]?\s*並結合會員優先預訂/gi, "")
+          .replace(/[，,、]?\s*結合米芝蓮晚宴與會員優先預訂/gi, "")
+          .replace(/[，,、]?\s*結合會員優先預訂/gi, "");
+      }
+      return next.replace(/\s+/g, " ").trim();
+    }
+
+    function buildConcertWatchlistHint(item) {
+      if (item?.catKey !== "concert" || !item?.wynn?.topEvent) return "";
+      const hotterOppEvents = (item.opponents || [])
+        .flatMap(op => (op.events || []).map(ev => ({ ...ev, opTitle: op.opTitle })))
+        .filter(ev => Number(ev.heat || 0) > Number(item.wynn.topEvent.heat || 0))
+        .sort((a, b) => (b.heat || 0) - (a.heat || 0))
+        .slice(0, 2);
+      if (!hotterOppEvents.length) return "";
+      const grouped = hotterOppEvents.reduce((acc, ev) => {
+        const key = ev.opTitle || "";
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(ev.name);
+        return acc;
+      }, {});
+      const refs = Object.entries(grouped).map(([opTitle, names]) => {
+        if (names.length === 1) return `${opTitle}《${names[0]}》`;
+        const [first, ...rest] = names;
+        const tail = rest.map(name => `《${name}》`).join("和");
+        return `${opTitle}《${first}》和${tail}`;
+      }).join("、");
+      return ` 並可將 ${refs} 等更高 heat 演出列為重點觀察對象，記錄相關歌手或企劃，後續主動爭取來澳演出。`;
+    }
+
+    function buildRecommendationDisplayText(item, rawText) {
+      const body = cleanRecommendationLead(rawText);
+      const avgHeat = Number(item?.wynn?.avg || 0);
+      const fmtHeat = `🔥${fmtNum(avgHeat)}`;
+      const wynnLeads = !item?.topOpponent || (item.wynn?.count > 0 && (item.wynn?.avg || 0) > (item.topOpponent?.avg || 0));
+      if (wynnLeads) {
+        return `${sanitizeLeaderRecommendationText(item, rawText || "")}${buildConcertWatchlistHint(item)}`.trim();
+      }
+      const prefix = item?.wynn?.count > 0
+        ? `現時 ${promptOperatorRef("Wynn")} ${item.label} 熱度偏低（${fmtHeat}），反映內容吸引力不足。`
+        : `${promptOperatorRef("Wynn")} 目前未有舉辦 ${item.label} 類別活動，但市場已有相關活動，顯示此類別仍有補足空間。`;
+      const next = body || `建議 ${promptOperatorRef("Wynn")} 盡快補強更具話題性的代表作，並加入更清晰的會員禮遇或跨消費聯動。`;
+      const deduped = next
+        .replace(/^\s*現時\s*Wynn\s+[A-Za-z]+\s*熱度為零[，,、 ]*/i, "")
+        .replace(/^\s*現時\s*Wynn\s+[A-Za-z]+\s*熱度偏低（?🔥?\d+(?:\.\d+)?）?[，,、 ]*/i, "")
+        .replace(/^\s*反映內容吸引力不足[。．]?\s*/i, "")
+        .replace(/^\s*未有舉辦\s*[A-Za-z]+\s*，?\s*但市場已有[^。]*[。．]?\s*/i, "")
+        .replace(/^\s*Wynn\s*未有舉辦\s*[A-Za-z]+\s*，?\s*但市場已有[^。]*[。．]?\s*/i, "")
+        .replace(/^\s*建議\s*Wynn\s*現時\s*Wynn\s*/i, `建議 ${promptOperatorRef("Wynn")} `)
+        .replace(/^\s*Wynn\s*現時\s*Wynn\s*/i, `${promptOperatorRef("Wynn")} `)
+        .trim();
+      const normalized = deduped.startsWith("建議") ? deduped : `建議 ${promptOperatorRef("Wynn")} ${deduped}`;
+      return `${prefix} ${normalized}`;
+    }
+
+    let _strategyPromptReqSeq = 0;
+
+    function getPromptStatusEl() {
+      return document.getElementById("strategyPromptStatus");
+    }
+
+    function getPromptListEl() {
+      return document.getElementById("strategyPromptList");
+    }
+
+    function renderStrategyPromptPoints(points) {
+      const list = getPromptListEl();
+      if (!list) return;
+      list.innerHTML = points.map((point, idx) => `
+        <li class="prompt-item">
+          <span class="prompt-item-index">${idx + 1}</span>
+          <div class="prompt-item-text">
+            <div class="prompt-item-title">${point.title}</div>
+            <div class="prompt-item-body">${point.body}</div>
           </div>
-        `;
-        return;
+        </li>
+      `).join("");
+    }
+
+    function getFallbackHeatScore(catKey, operatorLc) {
+      return DEMO_THEME_HEAT[catKey]?.[operatorLc] || 0;
+    }
+
+    function promptOpLcMap() {
+      return {
+        Wynn: "wynn",
+        Sands: "sands",
+        Galaxy: "galaxy",
+        MGM: "mgm",
+        Melco: "melco",
+        SJM: "sjm",
+        Government: "government"
+      };
+    }
+
+    function promptSelectedOpTitles() {
+      const checked = typeof getSelectedValues === "function" ? getSelectedValues("operator") : [];
+      const ordered = ["Wynn", "Sands", "Galaxy", "MGM", "Melco", "SJM", "Government"];
+      const lcMap = promptOpLcMap();
+      const selected = ordered.filter(op => checked.includes(lcMap[op]));
+      return selected.includes("Wynn") ? selected : ["Wynn", ...selected];
+    }
+
+    function promptSelectedCats() {
+      return typeof getSelectedValues === "function" ? getSelectedValues("category") : [];
+    }
+
+    function getComparisonCatData() {
+      return _chartDataSource();
+    }
+
+    function getPromptEvents() {
+      const events = [];
+      for (const [catKey, acts] of Object.entries(getComparisonCatData())) {
+        for (const act of acts || []) {
+          const opLc = (act.operator || "").toLowerCase();
+          const opLabel = OP_LABELS[opLc] || titleCaseWord(opLc);
+          const parsedHeat = Number.parseFloat(act.heat_score);
+          const heat = Number.isFinite(parsedHeat) ? parsedHeat : (!_hasAppliedFilters ? getFallbackHeatScore(catKey, opLc) : 0);
+          events.push({
+            operator: opLabel,
+            operatorLc: opLc,
+            category: catKey,
+            categoryLabel: CAT_CONFIG[catKey]?.label || titleCaseWord(catKey),
+            name: act.name || "Untitled Event",
+            description: act.description || act.desc || act.overview || "",
+            date: act.date || "",
+            location: act.location || "",
+            heat,
+          });
+        }
+      }
+      return events.sort((a, b) => (b.heat - a.heat) || a.name.localeCompare(b.name));
+    }
+
+    function buildChartSnapshot(events) {
+      const selectedOps = promptSelectedOpTitles();
+      const selectedCats = promptSelectedCats();
+      const catData = getComparisonCatData();
+
+      const wynnShare = Object.entries(catData)
+        .map(([catKey, acts]) => ({
+          catKey,
+          label: CAT_CONFIG[catKey]?.label || titleCaseWord(catKey),
+          count: (acts || []).filter(a => (a.operator || "").toLowerCase() === "wynn").length
+        }))
+        .filter(item => item.count > 0)
+        .sort((a, b) => b.count - a.count);
+
+      const categoryDistribution = Object.entries(catData)
+        .map(([catKey, acts]) => ({
+          catKey,
+          label: CAT_CONFIG[catKey]?.label || titleCaseWord(catKey),
+          count: (acts || []).length
+        }))
+        .filter(item => item.count > 0)
+        .sort((a, b) => b.count - a.count);
+
+      const avgHeatRows = selectedCats.map(catKey => {
+        const rows = selectedOps.map(opTitle => {
+          const opLc = promptOpLcMap()[opTitle] || opTitle.toLowerCase();
+          const catEvents = events.filter(ev => ev.category === catKey && ev.operatorLc === opLc);
+          if (!catEvents.length) return null;
+          const avg = catEvents.reduce((sum, ev) => sum + ev.heat, 0) / catEvents.length;
+          return { opTitle, avg, count: catEvents.length };
+        }).filter(Boolean).sort((a, b) => b.avg - a.avg);
+        return rows.length ? {
+          catKey,
+          label: CAT_CONFIG[catKey]?.label || titleCaseWord(catKey),
+          leader: rows[0],
+          wynn: rows.find(row => row.opTitle === "Wynn") || null,
+          runnersUp: rows.slice(1, 3)
+        } : null;
+      }).filter(Boolean).sort((a, b) => (b.wynn?.avg || 0) - (a.wynn?.avg || 0));
+
+      const tierRows = selectedOps.map(opTitle => {
+        const opLc = promptOpLcMap()[opTitle] || opTitle.toLowerCase();
+        const opEvents = events.filter(ev => ev.operatorLc === opLc);
+        if (!opEvents.length) return { opTitle, total: 0, high: 0, mid: 0, low: 0 };
+        const high = opEvents.filter(ev => ev.heat >= 60).length;
+        const mid = opEvents.filter(ev => ev.heat >= 30 && ev.heat < 60).length;
+        const low = opEvents.filter(ev => ev.heat < 30).length;
+        return { opTitle, total: opEvents.length, high, mid, low };
+      }).sort((a, b) => {
+        const ah = a.total ? a.high / a.total : 0;
+        const bh = b.total ? b.high / b.total : 0;
+        return bh - ah || b.high - a.high || b.total - a.total;
+      });
+
+      return { wynnShare, categoryDistribution, avgHeatRows, tierRows };
+    }
+
+    function compareOpponents(selectedOps) {
+      return selectedOps.filter(op => op !== "Wynn");
+    }
+
+    function buildCategoryComparisons(events, selectedOps) {
+      const categories = promptSelectedCats();
+      return categories.map(catKey => {
+        const label = CAT_CONFIG[catKey]?.label || titleCaseWord(catKey);
+        const rows = selectedOps.map(opTitle => {
+          const opLc = promptOpLcMap()[opTitle] || opTitle.toLowerCase();
+          const opEvents = events.filter(ev => ev.category === catKey && ev.operatorLc === opLc);
+          const avg = opEvents.length ? opEvents.reduce((sum, ev) => sum + ev.heat, 0) / opEvents.length : 0;
+          const topEvent = opEvents.slice().sort((a, b) => b.heat - a.heat)[0] || null;
+          return { opTitle, opLc, count: opEvents.length, avg, events: opEvents, topEvent };
+        }).filter(row => row.count > 0);
+        if (!rows.length) return null;
+        const wynn = rows.find(row => row.opTitle === "Wynn") || { opTitle: "Wynn", opLc: "wynn", count: 0, avg: 0, events: [] };
+        const opponents = rows.filter(row => row.opTitle !== "Wynn").sort((a, b) => b.avg - a.avg || b.count - a.count);
+        const topOpponent = opponents[0] || null;
+        return { catKey, label, wynn, opponents, topOpponent, totalCount: rows.reduce((sum, row) => sum + row.count, 0) };
+      }).filter(Boolean);
+    }
+
+    function buildWynnComparisonSummary(comparisons) {
+      const leaders = comparisons.filter(item => item.wynn.count > 0 && (!item.topOpponent || item.wynn.avg > item.topOpponent.avg));
+      const gaps = comparisons.filter(item => item.topOpponent && (item.wynn.count === 0 || item.wynn.avg <= item.topOpponent.avg));
+      const peakGaps = comparisons.filter(item => {
+        if (!item.topOpponent || !item.topOpponent.topEvent) return false;
+        if (!item.wynn.topEvent) return true;
+        return item.topOpponent.topEvent.heat > item.wynn.topEvent.heat;
+      });
+      return { leaders, gaps, peakGaps };
+    }
+
+    function buildWynnRecommendations(events, summary) {
+      const lines = [];
+      const coveredCats = new Set();
+      const refs = (items) => items.map(ev => `<span class="event-ref">「${ev.name}」</span>`).join("、");
+      const pushBlock = (catKey, label, text) => {
+        if (!catKey || coveredCats.has(catKey)) return;
+        coveredCats.add(catKey);
+        lines.push(promptBlock([
+          promptCategoryRef(catKey, label),
+          promptTextLine(text)
+        ]));
+      };
+
+      summary.peakGaps.forEach(item => {
+        if (!item.topOpponent?.topEvent) return;
+        const oppEvent = item.topOpponent.topEvent;
+        const wynnEvent = item.wynn?.topEvent;
+        const oppName = promptOperatorRef(item.topOpponent.opTitle);
+        const LOW_HEAT = 40;
+        const bothLow = (wynnEvent ? wynnEvent.heat : 0) < LOW_HEAT && oppEvent.heat < LOW_HEAT;
+        let text;
+        if (bothLow) {
+          // Both sides are low-heat — don't cite the opponent as a benchmark
+          text = `建議 ${promptOperatorRef("Wynn")} 於 ${item.label} 類別大幅提升活動話題性與市場熱度。目前市場整體熱度偏低，${promptOperatorRef("Wynn")} 應主動出擊，以更具吸引力的旗艦活動建立競爭優勢。`;
+        } else if (item.catKey === "concert") {
+          text = `建議 ${promptOperatorRef("Wynn")} 於旗艦演出層面爭取更具話題性的頭部藝人或聯名企劃。現時 ${oppName} 的高熱度活動 ${refs([oppEvent])} 熱度更高，有助市場聲量領先。`;
+        } else if (item.catKey === "exhibition") {
+          text = `建議 ${promptOperatorRef("Wynn")} 於策展層面建立更具代表性的旗艦內容。現時 ${oppName} 的高熱度活動 ${refs([oppEvent])} 表現更突出，可作為市場標杆參考。`;
+        } else {
+          text = `建議 ${promptOperatorRef("Wynn")} 於 ${item.label} 類別提升活動話題性，爭取更高市場熱度。現時 ${oppName} 的活動 ${refs([oppEvent])} 熱度更高，${promptOperatorRef("Wynn")} 應加快補強此類別的旗艦內容。`;
+        }
+        pushBlock(item.catKey, item.label, text);
+      });
+
+      summary.gaps.forEach(item => {
+        if (coveredCats.has(item.catKey)) return;
+        const opp = item.topOpponent;
+        if (!opp) return;
+        const LOW_HEAT = 40;
+        const wynnLow = item.wynn.avg < LOW_HEAT;
+        const oppLow  = opp.avg < LOW_HEAT;
+        if (item.wynn.count === 0) {
+          pushBlock(item.catKey, item.label, `建議 ${promptOperatorRef("Wynn")} 補足 ${item.label} 類別的代表性活動，並優先結合更清晰的主題包裝、跨體驗聯動及會員禮遇，盡快建立市場存在感。`);
+          return;
+        }
+        let text;
+        if (wynnLow && oppLow) {
+          // Both are low-heat — don't say Wynn is competitive, and don't cite opponent
+          text = `建議 ${promptOperatorRef("Wynn")} 於 ${item.label} 類別大力提升活動質量與市場話題性。目前市場整體熱度偏低，${promptOperatorRef("Wynn")} 有機會率先建立高熱度旗艦活動，搶佔此類別嘅市場領先位置。`;
+        } else if (item.catKey === "exhibition") {
+          text = `建議 ${promptOperatorRef("Wynn")} 引入更具策展感的高端藝術、時尚或生活品味展覽${opp.events.slice(0, 3).length ? `，可參考市場上較受關注的活動，例如 ${refs(opp.events.slice(0, 3))}` : ""}，並加入會員優先預覽或專屬導賞環節，以建立自身代表性內容。`;
+        } else {
+          text = `建議 ${promptOperatorRef("Wynn")} 於 ${item.label} 類別提升活動話題性與延伸轉化設計，可透過更鮮明主題、跨場景聯動及更集中宣傳節奏，進一步拉高 heat 表現。`;
+        }
+        pushBlock(item.catKey, item.label, text);
+      });
+
+      summary.leaders.forEach(item => {
+        if (coveredCats.has(item.catKey)) return;
+        const text = item.catKey === "concert"
+          ? `建議 ${promptOperatorRef("Wynn")} 延續現時的選角與策劃方向，持續鞏固高質演唱會市場優勢。`
+          : `建議 ${promptOperatorRef("Wynn")} 延續 ${item.label} 類別現時較具競爭力的策劃方向，並進一步放大會員禮遇、餐飲或住宿聯動，將熱度轉化為更高消費價值。`;
+        pushBlock(item.catKey, item.label, text);
+      });
+
+      if (!lines.length) {
+        const fallbackCat = summary.gaps[0]?.catKey || summary.leaders[0]?.catKey || "experience";
+        const fallbackLabel = summary.gaps[0]?.label || summary.leaders[0]?.label || "Experience";
+        pushBlock(fallbackCat, fallbackLabel, `建議 ${promptOperatorRef("Wynn")} 將高熱度活動進一步與住宿、Fine Dining、會員禮遇及 post-event 消費回贈整合，將內容熱度由單次曝光轉化為過夜消費與二次消費。`);
       }
 
-      for(const s of show){
-        const box = document.createElement("div");
-        box.className = "suggestion-card";
-        box.innerHTML = `
-          <div class="accent"></div>
-          <div class="suggestion-text">➤ ${s}</div>
-        `;
-        col.appendChild(box);
+      const targetCount = Math.max(1, promptSelectedCats().length || 0);
+      return lines.slice(0, targetCount);
+    }
+
+    function buildWynnDeepSeekPoints() {
+      const events = getPromptEvents();
+      const status = getPromptStatusEl();
+      if (!events.length) {
+        if (status) status.textContent = "No filtered events yet. Apply filters to build Wynn comparison points.";
+        return [
+          { title: "Wynn's Competitive Advantage", body: "比較 Wynn 與其他 organiser 的活動數量及平均 heat，指出 Wynn 在哪些類別即使場次較少，仍具較高熱度。" },
+          { title: "Wynn's Potential Improvements", body: "比較 Wynn 與其他 organiser 的活動數量及熱度表現，指出 Wynn 在哪些類別仍有優化空間。" },
+          { title: "Recommendations for Wynn", body: "如 Wynn 已於相關類別領先，則提出鞏固優勢的建議；如尚未領先，則提出具針對性的補位方向。" }
+        ];
+      }
+
+      const selectedOps = promptSelectedOpTitles();
+      const opponents = compareOpponents(selectedOps);
+      const comparisons = buildCategoryComparisons(events, selectedOps);
+      const summary = buildWynnComparisonSummary(comparisons);
+      const recommendations = buildWynnRecommendations(events, summary);
+      const LOW_HEAT_THRESHOLD = 50;
+      const selectedCategories = promptSelectedCats().map(catKey => CAT_CONFIG[catKey]?.label || titleCaseWord(catKey));
+      const selectedCatKeys = promptSelectedCats();
+      const selectedOpsText = opponents.length ? opponents.map(promptOperatorRef).join("、") : "其他 organisers";
+      const selectedCatsText = selectedCategories.length ? selectedCategories.join("、") : "目前所選 categories";
+      const strengthsBody = summary.leaders.length
+        ? summary.leaders.map(item => {
+            return promptBlock([
+              promptCategoryRef(item.catKey, item.label),
+              promptHeatLine("Wynn", item.wynn.count, item.wynn.avg),
+              ...item.opponents.map(opp => promptHeatLine(opp.opTitle, opp.count, opp.avg)),
+              promptTextLine(
+                !item.opponents.length
+                  ? `${promptOperatorRef("Wynn")} 目前於此類別獨家舉辦活動，顯示其在市場上具備明確定位。`
+                  : `雖然 ${promptOperatorRef("Wynn")} 只舉辦了 ${item.wynn.count} 場${item.label.toLowerCase()}活動，但其平均熱度仍高於 ${item.opponents.map(opp => promptOperatorRef(opp.opTitle)).join(" 和 ")}。這反映 ${promptOperatorRef("Wynn")} 在該類活動的質量與吸引力較強。`
+              )
+            ]);
+          }).join("")
+        : (() => {
+            const compareText = opponents.length ? opponents.map(promptOperatorRef).join("和") : promptOperatorRef("Wynn");
+            const lines = [];
+            selectedCatKeys.forEach((catKey, idx) => {
+              lines.push(promptCategoryRef(catKey, selectedCategories[idx]));
+            });
+            lines.push(promptTextLine(`對比 ${compareText} 而言，${promptOperatorRef("Wynn")} 暫未見明顯的平均 heat 領先優勢。`));
+            return promptBlock(lines);
+          })();
+
+      const gapItems = [];
+      summary.gaps.forEach(item => {
+        const opp = item.topOpponent;
+        if (!opp) return;
+        const block = [
+          promptCategoryRef(item.catKey, item.label),
+          promptHeatLine("Wynn", item.wynn.count, item.wynn.avg),
+          ...item.opponents.map(row => promptHeatLine(row.opTitle, row.count, row.avg))
+        ];
+        if (item.wynn.count === 0) {
+          block.push(promptTextLine(`${item.label} 於本次篩選範圍內已有市場活動，而 ${promptOperatorRef("Wynn")} 目前尚未舉辦，顯示此類別仍有補足空間。`));
+        } else {
+          const wynnAvgLow = item.wynn.avg < 30;
+          block.push(promptTextLine(
+            wynnAvgLow
+              ? `${promptOperatorRef(opp.opTitle)} 於此類別的場次與熱度均高於 ${promptOperatorRef("Wynn")}，顯示 ${promptOperatorRef("Wynn")} 在此類別仍有明顯改進空間。`
+              : `${promptOperatorRef(opp.opTitle)} 的場次與平均熱度表現更強，顯示 ${promptOperatorRef("Wynn")} 仍有改進空間。`
+          ));
+        }
+        gapItems.push(promptBlock(block));
+      });
+      summary.peakGaps
+        .filter(item => !summary.gaps.some(gap => gap.catKey === item.catKey))
+        .forEach(item => {
+          const oppEvent = item.topOpponent?.topEvent;
+          const wynnEvent = item.wynn?.topEvent;
+          if (!oppEvent) return;
+          const block = [
+            promptCategoryRef(item.catKey, item.label),
+            promptHeatLine("Wynn", item.wynn.count, item.wynn.avg),
+            ...item.opponents.map(row => promptHeatLine(row.opTitle, row.count, row.avg)),
+            promptTextLine(
+              wynnEvent
+                ? `雖然 ${promptOperatorRef("Wynn")} 的平均 heat 仍具競爭力，但 ${promptOperatorRef(item.topOpponent.opTitle)} 的單一最高熱度活動 ${promptEventRef(oppEvent.name)} 🔥${fmtNum(oppEvent.heat)} 仍高於 ${promptOperatorRef("Wynn")} 目前最高熱度活動 ${promptEventRef(wynnEvent.name)} 🔥${fmtNum(wynnEvent.heat)}，顯示旗艦級話題活動仍有提升空間。`
+                : `${promptOperatorRef(item.topOpponent.opTitle)} 目前已擁有最高熱度活動 ${promptEventRef(oppEvent.name)} 🔥${fmtNum(oppEvent.heat)}，而 ${promptOperatorRef("Wynn")} 尚未建立對應的代表性活動。`
+            )
+          ];
+          gapItems.push(promptBlock(block));
+        });
+      if (!opponents.length) {
+        comparisons
+          .filter(item => item.wynn.count > 0 && item.wynn.avg < LOW_HEAT_THRESHOLD)
+          .forEach(item => {
+            gapItems.push(promptBlock([
+              promptCategoryRef(item.catKey, item.label),
+              promptHeatLine("Wynn", item.wynn.count, item.wynn.avg),
+              promptTextLine(`以目前只檢視 ${promptOperatorRef("Wynn")} 的結果，${item.label} 平均 heat 仍偏低，可考慮透過更強話題性內容、跨體驗聯動及更集中宣傳節奏，進一步推高 heat score。`)
+            ]));
+          });
+      }
+      const gapsBody = gapItems.length
+        ? gapItems.join("")
+        : (() => {
+            const compareOps = opponents.length ? [...opponents.map(promptOperatorRef), promptOperatorRef("Wynn")] : [promptOperatorRef("Wynn")];
+            const selectedCompareText = compareOps.length ? compareOps.join("和") : `目前所選 organisers ${selectedOpsText}`;
+            const lines = [];
+            selectedCatKeys.forEach((catKey, idx) => {
+              lines.push(promptCategoryRef(catKey, selectedCategories[idx]));
+            });
+            lines.push(promptTextLine(`以目前${selectedCompareText}的對比，${promptOperatorRef("Wynn")} 未見明顯弱項，可維持現有高質活動策略。`));
+            return promptBlock(lines);
+          })();
+
+      const recommendationsBody = recommendations.join("");
+
+      const points = [
+        { title: "Wynn's Competitive Advantage", body: strengthsBody },
+        { title: "Wynn's Potential Improvements", body: gapsBody },
+        { title: "Recommendations for Wynn", body: recommendationsBody }
+      ];
+
+      if (status) status.textContent = `Comparison points ready from ${events.length} filtered event(s) across ${selectedOps.length || 0} organiser(s).`;
+      return points;
+    }
+
+    async function fetchAiWynnRecommendations(comparisons, selectedOps, events, summary) {
+      const strengths = (summary?.leaders || []).map(item => ({
+        catKey: item.catKey,
+        label: item.label,
+        wynnAvg: item.wynn?.avg || 0,
+        topOpponentAvg: item.topOpponent?.avg || 0
+      }));
+      const improvements = (summary?.gaps || []).map(item => ({
+        catKey: item.catKey,
+        label: item.label,
+        wynnAvg: item.wynn?.avg || 0,
+        topOpponentAvg: item.topOpponent?.avg || 0
+      }));
+      const peakGaps = (summary?.peakGaps || []).map(item => ({
+        catKey: item.catKey,
+        label: item.label,
+        wynnTopEvent: item.wynn?.topEvent ? {
+          operator: item.wynn.opTitle || "Wynn",
+          name: item.wynn.topEvent.name,
+          heat: item.wynn.topEvent.heat
+        } : null,
+        opponentTopEvent: item.topOpponent?.topEvent ? {
+          operator: item.topOpponent.opTitle,
+          name: item.topOpponent.topEvent.name,
+          heat: item.topOpponent.topEvent.heat
+        } : null
+      }));
+      const categories = comparisons.map(item => ({
+        catKey: item.catKey,
+        label: item.label,
+        wynn: {
+          count: item.wynn?.count || 0,
+          avg: item.wynn?.avg || 0,
+          topEvent: item.wynn?.topEvent ? {
+            name: item.wynn.topEvent.name,
+            heat: item.wynn.topEvent.heat,
+            description: item.wynn.topEvent.description || ""
+          } : null
+        },
+        topOpponent: item.topOpponent ? {
+          opTitle: item.topOpponent.opTitle,
+          count: item.topOpponent.count,
+          avg: item.topOpponent.avg,
+          topEvent: item.topOpponent.topEvent ? {
+            name: item.topOpponent.topEvent.name,
+            heat: item.topOpponent.topEvent.heat,
+            description: item.topOpponent.topEvent.description || ""
+          } : null
+        } : null,
+        opponents: (item.opponents || []).map(opp => ({
+          opTitle: opp.opTitle,
+          count: opp.count,
+          avg: opp.avg,
+          topEvent: opp.topEvent ? {
+            name: opp.topEvent.name,
+            heat: opp.topEvent.heat,
+            description: opp.topEvent.description || ""
+          } : null
+        })),
+        events: events
+          .filter(ev => ev.category === item.catKey)
+          .slice()
+          .sort((a, b) => b.heat - a.heat)
+          .slice(0, 6)
+          .map(ev => ({
+            operator: ev.operator,
+            name: ev.name,
+            heat: ev.heat,
+            description: ev.description || ""
+          }))
+      }));
+      try {
+        const resp = await fetch("http://127.0.0.1:9038/api/wynn-recommendations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            selected_operators: selectedOps,
+            categories,
+            strengths,
+            improvements,
+            peak_gaps: peakGaps
+          })
+        });
+        const data = await resp.json();
+        return Array.isArray(data.recommendations) ? data.recommendations : [];
+      } catch (err) {
+        console.warn("wynn recommendations fetch failed:", err);
+        return [];
+      }
+    }
+
+    async function buildStrategyPromptState() {
+      const events = getPromptEvents();
+      const selectedOps = promptSelectedOpTitles();
+      const comparisons = buildCategoryComparisons(events, selectedOps);
+      const summary = buildWynnComparisonSummary(comparisons);
+      const points = buildWynnDeepSeekPoints();
+      let statusText = `Comparison points ready from ${events.length} filtered event(s) across ${selectedOps.length || 0} organiser(s).`;
+      if (!events.length || !comparisons.length) return { points, statusText };
+
+      const aiRecommendations = await fetchAiWynnRecommendations(comparisons, selectedOps, events, summary);
+      if (aiRecommendations.length) {
+        const aiMap = new Map(
+          aiRecommendations
+            .map(item => [String(item.catKey || "").toLowerCase(), String(item.text || "").trim()])
+            .filter(([, text]) => text)
+        );
+        const aiBody = comparisons
+          .filter(item => aiMap.has(item.catKey))
+          .map(item => promptBlock([
+            promptCategoryRef(item.catKey, item.label),
+            promptTextLine(formatAiRecommendationText(
+              buildRecommendationDisplayText(item, aiMap.get(item.catKey)),
+              item.wynn.events.concat(item.opponents.flatMap(op => op.events || []))
+            ))
+          ]))
+          .join("");
+        if (aiBody) {
+          points[2] = { ...points[2], body: aiBody };
+          statusText = `DeepSeek recommendations ready from ${events.length} filtered event(s) across ${selectedOps.length || 0} organiser(s).`;
+        }
+      }
+
+      return { points, statusText };
+    }
+
+    async function updateStrategyPrompt(precomputedState = null) {
+      const status = getPromptStatusEl();
+      const reqSeq = ++_strategyPromptReqSeq;
+      if (!precomputedState && status) status.textContent = "Generating Wynn recommendations from DeepSeek...";
+      const state = precomputedState || await buildStrategyPromptState();
+      if (reqSeq !== _strategyPromptReqSeq || !state) return;
+      renderStrategyPromptPoints(state.points || buildWynnDeepSeekPoints());
+      if (status) status.textContent = state.statusText || "Wynn comparison points ready.";
+    }
+
+    async function copyStrategyPrompt() {
+      const status = getPromptStatusEl();
+      try {
+        const plain = [...document.querySelectorAll("#strategyPromptList .prompt-item")].map(item => {
+          const title = item.querySelector(".prompt-item-title")?.textContent?.trim() || "";
+          const body = item.querySelector(".prompt-item-body")?.textContent?.replace(/\s+/g, " ").trim() || "";
+          return `- ${title}: ${body}`;
+        }).join("\n");
+        await navigator.clipboard.writeText(plain);
+        if (status) status.textContent = "Wynn comparison points copied to clipboard.";
+      } catch (err) {
+        if (status) status.textContent = "Clipboard blocked. Please copy the points manually.";
       }
     }
 
@@ -1584,17 +2328,15 @@
                       name: e.name,
                       desc: e.overview,
                       date: "N/A",
-                      type: e.predictedVisitors ? "gaming" : "concert" // 簡單分類
+                      category: e.category || (e.predictedVisitors ? "gaming" : "concert"),
+                      type: e.category || (e.predictedVisitors ? "gaming" : "concert")
                   }));
               }
           });
           renderGroupedResults(convertedData);
       }
 
-      // 3. 更新 Strategy AI (Operator Perspective)
-      renderPerspective($("perspectiveOperator").value);
-
-      // 4. 更新 Market Summary Tiles
+      // 3. 更新 Market Summary Tiles
       // 呢度暫時簡化，等你可以順利 Run 到
       // Compute tiles from actual category data
       const _tileData = data.category_summaries || data.operator_summaries || {};
@@ -1620,6 +2362,7 @@
       $("tileFootfall").textContent = "Dynamic Forecast";
       
       updateArchivedLink();
+      updateStrategyPrompt();
     }
 
 
@@ -1660,6 +2403,37 @@
 
     // ── Hot Themes via DeepSeek (semantic) ───────────────────
     let _activeThemeFilter = null;
+    function _filteredThemeCatData(inputData) {
+        const source = inputData || {};
+        if (!_activeThemeFilter || !Array.isArray(_activeThemeFilter.keys) || !_activeThemeFilter.keys.length) return source;
+        const keySet = new Set(_activeThemeFilter.keys);
+        const filtered = {};
+        for (const [catKey, acts] of Object.entries(source)) {
+            const matching = (acts || []).filter(act => keySet.has(act.__activityKey));
+            if (matching.length) filtered[catKey] = matching;
+        }
+        return filtered;
+    }
+
+    function rerenderThemeLinkedViews() {
+        const container = document.getElementById('analyticsContent');
+        const chartBanner = document.getElementById('chartFilterBanner');
+        const hmBanner = document.getElementById('hmFilterBanner');
+        _chartFilter = { operator: null, catKey: null };
+        if (chartBanner) chartBanner.style.display = 'none';
+        if (hmBanner) hmBanner.style.display = 'none';
+        if (container) {
+            container.innerHTML = '';
+            _renderGroupedBody(_chartDataSource(), container);
+        }
+        const sel = document.getElementById('doughnutOperatorSelect');
+        renderDoughnutChart(sel ? sel.value : 'Wynn');
+        renderBarChart();
+        if (typeof window._rebuildHeatAvgChart === 'function') window._rebuildHeatAvgChart();
+        if (typeof window._rebuildTierChart === 'function') window._rebuildTierChart();
+        if (typeof window._rebuildHeatmap === 'function') window._rebuildHeatmap();
+        if (typeof updateStrategyPrompt === 'function') updateStrategyPrompt();
+    }
 
     async function fetchHotThemes(catData) {
         const cacheKey = JSON.stringify(
@@ -1691,12 +2465,18 @@
         }
         if (events.length === 0) return [];
         events.sort((a, b) => (b.heat_score - a.heat_score) || a.name.localeCompare(b.name));
+        // Only send genuinely hot events (heat >= 40) to DeepSeek so themes
+        // are always grounded in high-heat activities.
+        // Fallback to top-10 if nothing reaches 40 (e.g. demo data).
+        const MIN_HEAT = 40;
+        const hotEvents = events.filter(e => e.heat_score >= MIN_HEAT);
+        const rankedEvents = (hotEvents.length >= 3 ? hotEvents : events).slice(0, 24);
         try {
             const resp = await fetch("http://127.0.0.1:9038/api/hot-themes", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    events: events.map(({ name, description, heat_score }) => ({ name, description, heat_score }))
+                    events: rankedEvents.map(({ name, description, heat_score }) => ({ name, description, heat_score }))
                 })
             });
             const data = await resp.json();
@@ -1705,7 +2485,7 @@
                 if (typeof item === 'string') return { theme: item, keys: [] };
                 const indices = Array.isArray(item.indices) ? item.indices : [];
                 const matchedEvents = indices
-                    .map(i => events[i - 1])
+                    .map(i => rankedEvents[i - 1])
                     .filter(Boolean);
                 const heatValues = matchedEvents
                     .map(ev => ev.heat_score)
@@ -1722,7 +2502,7 @@
                     heatScore: themeHeat,
                     operators,
                     keys: indices
-                        .map(i => events[i - 1]?.activityKey)
+                        .map(i => rankedEvents[i - 1]?.activityKey)
                         .filter(Boolean)
                 };
             })
@@ -1766,25 +2546,67 @@
     function applyHotThemeFilter(theme, keys) {
         if (!Array.isArray(keys) || !keys.length) return;
         _activeThemeFilter = { theme, keys };
-        syncThemeCardVisibility();
-        renderThemeFilterState();
+        rerenderThemeLinkedViews();
     }
 
     function clearHotThemeFilter() {
         _activeThemeFilter = null;
-        syncThemeCardVisibility();
-        renderThemeFilterState();
+        rerenderThemeLinkedViews();
     }
 
     function clearResultsSummaryFilters() {
-        clearHotThemeFilter();
-        clearChartFilter();
+        _activeThemeFilter = null;
+        _chartFilter = { operator: null, catKey: null };
+        rerenderThemeLinkedViews();
     }
 
     // ── Summary Banner（event cards 上方）─────────────────────
-    async function buildSummaryBanner(catData, filterParams) {
+    function renderHotThemesIntoBanner(banner, themes) {
+        const slot = banner?.querySelector('#hotThemesSlot');
+        if (!slot) return;
+        const hotColors = ['#DC2626','#D97706','#7C3AED'];
+        const DEMO_HOT_THEMES = [
+            { theme: '香港歌手音樂會', heatScore: 67.4, operators: ['Wynn'], keys: [] },
+            { theme: '沉浸式藝術展覽', heatScore: 61.2, operators: ['Melco', 'Sands'], keys: [] },
+            { theme: '頂級美食體驗',   heatScore: 54.8, operators: ['Galaxy', 'MGM'], keys: [] },
+        ];
+        let nextThemes = Array.isArray(themes) ? themes.slice() : [];
+        if (!nextThemes.length) nextThemes = DEMO_HOT_THEMES;
+        slot.innerHTML = '';
+        nextThemes.forEach((item, i) => {
+            const color = hotColors[i % hotColors.length];
+            const heatLabel = Number.isFinite(item.heatScore) ? item.heatScore.toFixed(1) : '0.0';
+            const icon = item.theme.includes('博彩') ? '🎰' : (item.theme.includes('演唱會') || item.theme.includes('見面會') || item.theme.includes('音樂會')) ? '🎤' : item.theme.includes('美食') ? '🍽️' : (item.theme.includes('展覽') || item.theme.includes('藝術')) ? '🖼️' : '🔥';
+            const btn = document.createElement('button');
+            btn.className = 'summary-chip theme-chip-btn';
+            btn.dataset.theme = item.theme;
+            const opBadges = (item.operators || []).map(op => {
+                const opKey = Object.keys(OP_LABELS).find(k => OP_LABELS[k] === op) || '';
+                const opColor = OP_COLORS[opKey] || color;
+                return `<span style="display:inline-flex;align-items:center;padding:2px 7px;border-radius:999px;background:${opColor}14;color:${opColor};border:1px solid ${opColor}30;font-size:10px;font-weight:700;margin-left:3px;">${op}</span>`;
+            }).join('');
+            btn.style.cssText = `background:${color}18;color:${color};border:1px solid ${color}30;display:inline-flex;align-items:center;flex-wrap:nowrap;gap:4px;white-space:nowrap;`;
+            btn.innerHTML = `${icon} <span style="font-weight:700;">${item.theme}</span> <span style="display:inline-flex;align-items:center;padding:2px 7px;border-radius:999px;background:rgba(234,88,12,0.12);color:#C2410C;border:1px solid rgba(234,88,12,0.22);font-size:10px;font-weight:800;margin-left:3px;">🔥${heatLabel}</span>${opBadges}`;
+            if (!item.keys || !item.keys.length) {
+                btn.disabled = true;
+                btn.style.cursor = 'default';
+            } else {
+                btn.title = 'Click to filter related events';
+                btn.addEventListener('click', () => {
+                    if (_activeThemeFilter && _activeThemeFilter.theme === item.theme) {
+                        clearHotThemeFilter();
+                    } else {
+                        applyHotThemeFilter(item.theme, item.keys);
+                    }
+                });
+            }
+            slot.appendChild(btn);
+        });
+        renderThemeFilterState();
+    }
+
+    async function buildSummaryBanner(catData, filterParams, precomputedThemes = null) {
         const { fromDate, toDate } = filterParams || {};
-        _activeThemeFilter = null;
 
         // ── Aggregate stats ───────────────────────────────────
         const totalEvents = Object.values(catData).reduce((s,a) => s + a.length, 0);
@@ -1877,58 +2699,17 @@
             </div>
         `;
 
-        // ── Fire async DeepSeek call, inject result when ready ──
-        const DEMO_HOT_THEMES = [
-            { theme: '香港歌手音樂會', heatScore: 67.4, operators: ['Wynn'], keys: [] },
-            { theme: '沉浸式藝術展覽', heatScore: 61.2, operators: ['Melco', 'Sands'], keys: [] },
-            { theme: '頂級美食體驗',   heatScore: 54.8, operators: ['Galaxy', 'MGM'], keys: [] },
-        ];
-
-        fetchHotThemes(catData).then(themes => {
-            const slot = banner.querySelector('#hotThemesSlot');
-            if (!slot) return;
-            const hotColors = ['#DC2626','#D97706','#7C3AED'];
-            if (!themes.length) {
-                themes = DEMO_HOT_THEMES;
-            }
-            slot.innerHTML = '';
-            themes.forEach((item, i) => {
-                const color = hotColors[i % hotColors.length];
-                const heatLabel = Number.isFinite(item.heatScore) ? item.heatScore.toFixed(1) : '0.0';
-                const icon = item.theme.includes('博彩') ? '🎰' : (item.theme.includes('演唱會') || item.theme.includes('見面會') || item.theme.includes('音樂會')) ? '🎤' : item.theme.includes('美食') ? '🍽️' : (item.theme.includes('展覽') || item.theme.includes('藝術')) ? '🖼️' : '🔥';
-                const btn = document.createElement('button');
-                btn.className = 'summary-chip theme-chip-btn';
-                btn.dataset.theme = item.theme;
-                const opBadges = (item.operators || []).map(op => {
-                    const opKey = Object.keys(OP_LABELS).find(k => OP_LABELS[k] === op) || '';
-                    const opColor = OP_COLORS[opKey] || color;
-                    return `<span style="display:inline-flex;align-items:center;padding:2px 7px;border-radius:999px;background:${opColor}14;color:${opColor};border:1px solid ${opColor}30;font-size:10px;font-weight:700;margin-left:3px;">${op}</span>`;
-                }).join('');
-                btn.style.cssText = `background:${color}18;color:${color};border:1px solid ${color}30;display:inline-flex;align-items:center;flex-wrap:nowrap;gap:4px;white-space:nowrap;`;
-                btn.innerHTML = `${icon} <span style="font-weight:700;">${item.theme}</span> <span style="display:inline-flex;align-items:center;padding:2px 7px;border-radius:999px;background:rgba(234,88,12,0.12);color:#C2410C;border:1px solid rgba(234,88,12,0.22);font-size:10px;font-weight:800;margin-left:3px;">🔥${heatLabel}</span>${opBadges}`;
-                if (!item.keys || !item.keys.length) {
-                    btn.disabled = true;
-                    btn.style.cursor = 'default';
-                } else {
-                    btn.title = 'Click to filter related events';
-                    btn.addEventListener('click', () => {
-                        if (_activeThemeFilter && _activeThemeFilter.theme === item.theme) {
-                            clearHotThemeFilter();
-                        } else {
-                            applyHotThemeFilter(item.theme, item.keys);
-                        }
-                    });
-                }
-                slot.appendChild(btn);
-            });
-            renderThemeFilterState();
-        });
+        if (Array.isArray(precomputedThemes)) {
+            renderHotThemesIntoBanner(banner, precomputedThemes);
+        } else {
+            fetchHotThemes(catData).then(themes => renderHotThemesIntoBanner(banner, themes));
+        }
 
         return banner;
     }
 
     // ── 核心：Group by Category 渲染 ─────────────────────────
-    async function _renderGroupedBody(data, container) {
+    async function _renderGroupedBody(data, container, options = {}) {
         if (!container) container = document.getElementById("analyticsContent");
         if (!container) return;
 
@@ -1964,20 +2745,20 @@
             return;
         }
 
-        const activityKeyCount = {};
         for (const acts of Object.values(catData)) {
             acts.forEach((act, idx) => {
-                const rawKey = [
-                    act.operator || '',
-                    act.sub_type || act.category || '',
-                    act.name || '',
-                    act.date || '',
-                    act.location || '',
-                    Array.isArray(act.source_post_ids) ? act.source_post_ids.join(',') : ''
-                ].join('|').toLowerCase();
-                const count = (activityKeyCount[rawKey] || 0) + 1;
-                activityKeyCount[rawKey] = count;
-                act.__activityKey = `${rawKey}|${count}|${idx}`;
+                if (!act.__activityKey) {
+                    act.__activityKey = [
+                        act.operator || '',
+                        act.sub_type || act.category || '',
+                        act.name || '',
+                        act.date || '',
+                        act.location || '',
+                        Array.isArray(act.source_event_ids) ? act.source_event_ids.join(',') : '',
+                        Array.isArray(act.source_post_ids) ? act.source_post_ids.join(',') : '',
+                        act.post_link || act.url || ''
+                    ].join('|').toLowerCase() || `activity-${idx}`;
+                }
             });
         }
 
@@ -1988,7 +2769,7 @@
             selectedCats: typeof getSelectedValues === 'function' ? getSelectedValues("category") : [],
             selectedOps:  typeof getSelectedValues === 'function' ? getSelectedValues("operator")  : [],
         };
-        container.appendChild(await buildSummaryBanner(catData, filterParams));
+        container.appendChild(await buildSummaryBanner(catData, filterParams, options.precomputedThemes || null));
 
         // 按 CAT_CONFIG 定義嘅順序渲染
         const orderedCats = [...CAT_KEYS, ...Object.keys(catData).filter(k => !CAT_KEYS.includes(k))];
@@ -2164,7 +2945,38 @@
 
     // 儲存最後一次 fetch 的參數，用於 auto-poll
     let _lastFetchUrl = null;
+    let _lastFetchRequest = null;
     let _pollTimer    = null;
+    let _eventViewOps = ["wynn","sands","galaxy","mgm","melco","sjm","government"];
+
+    function buildAnalyzeUrl({ keyword, operators, categories, fromDate, toDate }) {
+        return `http://127.0.0.1:9038/api/v2/analyze?` +
+            `keyword=${encodeURIComponent(keyword || "")}&` +
+            `operators=${encodeURIComponent((operators || []).join(','))}&` +
+            `category=${encodeURIComponent((categories || []).join(','))}&` +
+            `from_date=${fromDate || ""}&to_date=${toDate || ""}`;
+    }
+
+    function filterSummariesForEventView(rawSummaries, allowedOps) {
+        const allowed = new Set((allowedOps || []).map(op => String(op).toLowerCase()));
+        if (!rawSummaries) return rawSummaries;
+        if (rawSummaries.category_summaries) {
+            const next = {};
+            for (const [cat, acts] of Object.entries(rawSummaries.category_summaries || {})) {
+                const filtered = (acts || []).filter(act => allowed.has(String(act.operator || '').toLowerCase()));
+                if (filtered.length) next[cat] = filtered;
+            }
+            return { ...rawSummaries, category_summaries: next };
+        }
+        if (rawSummaries.operator_summaries) {
+            const next = {};
+            for (const [op, acts] of Object.entries(rawSummaries.operator_summaries || {})) {
+                if (allowed.has(String(op).toLowerCase()) && (acts || []).length) next[op] = acts;
+            }
+            return { ...rawSummaries, operator_summaries: next };
+        }
+        return rawSummaries;
+    }
 
     function stopPoll() {
         if (_pollTimer) { clearTimeout(_pollTimer); _pollTimer = null; }
@@ -2173,43 +2985,64 @@
     async function fetchAndRender(url, isAutoPoll = false) {
         const container = $("analyticsContent");
         try {
-            const response = await fetch(url);
-            const result   = await response.json();
+            const result = await fetch(url).then(r => r.json());
 
-            if (result.status === "success") {
-                renderGroupedResults(result, result.crawling);
+            if (result.status === "success" && !result.crawling) {
+                _comparisonCatData = _extractCatData(result);
+                const eventSummaries = filterSummariesForEventView(result, _eventViewOps);
+                let precomputedThemes = null;
+                let precomputedPromptState = null;
+                try {
+                    [precomputedThemes, precomputedPromptState] = await Promise.all([
+                        fetchHotThemes(_comparisonCatData).catch(err => {
+                            console.warn("precompute hot themes failed:", err);
+                            return [];
+                        }),
+                        buildStrategyPromptState().catch(err => {
+                            console.warn("precompute strategy prompt failed:", err);
+                            return null;
+                        })
+                    ]);
+                } catch (err) {
+                    console.warn("panel precompute failed:", err);
+                }
+
+                renderGroupedResults(eventSummaries, false, {
+                    precomputedThemes,
+                    precomputedPromptState
+                });
                 if (result.market_intelligence) {
                     $("tileOperatorSplit").textContent = result.market_intelligence.operator_split;
                     $("tileThemes").textContent        = result.market_intelligence.hot_themes;
                     $("tileFootfall").textContent      = result.market_intelligence.expected_visitor_range;
                 }
-                // 如果爬蟲仍在背景跑，60秒後自動重新 fetch
-                if (result.crawling) {
-                    $("totalEventsPill").textContent = `⏳ 採集中...`;
-                    stopPoll();
-                    _pollTimer = setTimeout(() => fetchAndRender(_lastFetchUrl, true), 60000);
-                } else {
-                    // Count total events from category_summaries or operator_summaries
-                    const _catData = result.category_summaries || result.operator_summaries || {};
-                    const _total = Object.values(_catData).reduce((s,a) => s + (Array.isArray(a) ? a.length : 0), 0);
-                    $("totalEventsPill").textContent = `${_total} Events`;
-                    stopPoll();
+                if (typeof renderDoughnutChart === 'function') {
+                    const sel = document.getElementById('doughnutOperatorSelect');
+                    renderDoughnutChart(sel ? sel.value : 'Wynn');
                 }
-            } else if (result.status === "loading") {
+                if (typeof renderBarChart === 'function') renderBarChart();
+                if (typeof window._rebuildEvtChart === 'function') window._rebuildEvtChart();
+                if (typeof window._rebuildHeatAvgChart === 'function') window._rebuildHeatAvgChart();
+                if (typeof window._rebuildTierChart === 'function') window._rebuildTierChart();
+                if (typeof window._rebuildHeatmap === 'function') window._rebuildHeatmap();
+                if (typeof updateStrategyPrompt === 'function') updateStrategyPrompt(precomputedPromptState);
+
+                const _catData = (eventSummaries && (eventSummaries.category_summaries || eventSummaries.operator_summaries)) || {};
+                const _total = Object.values(_catData).reduce((s,a) => s + (Array.isArray(a) ? a.length : 0), 0);
+                $("totalEventsPill").textContent = `${_total} Events`;
+                stopPoll();
+            } else {
                 if (!isAutoPoll) {
                     container.innerHTML = `
                         <div style="text-align:center;padding:60px;">
                             <div style="font-size:32px;margin-bottom:12px;">⏳</div>
-                            <div style="font-weight:700;font-size:18px;margin-bottom:8px;">Collecting data...</div>
-                            <p style="color:gray;">${result.message || 'Crawling in progress, please wait'}</p>
-                            <p style="color:gray;font-size:13px;">Auto-retrying in ~30–60 seconds</p>
+                            <div style="font-weight:700;font-size:18px;margin-bottom:8px;">Preparing full comparison...</div>
+                            <p style="color:gray;">Waiting for selected organisers and Wynn comparison data to finish crawling before showing results.</p>
                         </div>`;
                 }
                 $("totalEventsPill").textContent = `Crawling...`;
                 stopPoll();
                 _pollTimer = setTimeout(() => fetchAndRender(_lastFetchUrl, true), 45000);
-            } else {
-                container.innerHTML = `<p style="color:red;text-align:center;">Error: ${result.message || 'Unknown error'}</p>`;
             }
         } catch (e) {
             console.error("Error:", e);
@@ -2218,7 +3051,7 @@
         }
     }
 
-    function renderGroupedResults(summaries, isCrawling) {
+    function renderGroupedResults(summaries, isCrawling, options = {}) {
         const container = $("analyticsContent");
         container.innerHTML = "";
         if (isCrawling) {
@@ -2233,7 +3066,7 @@
             : (summaries && summaries.operator_summaries)
                 ? summaries.operator_summaries
                 : summaries;
-        _renderGroupedBody(data, container);
+        _renderGroupedBody(data, container, options);
     }
 
     // ── Keyword tag-chip ─────────────────────────────────────────────────────
@@ -2284,10 +3117,12 @@
         const toDate = $("toDate").value;
         const selectedCats = getSelectedValues("category");
         const selectedOps = getSelectedValues("operator");
+        const comparisonOps = Array.from(new Set(["wynn", ...selectedOps]));
 
         if (selectedOps.length === 0) return alert("請至少選擇一個組織者");
         _hasAppliedFilters = true;
         _setAppliedFiltersFromUI();
+        _eventViewOps = comparisonOps;
 
         stopPoll(); // 停止舊的 poll
 
@@ -2297,11 +3132,17 @@
             <p style="color:gray;">Reading from database; crawling will run in background if needed...</p>
         </div>`;
 
-        _lastFetchUrl = `http://127.0.0.1:9038/api/v2/analyze?` + 
-            `keyword=${encodeURIComponent(rawInput)}&` +
-            `operators=${encodeURIComponent(selectedOps.join(','))}&` +
-            `category=${encodeURIComponent(selectedCats.join(','))}&` +
-            `from_date=${fromDate}&to_date=${toDate}`;
+        _lastFetchRequest = {
+            keyword: rawInput,
+            operators: comparisonOps,
+            categories: selectedCats,
+            fromDate,
+            toDate
+        };
+        _lastFetchUrl = buildAnalyzeUrl(_lastFetchRequest);
+
+        // Sync doughnut dropdown to current filter immediately
+        if (typeof syncDoughnutOps === 'function') syncDoughnutOps();
 
         await fetchAndRender(_lastFetchUrl, false);
     });
@@ -2319,14 +3160,17 @@
       $("toDate").value = "";
       $("dateError").style.display = "none";
       _hasAppliedFilters = false;
+      _eventViewOps = ["wynn","sands","galaxy","mgm","melco","sjm","government"];
       _appliedFilterState = {
         operators: ["wynn","sands","galaxy","mgm","melco","sjm","government"],
         categories: ["concert","exhibition","experience","sport","crossover","accommodation","food","shopping","gaming"]
       };
+      if (typeof syncDoughnutOps === 'function') syncDoughnutOps();
       fillResults(DEMO);
     });
 
-    $("perspectiveOperator").addEventListener("change", (e) => renderPerspective(e.target.value));
+    document.getElementById("copyStrategyPromptBtn").addEventListener("click", copyStrategyPrompt);
+    document.getElementById("refreshStrategyPromptBtn").addEventListener("click", updateStrategyPrompt);
 
     fillResults(DEMO);
   </script>
@@ -2351,7 +3195,7 @@ const CHART_CAT_CONFIG = {
 };
 
 const CHART_OP_COLORS = {
-  Wynn:       '#F59E0B',
+  Wynn:       '#D97706',
   Sands:      '#3B82F6',
   Galaxy:     '#10B981',
   MGM:        '#F43F5E',
@@ -2360,9 +3204,10 @@ const CHART_OP_COLORS = {
   Government: '#64748B',
 };
 
-let _chartCatData   = {};
-let _doughnutChart  = null;
-let _barChart       = null;
+let _chartCatData      = {};
+let _comparisonCatData = {};
+let _doughnutChart     = null;
+let _barChart          = null;
 
 // Active drill-down filter: { operator: string|null, catKey: string|null }
 let _chartFilter = { operator: null, catKey: null };
@@ -2371,6 +3216,23 @@ let _chartFilter = { operator: null, catKey: null };
 function _extractCatData(rawSummaries) {
   const CAT_KEYS = Object.keys(CHART_CAT_CONFIG);
   let catData = {};
+  const ensureKey = (act, catHint) => {
+    if (!act) return act;
+    const next = { ...act };
+    if (!next.__activityKey) {
+      next.__activityKey = [
+        next.operator || '',
+        next.sub_type || next.category || catHint || '',
+        next.name || '',
+        next.date || '',
+        next.location || '',
+        Array.isArray(next.source_event_ids) ? next.source_event_ids.join(',') : '',
+        Array.isArray(next.source_post_ids) ? next.source_post_ids.join(',') : '',
+        next.post_link || next.url || ''
+      ].join('|').toLowerCase();
+    }
+    return next;
+  };
   if (!rawSummaries) return catData;
   const data = rawSummaries.category_summaries
     ? rawSummaries.category_summaries
@@ -2380,7 +3242,7 @@ function _extractCatData(rawSummaries) {
   const isNewFormat = data && Object.keys(data).some(k => CAT_KEYS.includes(k));
   if (isNewFormat) {
     for (const [cat, acts] of Object.entries(data)) {
-      if (acts && acts.length) catData[cat] = acts;
+      if (acts && acts.length) catData[cat] = acts.map(act => ensureKey(act, cat));
     }
   } else if (data) {
     for (const [op, acts] of Object.entries(data)) {
@@ -2388,7 +3250,7 @@ function _extractCatData(rawSummaries) {
       for (const act of acts) {
         const cat = act.sub_type || act.category || 'experience';
         if (!catData[cat]) catData[cat] = [];
-        catData[cat].push({ ...act, operator: op });
+        catData[cat].push(ensureKey({ ...act, operator: op }, cat));
       }
     }
   }
@@ -2398,6 +3260,7 @@ function _extractCatData(rawSummaries) {
 // ── Apply chart filter to Events block ──────────────────
 function applyChartFilter(operatorName, catKey) {
   _chartFilter = { operator: operatorName, catKey };
+  const chartData = _chartDataSource();
 
   const banner = document.getElementById('chartFilterBanner');
   const label  = document.getElementById('chartFilterLabel');
@@ -2412,8 +3275,8 @@ function applyChartFilter(operatorName, catKey) {
 
   const filtered = {};
   // Primary: exact catKey match
-  if (_chartCatData[catKey]) {
-    const matching = _chartCatData[catKey].filter(a =>
+  if (chartData[catKey]) {
+    const matching = chartData[catKey].filter(a =>
       (a.operator || '').toLowerCase() === operatorName.toLowerCase()
     );
     if (matching.length) filtered[catKey] = matching;
@@ -2421,7 +3284,7 @@ function applyChartFilter(operatorName, catKey) {
   // Fallback: if no results, search ALL categories for this operator
   // (handles cases where catKey differs from _chartCatData keys)
   if (!Object.keys(filtered).length) {
-    for (const [k, acts] of Object.entries(_chartCatData)) {
+    for (const [k, acts] of Object.entries(chartData)) {
       const matching = acts.filter(a =>
         (a.operator || '').toLowerCase() === operatorName.toLowerCase()
       );
@@ -2452,7 +3315,7 @@ function clearChartFilter() {
   const container = document.getElementById('analyticsContent');
   if (container) {
     container.innerHTML = '';
-    _renderGroupedBody(_chartCatData, container);
+    _renderGroupedBody(_chartDataSource(), container);
   }
 
   const sel = document.getElementById('doughnutOperatorSelect');
@@ -2466,9 +3329,10 @@ function renderDoughnutChart(operatorName) {
   const legend    = document.getElementById('doughnutLegend');
   const centerNum = document.getElementById('doughnutCenterNum');
   if (!canvas) return;
+  const chartData = _chartDataSource();
 
   const counts = {};
-  for (const [catKey, acts] of Object.entries(_chartCatData)) {
+  for (const [catKey, acts] of Object.entries(chartData)) {
     const n = acts.filter(a => (a.operator||'').toLowerCase() === operatorName.toLowerCase()).length;
     if (n > 0) counts[catKey] = n;
   }
@@ -2484,7 +3348,11 @@ function renderDoughnutChart(operatorName) {
   }
 
   const total = values.reduce((s, v) => s + v, 0);
-  if (centerNum) centerNum.textContent = total;
+  if (centerNum) {
+    centerNum.textContent = total;
+    centerNum.style.color = _isWynnTitle(operatorName) ? '#B45309' : 'var(--text)';
+    centerNum.style.textShadow = _isWynnTitle(operatorName) ? '0 1px 0 rgba(255,255,255,0.9)' : 'none';
+  }
   if (_doughnutChart) { _doughnutChart.destroy(); _doughnutChart = null; }
 
   if (total === 0) {
@@ -2497,7 +3365,13 @@ function renderDoughnutChart(operatorName) {
     type: 'doughnut',
     data: {
       labels,
-      datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#fff', hoverOffset: 6 }]
+      datasets: [{
+        data: values,
+        backgroundColor: colors,
+        borderWidth: 2,
+        borderColor: '#fff',
+        hoverOffset: 6
+      }]
     },
     options: {
       cutout: '65%',
@@ -2550,156 +3424,198 @@ function renderDoughnutChart(operatorName) {
 }
 
 // ── Horizontal Grouped Bar Chart ─────────────────────────
-function renderBarChart() {
-  const canvas = document.getElementById('barChart');
-  const legend = document.getElementById('barLegend');
-  if (!canvas) return;
+// ── Event Count Bar Chart (category-pill style) ─────────────────────────────
+(function() {
+  let _evtChart = null;
+  let _evtSelectedCat = null;
+  let _activeEvtOp = null;
 
-  const opSet = new Set();
-  for (const acts of Object.values(_chartCatData))
-    for (const a of acts)
-      if (a.operator) opSet.add(a.operator.charAt(0).toUpperCase() + a.operator.slice(1));
-
-  const operators = ['Wynn', ...[...opSet].filter(o => o !== 'Wynn').sort()];
-  const activeCats = Object.keys(_chartCatData).filter(k => _chartCatData[k].length > 0);
-  const catLabels  = activeCats.map(k => (CHART_CAT_CONFIG[k] || { label: k }).label);
-
-  const isFilteringBar = _chartFilter.catKey !== null;
-
-  const datasets = operators.map(op => {
-    const data = activeCats.map(catKey =>
-      (_chartCatData[catKey] || []).filter(a =>
-        (a.operator || '').toLowerCase() === op.toLowerCase()
-      ).length
-    );
-    const isWynn = op === 'Wynn';
-    const color  = CHART_OP_COLORS[op] || '#94A3B8';
-
-    const bgColors = activeCats.map((catKey) => {
-      const isActiveSegment = _chartFilter.catKey === catKey && _chartFilter.operator === op;
-      if (!isFilteringBar) return color;
-      if (_chartFilter.operator && _chartFilter.catKey) {
-        return isActiveSegment ? color : color + '22';
-      }
-      return color;
-    });
-
-    return {
-      label: op,
-      data,
-      backgroundColor: bgColors,
-      borderColor: activeCats.map((catKey) => {
-        if (!isFilteringBar) return color;
-        const isActiveSegment = _chartFilter.catKey === catKey && _chartFilter.operator === op;
-        return isActiveSegment ? color : color + '44';
-      }),
-      borderWidth: isWynn ? 2 : 1,
-      borderRadius: 4,
-      borderSkipped: false,
-    };
-  });
-
-  if (_barChart) { _barChart.destroy(); _barChart = null; }
-
-  if (activeCats.length === 0) {
-    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-    if (legend) legend.innerHTML = `<span style="font-size:11px;color:var(--muted);">No data available.</span>`;
-    return;
-  }
-
-  const _barLabelPlugin = {
-    id: 'barInlineLabels',
-    afterDatasetsDraw(chart) {
-      const { ctx, scales: { x } } = chart;
-      const ff = getComputedStyle(document.body).fontFamily || 'sans-serif';
-      chart.data.datasets.forEach((ds, di) => {
-        const meta = chart.getDatasetMeta(di);
-        if (meta.hidden) return;
-        meta.data.forEach((bar, i) => {
-          const val = ds.data[i];
-          if (!val) return;
-          const barRight = x.getPixelForValue(val);
-          const barLeft  = x.getPixelForValue(0);
-          const barW     = barRight - barLeft;
-          const by       = bar.y;
-          ctx.save();
-          ctx.font = '600 11px ' + ff;
-          ctx.textBaseline = 'middle';
-          if (barW > 28) {
-            ctx.fillStyle = 'rgba(0,0,0,0.80)';
-            ctx.textAlign = 'right';
-            ctx.fillText(val, barRight - 6, by);
-          } else {
-            ctx.fillStyle = 'rgba(0,0,0,0.65)';
-            ctx.textAlign = 'left';
-            ctx.fillText(val, barRight + 4, by);
-          }
-          ctx.restore();
-        });
-      });
-    }
+  const DEMO_EVT_COUNTS = {
+    concert:       { wynn:1, melco:1, sands:0, galaxy:0, mgm:0, sjm:0, government:0 },
+    exhibition:    { sands:2, wynn:0, galaxy:0, mgm:0, melco:0, sjm:0, government:0 },
+    experience:    { government:1, wynn:0, sands:0, galaxy:0, mgm:0, melco:0, sjm:0 },
+    food:          { galaxy:1, wynn:0, sands:0, mgm:0, melco:0, sjm:0, government:0 },
+    gaming:        { wynn:2, sands:1, mgm:1, sjm:1, galaxy:0, melco:0, government:0 },
+    accommodation: { wynn:1, sands:1, galaxy:1, melco:1, mgm:0, sjm:0, government:0 },
+    shopping:      { sands:1, galaxy:1, sjm:1, wynn:0, mgm:0, melco:0, government:0 },
+    crossover:     { galaxy:1, mgm:1, melco:1, wynn:0, sands:0, sjm:0, government:0 },
+    sport:         { sands:1, mgm:1, wynn:0, galaxy:0, melco:0, sjm:0, government:0 },
+  };
+  const CAT_LABELS_EVT = {
+    concert:'Concert', exhibition:'Exhibition', experience:'Experience',
+    food:'Food', gaming:'Gaming', accommodation:'Hotel',
+    shopping:'Shopping', crossover:'Crossover', sport:'Sport',
   };
 
-  _barChart = new Chart(canvas, {
-    type: 'bar',
-    plugins: [_barLabelPlugin],
-    data: { labels: catLabels, datasets },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: false,
-      onClick(evt, elements) {
-        if (!elements.length) return;
-        const el     = elements[0];
-        const catKey = activeCats[el.index];
-        const opName = operators[el.datasetIndex];
-        if (_chartFilter.operator === opName && _chartFilter.catKey === catKey) {
-          clearChartFilter();
-        } else {
-          const sel = document.getElementById('doughnutOperatorSelect');
-          if (sel) sel.value = opName;
-          applyChartFilter(opName, catKey);
-        }
+  function _evtActiveCats() {
+    return _analyticsCats().length ? _analyticsCats() : Object.keys(DEMO_EVT_COUNTS);
+  }
+
+  function _evtCountsForCat(cat) {
+    const chartData = _chartDataSource();
+    const result = {};
+    _selectedOpTitles().forEach(op => {
+      const opLc = _OP_LC[op] || op.toLowerCase();
+      const acts  = (chartData[cat] || []).filter(a => (a.operator||'').toLowerCase() === opLc);
+      result[opLc] = acts.length || (!_hasAppliedFilters ? (DEMO_EVT_COUNTS[cat]?.[opLc] || 0) : 0);
+    });
+    return result;
+  }
+
+  function _buildEvtPills() {
+    const container = document.getElementById('evtCatFilter');
+    if (!container) return;
+    container.innerHTML = '';
+    const cats = _evtActiveCats();
+    if (!cats.length) return;
+    if (!_evtSelectedCat || !cats.includes(_evtSelectedCat)) _evtSelectedCat = cats[0];
+    cats.forEach(cat => {
+      const btn = document.createElement('button');
+      const active = cat === _evtSelectedCat;
+      btn.textContent = CAT_LABELS_EVT[cat] || cat;
+      btn.style.cssText =
+        'padding:5px 13px;border-radius:999px;font-size:12px;font-weight:650;cursor:pointer;'+
+        'border:1px solid '+(active?'rgba(37,99,235,0.40)':'rgba(15,23,42,0.14)')+';'+
+        'background:'+(active?'rgba(37,99,235,0.12)':'rgba(255,255,255,0.70)')+';'+
+        'color:'+(active?'#1D4ED8':'rgba(15,23,42,0.75)')+';'+
+        'font-family:var(--font);transition:.15s;';
+      btn.addEventListener('click', () => {
+        _evtSelectedCat = cat; _activeEvtOp = null;
+        clearChartFilter(); _buildEvtPills(); _renderEvtChart();
+      });
+      container.appendChild(btn);
+    });
+  }
+
+  function _renderEvtChart() {
+    const canvas = document.getElementById('evtCountBarChart');
+    const wrap   = document.getElementById('evtCountBarWrap');
+    if (!canvas || !wrap) return;
+    if (!_evtSelectedCat) { _buildEvtPills(); if (!_evtSelectedCat) return; }
+
+    const counts  = _evtCountsForCat(_evtSelectedCat);
+    const opTitles = _selectedOpTitles();
+
+    // Sort: most events first, then by name
+    const ops = opTitles
+      .map(op => _OP_LC[op] || op.toLowerCase())
+      .sort((a, b) => (counts[b]||0) - (counts[a]||0) || (_OP_LABEL[a]||a).localeCompare(_OP_LABEL[b]||b));
+
+    const values = ops.map(op => counts[op] || 0);
+    const maxVal = Math.max(...values, 0);
+    const labels = ops.map(op => _OP_LABEL[op] || op);
+
+    wrap.style.height = (ops.length * 48 + 40) + 'px';
+    if (_evtChart) { _evtChart.destroy(); _evtChart = null; }
+    if (!ops.length) return;
+
+    const labelPlugin = {
+      id: 'evtLabels',
+      afterDatasetsDraw(chart) {
+        const {ctx, scales:{x}} = chart;
+        const ff = getComputedStyle(document.body).fontFamily || 'sans-serif';
+        const meta = chart.getDatasetMeta(0);
+        meta.data.forEach((bar, i) => {
+          const val = values[i], op = ops[i];
+          const bRight = x.getPixelForValue(val), bLeft = x.getPixelForValue(0);
+          const bw = bRight - bLeft, by = bar.y;
+          ctx.save();
+          ctx.font = '700 12px ' + ff;
+          ctx.fillStyle = 'rgba(0,0,0,0.82)';
+          ctx.textBaseline = 'middle';
+          if (val === 0) {
+            ctx.textAlign = 'left'; ctx.fillText('0', bLeft + 5, by);
+          } else if (bw > 28) {
+            ctx.textAlign = 'right'; ctx.fillText(val, bRight - 8, by);
+          } else {
+            ctx.textAlign = 'left'; ctx.fillText(val, bRight + 5, by);
+          }
+          ctx.restore();
+
+        });
+      }
+    };
+
+    _evtChart = new Chart(canvas, {
+      type: 'bar',
+      plugins: [labelPlugin],
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: ops.map(op => _OP_FILL[op] || '#94A3B8'),
+          borderColor: ops.map(() => 'transparent'),
+          borderWidth: 0,
+          borderRadius: 5,
+          borderSkipped: false,
+        }]
       },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          mode: 'index',
-          intersect: false,
-          callbacks: { footer: () => 'Click to filter Events' }
-        }
-      },
-      scales: {
-        x: {
-          beginAtZero: true,
-          ticks: { stepSize: 1, precision: 0, font: { size: 11 }, color: 'rgba(15,23,42,0.55)' },
-          grid: { color: 'rgba(15,23,42,0.07)' }
+      options: {
+        responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+        layout: { padding: { right: 16 } },
+        onHover(e, els) { canvas.style.cursor = els.length ? 'pointer' : 'default'; },
+        onClick(e, els) {
+          if (!els.length) { _activeEvtOp = null; _updateEvtColors(); clearChartFilter(); return; }
+          const i = els[0].index, op = ops[i];
+          if ((counts[op] || 0) === 0) return;
+          const opTitle = { wynn:'Wynn', melco:'Melco', mgm:'MGM', galaxy:'Galaxy', sands:'Sands', sjm:'SJM', government:'Government' }[op] || op;
+          if (_activeEvtOp === op) {
+            _activeEvtOp = null; _updateEvtColors(); clearChartFilter();
+          } else {
+            _activeEvtOp = op; _updateEvtColors(); applyChartFilter(opTitle, _evtSelectedCat);
+          }
         },
-        y: {
-          grid: { display: false },
-          ticks: { font: { size: 12, weight: '600' }, color: 'rgba(0,0,0,0.75)' }
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: {
+            title: ctx => ctx[0].label,
+            label: ctx => {
+              const op = ops[ctx.dataIndex];
+              const n  = counts[op] || 0;
+              if (!n) return ['  No events in this category'];
+              return [`  ${n} event${n !== 1 ? 's' : ''}`, '  Click to filter events'];
+            }
+          }}
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            ticks: { precision: 0, stepSize: 1, font: { size: 11 }, color: 'rgba(15,23,42,0.55)' },
+            grid: { color: 'rgba(15,23,42,0.07)' }
+          },
+          y: {
+            grid: { display: false },
+            ticks: {
+              font: { size: 12, weight: '700' },
+              color: ctx => String(ctx.tick.label || '').includes('Wynn') ? '#B45309' : 'rgba(0,0,0,0.75)'
+            }
+          }
         }
       }
-    }
-  });
+    });
 
-  if (legend) {
-    legend.innerHTML = operators.map(op => {
-      const color  = CHART_OP_COLORS[op] || '#94A3B8';
-      const isWynn = op === 'Wynn';
-      const isDimmed = isFilteringBar && _chartFilter.operator && _chartFilter.operator !== op;
-      return `<div style="display:flex;align-items:center;gap:5px;font-size:11.5px;
-        font-weight:${isWynn?'700':'500'};
-        color:${isDimmed ? 'rgba(15,23,42,0.30)' : 'rgba(15,23,42,0.80)'};">
-        <span style="display:inline-block;width:10px;height:10px;border-radius:2px;
-          background:${color};flex-shrink:0;
-          ${isWynn?'box-shadow:0 0 0 2px '+color+'55;':''}
-          opacity:${isDimmed?'0.3':'1'};"></span>
-        ${op}${isWynn?' ★':''}
-      </div>`;
-    }).join('');
+    function _updateEvtColors() {
+      if (!_evtChart) return;
+      _evtChart.data.datasets[0].backgroundColor = ops.map(op =>
+        (!_activeEvtOp || op === _activeEvtOp) ? (_OP_FILL[op]||'#94A3B8') : (_OP_FILL[op]||'#94A3B8')+'33'
+      );
+      _evtChart.update('none');
+    }
   }
-}
+
+  document.querySelectorAll('input[name="operator"], input[name="category"]').forEach(cb =>
+    cb.addEventListener('change', () => { _activeEvtOp = null; _buildEvtPills(); _renderEvtChart(); })
+  );
+
+  window.renderBarChart = function() { _buildEvtPills(); _renderEvtChart(); };
+
+  window._rebuildEvtChart = function() {
+    _activeEvtOp = null;
+    _buildEvtPills();
+    _renderEvtChart();
+  };
+  // Init deferred — called by window.fillResults(DEMO) after helpers are defined
+})();
 
 // ── Master refresh ───────────────────────────────────────
 function refreshAnalyticsCharts(rawSummaries) {
@@ -2711,6 +3627,7 @@ function refreshAnalyticsCharts(rawSummaries) {
   renderDoughnutChart(sel ? sel.value : 'Wynn');
   renderBarChart();
   if (typeof window._rebuildHeatAvgChart === 'function') window._rebuildHeatAvgChart();
+  if (typeof window._rebuildEvtChart === 'function') window._rebuildEvtChart();
   if (typeof window._rebuildHeatmap === 'function') window._rebuildHeatmap();
 }
 
@@ -2722,9 +3639,9 @@ document.getElementById('doughnutOperatorSelect').addEventListener('change', fun
     const banner = document.getElementById('chartFilterBanner');
     if (banner) banner.style.display = 'none';
     const container = document.getElementById('analyticsContent');
-    if (container && Object.keys(_chartCatData).length) {
+    if (container && Object.keys(_chartDataSource()).length) {
       container.innerHTML = '';
-      _renderGroupedBody(_chartCatData, container);
+      _renderGroupedBody(_chartDataSource(), container);
     }
   }
   renderDoughnutChart(this.value);
@@ -2735,7 +3652,7 @@ const _OP_TITLE_ORDER = ['Wynn','Sands','Galaxy','MGM','Melco','SJM','Government
 function syncDoughnutOps() {
   const sel     = document.getElementById('doughnutOperatorSelect');
   if (!sel) return;
-  const checked = _analyticsOps();
+  const checked = _analyticsOpsWithWynn();
   const current = sel.value;
   sel.innerHTML = _OP_TITLE_ORDER
     .filter(op => checked.includes((_OP_LC[op] || op.toLowerCase())))
@@ -2792,26 +3709,39 @@ window.fillResults = function(data) {
     demoCatData[cat].push(ev);
   }
   _chartCatData = demoCatData;
+  _comparisonCatData = demoCatData;
   _chartFilter  = { operator: null, catKey: null };
   const sel = document.getElementById('doughnutOperatorSelect');
   renderDoughnutChart(sel ? sel.value : 'Wynn');
   renderBarChart();
   if (typeof window._rebuildHeatAvgChart === 'function') window._rebuildHeatAvgChart();
+  if (typeof window._rebuildEvtChart === 'function') window._rebuildEvtChart();
   if (typeof window._rebuildTierChart === 'function') window._rebuildTierChart();
   if (typeof window._rebuildHeatmap === 'function') window._rebuildHeatmap();
+  if (typeof updateStrategyPrompt === 'function') updateStrategyPrompt();
 };
-
-// Initial render
-window.fillResults(DEMO);
 
 // ── Shared helpers ───────────────────────────────────────────────────────────
 const _OP_FILL  = { wynn:'#F59E0B', melco:'#A855F7', mgm:'#F43F5E', galaxy:'#10B981', sands:'#3B82F6', sjm:'#06B6D4', government:'#64748B' };
-const _OP_LABEL = { wynn:'Wynn \u2605', melco:'Melco', mgm:'MGM', galaxy:'Galaxy', sands:'Sands', sjm:'SJM', government:'Government' };
+const _OP_LABEL = { wynn:'Wynn', melco:'Melco', mgm:'MGM', galaxy:'Galaxy', sands:'Sands', sjm:'SJM', government:'Government' };
 const _OP_LC    = { Melco:'melco', Wynn:'wynn', MGM:'mgm', Galaxy:'galaxy', Sands:'sands', SJM:'sjm', Government:'government' };
 function _checkedOps()  { return typeof getSelectedValues==='function' ? getSelectedValues('operator') : []; }
 function _checkedCats() { return typeof getSelectedValues==='function' ? getSelectedValues('category') : []; }
+function _analyticsOpsWithWynn() {
+  const ops = _analyticsOps();
+  return ops.includes('wynn') ? ops : ['wynn', ...ops];
+}
+function _chartDataSource() {
+  const baseData = (typeof _comparisonCatData !== 'undefined' && Object.keys(_comparisonCatData || {}).length)
+    ? _comparisonCatData
+    : _chartCatData;
+  return _filteredThemeCatData(baseData);
+}
+function _isWynnTitle(op) {
+  return String(op || '').toLowerCase() === 'wynn';
+}
 function _selectedOpTitles() {
-  return _OP_TITLE_ORDER.filter(op => _analyticsOps().includes(_OP_LC[op] || op.toLowerCase()));
+  return _OP_TITLE_ORDER.filter(op => _analyticsOpsWithWynn().includes(_OP_LC[op] || op.toLowerCase()));
 }
 
 // ── Heat Tier Breakdown Chart ─────────────────────────────────────────────────
@@ -2831,10 +3761,11 @@ function _selectedOpTitles() {
 
   // Compute tier counts from live _chartCatData; falls back to DEMO_TIER if no heat_score found
   function computeTierData() {
+    const chartData = _chartDataSource();
     const result = {};
     ALL_OPS.forEach(op => { result[op] = { high:0, mid:0, low:0, total:0 }; });
     let hasLiveData = false;
-    for (const acts of Object.values(_chartCatData)) {
+    for (const acts of Object.values(chartData)) {
       for (const a of acts) {
         const opRaw = (a.operator||'').toLowerCase();
         const opKey = ALL_OPS.find(o => (_OP_LC[o]||o.toLowerCase()) === opRaw);
@@ -2929,7 +3860,6 @@ function _selectedOpTitles() {
         });
       }
     };
-
     if (_tc) { _tc.destroy(); _tc = null; }
     _tc = new Chart(canvas, {
       type: 'bar',
@@ -2967,7 +3897,10 @@ function _selectedOpTitles() {
                ticks:{ stepSize:25, font:{size:11}, color:'rgba(15,23,42,0.50)', callback:v=>v+'%' },
                grid:{ color:'rgba(15,23,42,0.07)' } },
           y: { stacked:true, grid:{display:false},
-               ticks:{ font:{size:12,weight:'600'}, color:'rgba(0,0,0,0.75)' } }
+               ticks:{
+                 font:{size:12,weight:'600'},
+                 color: (ctx) => _isWynnTitle(ctx.tick.label) ? '#B45309' : 'rgba(0,0,0,0.75)'
+               } }
         },
         animation: { onComplete() {
           if (!_tc) return;
@@ -3010,7 +3943,7 @@ function _selectedOpTitles() {
       'Showing: <span style="color:'+opColor+';font-weight:700;">'+op+'</span>' +
       ' · <span style="color:'+tierColor+';font-weight:700;">'+tierLabel+'</span> events';
     const filtered = {};
-    for (const [cat, acts] of Object.entries(_chartCatData)) {
+    for (const [cat, acts] of Object.entries(_chartDataSource())) {
       const m = acts.filter(a => {
         const om = (a.operator||'').toLowerCase() === op.toLowerCase();
         const hs = Number.parseFloat(a.heat_score);
@@ -3071,10 +4004,11 @@ function _selectedOpTitles() {
   };
 
   function heatRowsForCat(cat) {
+    const chartData = _chartDataSource();
     const rowMap = {};
     _selectedOpTitles().forEach(op => {
       const opLc = _OP_LC[op] || op.toLowerCase();
-      const acts = (_chartCatData[cat] || []).filter(a => (a.operator || '').toLowerCase() === opLc);
+      const acts = (chartData[cat] || []).filter(a => (a.operator || '').toLowerCase() === opLc);
       const scored = acts
         .map(a => Number.parseFloat(a.heat_score))
         .filter(v => Number.isFinite(v));
@@ -3132,11 +4066,7 @@ function _selectedOpTitles() {
     const values = ops.map(op => rowMap[op]?.avg || 0);
     const maxVal = values.length ? Math.max(...values) : 0;
     const labels = ops.map(op => _OP_LABEL[op] || op);
-    const zeroOps = ops.filter(op => (rowMap[op]?.count || 0) === 0).map(op => (_OP_LABEL[op] || op).replace(' ★', ''));
-
-    if (note) {
-      note.textContent = zeroOps.length ? `No ${CAT_LABELS[selectedCat] || selectedCat} activities: ${zeroOps.join(', ')}` : '';
-    }
+    if (note) note.textContent = '';
 
     wrap.style.height = (ops.length * 48 + 40) + 'px';
     if (heatAvgChart) { heatAvgChart.destroy(); heatAvgChart = null; }
@@ -3149,7 +4079,7 @@ function _selectedOpTitles() {
         const ff=getComputedStyle(document.body).fontFamily||'sans-serif';
         const meta=chart.getDatasetMeta(0);
         meta.data.forEach((bar,i) => {
-          const val=values[i], op=ops[i], isMax=val===maxVal && maxVal > 0, count=rowMap[op]?.count || 0;
+          const val=values[i], op=ops[i], count=rowMap[op]?.count || 0;
           const bRight=x.getPixelForValue(val), bLeft=x.getPixelForValue(0);
           const bw=bRight-bLeft, by=bar.y;
           ctx.save();
@@ -3163,25 +4093,9 @@ function _selectedOpTitles() {
             ctx.textAlign='left'; ctx.fillText(val.toFixed(1), bRight+5, by);
           }
           ctx.restore();
-          if (isMax) {
-            const isWynn=op==='wynn';
-            const badge = isWynn ? '\u2605 Wynn leads' : (_OP_LABEL[op]||op)+' leads';
-            const bColor= _OP_FILL[op]||'#333';
-            const bBg   = (_OP_FILL[op]||'#ccc')+'22';
-            ctx.save();
-            ctx.font='600 10.5px '+ff;
-            const tw=ctx.measureText(badge).width, px=7;
-            const rx=bRight+36, ry=by-10, rw=tw+px*2, rh=20;
-            ctx.fillStyle=bBg;
-            ctx.beginPath(); ctx.roundRect(rx,ry,rw,rh,5); ctx.fill();
-            ctx.fillStyle=bColor; ctx.textBaseline='middle'; ctx.textAlign='left';
-            ctx.fillText(badge, rx+px, ry+rh/2);
-            ctx.restore();
-          }
         });
       }
     };
-
     heatAvgChart = new Chart(canvas, {
       type:'bar', plugins:[labelPlugin],
       data:{
@@ -3189,13 +4103,14 @@ function _selectedOpTitles() {
         datasets:[{
           data: values,
           backgroundColor: ops.map(op => _OP_FILL[op]||'#94A3B8'),
+          borderColor: ops.map(() => 'transparent'),
           borderWidth: 0,
           borderRadius: 5, borderSkipped: false,
         }]
       },
       options:{
         responsive:true, maintainAspectRatio:false, indexAxis:'y',
-        layout:{ padding:{ right:130 } },
+        layout:{ padding:{ right:16 } },
         onHover(e,els){ canvas.style.cursor=els.length?'pointer':'default'; },
         onClick(e,els) {
           if (!els.length) {
@@ -3227,7 +4142,10 @@ function _selectedOpTitles() {
               ticks:{ stepSize:20, font:{size:11}, color:'rgba(15,23,42,0.55)' },
               grid:{ color:'rgba(15,23,42,0.07)' } },
           y:{ grid:{display:false},
-              ticks:{ font:{size:12}, color:'rgba(0,0,0,0.75)' } }
+              ticks:{
+                font:{size:12, weight:'700'},
+                color:(ctx) => String(ctx.tick.label || '').includes('Wynn') ? '#B45309' : 'rgba(0,0,0,0.75)'
+              } }
         }
       }
     });
@@ -3338,8 +4256,9 @@ function _selectedOpTitles() {
     const legendMax = document.getElementById('heatmapLegendMax');
     if (!headerRow || !body) return;
 
-    const activeOps = HM_OP_ORDER.filter(op => _analyticsOps().includes(HM_OP_LC_MAP[op]));
+    const activeOps = HM_OP_ORDER.filter(op => _analyticsOpsWithWynn().includes(HM_OP_LC_MAP[op]));
     const activeCats = HM_CAT_ORDER.filter(cat => _analyticsCats().includes(cat));
+    const chartData = _chartDataSource();
 
     headerRow.innerHTML = '';
     body.innerHTML = '';
@@ -3350,16 +4269,16 @@ function _selectedOpTitles() {
       return;
     }
 
-    const hasLiveData = _hasAppliedFilters && Object.values(_chartCatData).some(acts => acts && acts.length > 0);
+    const hasLiveData = _hasAppliedFilters && Object.values(chartData).some(acts => acts && acts.length > 0);
 
     function cellN(cat, op) {
       if (!hasLiveData) return DEMO_CELLS[cat]?.[HM_OP_LC_MAP[op]]?.n || 0;
-      return (_chartCatData[cat] || []).filter(a => (a.operator || '').toLowerCase() === HM_OP_LC_MAP[op]).length;
+      return (chartData[cat] || []).filter(a => (a.operator || '').toLowerCase() === HM_OP_LC_MAP[op]).length;
     }
 
     function cellH(cat, op) {
       if (!hasLiveData) return DEMO_CELLS[cat]?.[HM_OP_LC_MAP[op]]?.h ?? null;
-      const matching = (_chartCatData[cat] || []).filter(a => (a.operator || '').toLowerCase() === HM_OP_LC_MAP[op]);
+      const matching = (chartData[cat] || []).filter(a => (a.operator || '').toLowerCase() === HM_OP_LC_MAP[op]);
       const scored = matching
         .map(a => Number.parseFloat(a.heat_score))
         .filter(v => Number.isFinite(v));
@@ -3385,6 +4304,10 @@ function _selectedOpTitles() {
       const lbl = document.createElement('td');
       lbl.className = 'heatmap-row-label';
       lbl.textContent = op;
+      if (_isWynnTitle(op)) {
+        lbl.style.color = '#B45309';
+        lbl.style.fontWeight = '800';
+      }
       tr.appendChild(lbl);
 
       activeCats.forEach(cat => {
@@ -3445,6 +4368,9 @@ function _selectedOpTitles() {
 
   setTimeout(buildHeatmap, 0);
 })();
+
+// ── Initial demo render — after all IIFEs have registered their rebuild hooks ──
+window.fillResults(DEMO);
 </script>
 
 <!-- Admin panel removed — IT Admins are redirected to admin_page.html -->

@@ -49,6 +49,8 @@ app.add_middleware(
 )
 
 client = OpenAI(api_key="sk-ec64f5296ab34389a632b48aa8c28600", base_url="https://api.deepseek.com")
+DEEPSEEK_JSON_MODEL = "deepseek-chat"
+DEEPSEEK_REASON_MODEL = "deepseek-reasoner"
 
 # ── 繁簡轉換（共用 trad_simp 模組） ──────────────────────────────────────────
 try:
@@ -300,7 +302,7 @@ def _resolve_overlapping_dates(date_str: str, post_text: str, activity_name: str
 
     try:
         resp = client.chat.completions.create(
-            model="deepseek-chat",
+            model=DEEPSEEK_JSON_MODEL,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=300,
         )
@@ -484,7 +486,6 @@ async def analyze(keyword: str, operators: str = "", category: str = "", from_da
     for cat in target_cats:
         ops_for_cat = get_ops_needing_crawl(target_ops, cat)
         if ops_for_cat:
-            # ✏️ CHANGED: 過濾掉已經喺爬緊嘅 operator，防止重複 launch thread
             with _crawling_lock:
                 ops_to_start = [op for op in ops_for_cat if op not in _crawling_ops]
                 _crawling_ops.update(ops_to_start)
@@ -498,7 +499,6 @@ async def analyze(keyword: str, operators: str = "", category: str = "", from_da
                     try:
                         run_task_master(kw, ",".join(ops), c)
                     finally:
-                        # ✏️ CHANGED: 爬完（無論成功失敗）都釋放 lock
                         with _crawling_lock:
                             _crawling_ops.difference_update(ops)
                         print(f"🔓 爬蟲完成，釋放: {ops}")
@@ -507,10 +507,8 @@ async def analyze(keyword: str, operators: str = "", category: str = "", from_da
             else:
                 print(f"⏭️  [{cat}] {ops_for_cat} 已喺爬緊，跳過重複觸發")
 
-    if all_ops_to_crawl and df.empty:
-        return {"status": "loading", "message": "正在採集資料，請稍後重試..."}
     if all_ops_to_crawl:
-        print("⚠️ 爬蟲進行中，目前用既有數據分析（結果可能不完整）")
+        return {"status": "loading", "message": "正在採集所選 organiser 與 Wynn 的對比資料，請稍後重試..."}
 
     # 4. 日期過濾
     if from_date:
@@ -696,7 +694,10 @@ async def analyze(keyword: str, operators: str = "", category: str = "", from_da
                         src_ids = json.loads(p.get("source_post_ids") or "[]")
                     except Exception:
                         src_ids = [pid] if pid else []
-                    groups.append([pid] if src_ids == [] else src_ids)
+                    groups.append({
+                        "event_ids": [pid] if pid else [],
+                        "post_ids": src_ids if src_ids else ([pid] if pid else []),
+                    })
                     # 確保 post_obj 有呢個 pid 嘅 content
                     post_obj[pid] = p
                 print(f"   📦 {op_key}: {len(groups)} groups (from events_deduped)")
@@ -729,7 +730,10 @@ async def analyze(keyword: str, operators: str = "", category: str = "", from_da
                         if _sim(post_obj[pid], post_obj[other_pid]) >= 0.55:
                             group.append(other_pid)
                             assigned.add(other_pid)
-                    groups.append(group)
+                    groups.append({
+                        "event_ids": list(group),
+                        "post_ids": list(group),
+                    })
                 print(f"   📦 {op_key}: {len(sorted_pids)} 條帖文 → {len(groups)} 組")
 
             # ── CAT_RULES keyword hint（供 AI 判斷 category 用）──
@@ -750,7 +754,9 @@ async def analyze(keyword: str, operators: str = "", category: str = "", from_da
             )
 
             # ── 逐組喂 DeepSeek ──
-            for group_pids in groups:
+            for group_info in groups:
+                group_pids = list(group_info.get("post_ids") or [])
+                group_event_ids = list(group_info.get("event_ids") or group_pids)
                 # 組合呢組嘅所有帖文內容
                 snippets = []
                 group_post_ids = []
@@ -837,7 +843,7 @@ Category 判斷規則：
 
                 try:
                     resp     = client.chat.completions.create(
-                        model="deepseek-chat",
+                        model=DEEPSEEK_JSON_MODEL,
                         messages=[{"role": "user", "content": prompt}],
                         max_tokens=1200,
                     )
@@ -960,6 +966,9 @@ Category 判斷規則：
                         for gp in group_post_ids:
                             if gp not in existing.get("source_post_ids", []):
                                 existing.setdefault("source_post_ids", []).append(gp)
+                        for geid in group_event_ids:
+                            if geid not in existing.get("source_event_ids", []):
+                                existing.setdefault("source_event_ids", []).append(geid)
                         print(f"🔀 跨 operator 重複，merge: {item_name}")
                         continue
 
@@ -971,6 +980,7 @@ Category 判斷規則：
                         "category":        cat_out,
                         "sub_type":        sub,
                         "source_post_ids": group_post_ids,
+                        "source_event_ids": list(dict.fromkeys(group_event_ids)),
                     }
                     activities.append(new_act)
                     if item_name:
@@ -1060,7 +1070,8 @@ Category 判斷規則：
             act["source_posts"] = [post_details[i] for i in ids if i in post_details]
 
     # ── Attach heat_score to every AI activity (aggregate from events_deduped) ─
-    # source_post_ids lists events_deduped.event_id values (one deduped group = one row).
+    # source_event_ids stores events_deduped.event_id values (one deduped group = one row).
+    # source_post_ids stays as raw platform post ids for link/details display.
     # For each AI activity we compute a weighted-average heat score across its groups,
     # weighted by source_count (more source posts → more representative).
     try:
@@ -1068,7 +1079,7 @@ Category 判斷規則：
         _all_ev_ids: set = set()
         for _acts in cat_summaries.values():
             for _act in _acts:
-                for _sid in (_act.get("source_post_ids") or []):
+                for _sid in (_act.get("source_event_ids") or _act.get("source_post_ids") or []):
                     _all_ev_ids.add(_sid)
 
         _heat_map: dict = {}  # event_id → {heat_score, decay_factor, newest_post, platforms, source_count}
@@ -1092,7 +1103,8 @@ Category 判斷規則：
         _hconn.close()
 
         def _agg_heat(act):
-            rows = [_heat_map[i] for i in (act.get("source_post_ids") or []) if i in _heat_map]
+            heat_ids = act.get("source_event_ids") or act.get("source_post_ids") or []
+            rows = [_heat_map[i] for i in heat_ids if i in _heat_map]
             if not rows: return None
             total_sc  = sum(r["source_count"] for r in rows)
             w_heat    = sum(r["heat_score"] * r["source_count"] for r in rows) / max(total_sc, 1)
@@ -1168,13 +1180,22 @@ async def hot_themes(payload: dict):
 主題應該係具體嘅概念，例如「韓星演唱會」、「葡萄酒品鑑」、「沉浸式體驗」、「非遺文化」，而唔係籠統嘅字眼如「活動」、「體驗」、「娛樂」。
 每個主題用 3-8 個字表達，繁體中文。
 每個主題要帶返對應活動序號 indices，方便前端點擊後篩選相關活動。
-優先選擇高 heat、而且主題明確嘅活動。
-如果活動名或描述出現 aespa、EXO、UPPOOM、FANMEETING、見面會、韓團、韓星 等線索，應優先歸納為「韓流演唱會」「韓團見面會」呢類主題，
-唔好拆成太零碎嘅藝人名主題。
-但要小心唔好誤判非韓國藝人：
-- TYSON YOSHI 明確係香港歌手，唔可以歸入韓流/韓團主題
-- Kiri T 明確係香港歌手，唔可以歸入韓流/韓團主題
-- 只有當活動明確指向韓國藝人、韓團、K-pop、韓星見面會時，先可以歸入韓流相關主題
+
+【最重要：必須以 heat score 高嘅活動為主】
+- Hot themes 代表市場上最受關注嘅趨勢，因此 theme 嘅選擇必須以列表最前面（heat 最高）嘅活動為主
+- 如果某個 theme 裡面嘅活動 heat 都偏低（例如全部都係 30 分以下），呢個唔係熱門主題，唔應該選佢
+- 每個 theme 嘅 indices 所對應活動嘅平均 heat 要盡量高
+
+【重要：indices 只能包含真正屬於該主題嘅活動】
+- 每個 index 必須係該 theme 嘅直接相關活動，唔相關嘅一律唔包含
+- 如果唔確定某個活動係咪屬於某個 theme，唔好包含，寧少勿錯
+
+【國籍主題規則——極嚴格】
+- 如果 theme 係關於某個國家/地區嘅藝人（例如「韓流演唱會」「韓團見面會」），indices 裡面每一個活動都必須明確係嗰個國家嘅藝人，缺乏明確國籍線索嘅活動一律排除
+- 韓國藝人線索：aespa、EXO、GOT7、MARK段宜恩、BLACKPINK、BTS、FANCON、FANMEETING、韓團、韓星、K-pop、UPPOOM 等
+- 香港藝人（唔可以歸入韓流主題）：Anson Lo、Edan、張天賦、TYSON YOSHI、Kiri T、炎明熹、姜濤、Mirror、MUSIC UNBOUNDED LIVE MACAU 等香港歌手/組合或相關活動
+- 台灣藝人（唔可以歸入韓流主題）：周杰倫、五月天、張惠妹等台灣藝人
+- 只有活動名或描述中有明確韓國藝人名、韓語、K-pop、韓團相關詞，先可以入韓流主題
 
 只返回 JSON array，例如：
 [
@@ -1186,7 +1207,7 @@ async def hot_themes(payload: dict):
 
     try:
         resp = client.chat.completions.create(
-            model="deepseek-chat",
+            model=DEEPSEEK_JSON_MODEL,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=200,
         )
@@ -1220,6 +1241,157 @@ async def hot_themes(payload: dict):
     except Exception as e:
         print(f"⚠️ hot_themes 出錯: {e}")
         return {"themes": []}
+
+
+@app.post("/api/wynn-recommendations")
+async def wynn_recommendations(payload: dict):
+    categories = payload.get("categories") or []
+    selected_operators = payload.get("selected_operators") or []
+    strengths = payload.get("strengths") or []
+    improvements = payload.get("improvements") or []
+    peak_gaps = payload.get("peak_gaps") or []
+    if not categories:
+        return {"recommendations": []}
+
+    def _fmt_heat(v):
+        try:
+            return f"{float(v):.1f}"
+        except Exception:
+            return "0.0"
+
+    blocks = []
+    for idx, cat in enumerate(categories[:12], 1):
+        label = str(cat.get("label") or cat.get("catKey") or "").strip()
+        cat_key = str(cat.get("catKey") or "").strip()
+        wynn = cat.get("wynn") or {}
+        top_opp = cat.get("topOpponent") or {}
+        opponents = cat.get("opponents") or []
+        events = cat.get("events") or []
+
+        def _fmt_event(ev):
+            if not isinstance(ev, dict):
+                return ""
+            name = str(ev.get("name") or "").strip()
+            operator = str(ev.get("operator") or "").strip()
+            desc = str(ev.get("description") or "").strip()[:80]
+            if not name:
+                return ""
+            return f"- {operator} | {name} | heat {_fmt_heat(ev.get('heat'))}" + (f" | {desc}" if desc else "")
+
+        opponent_lines = [
+            f"- {opp.get('opTitle')}: count {opp.get('count', 0)}, avg heat {_fmt_heat(opp.get('avg'))}"
+            for opp in opponents[:3]
+        ]
+        event_lines = [_fmt_event(ev) for ev in events[:6]]
+        event_lines = [line for line in event_lines if line]
+        wynn_top = wynn.get("topEvent") or {}
+        opp_top = top_opp.get("topEvent") or {}
+
+        blocks.append(
+            f"""[{idx}] {label} ({cat_key})
+Wynn:
+- count {wynn.get('count', 0)}, avg heat {_fmt_heat(wynn.get('avg'))}
+""" + (
+                f"- top event: {wynn_top.get('name', '')} | heat {_fmt_heat(wynn_top.get('heat'))}\n"
+                if wynn_top else ""
+            ) + (
+                "Opponents:\n" + ("\n".join(opponent_lines) if opponent_lines else "- none") + "\n"
+            ) + (
+                f"- opponent top event: {opp_top.get('name', '')} | heat {_fmt_heat(opp_top.get('heat'))}\n"
+                if opp_top else ""
+            ) + (
+                "Relevant events:\n" + ("\n".join(event_lines) if event_lines else "- none")
+            )
+        )
+
+    prompt = f"""當你今日係 Wynn 老闆，就以下 competitor 嘅活動，比幾個可行嘅建議。
+
+目前對比 organiser:
+{", ".join(str(op) for op in selected_operators) if selected_operators else "Wynn only"}
+
+已確立嘅前置結論（建議不可同以下內容矛盾）：
+第1點 Wynn 優勢：
+{json.dumps(strengths, ensure_ascii=False)}
+
+第2點 Wynn 改進空間：
+{json.dumps(improvements, ensure_ascii=False)}
+
+最高 heat score 對照（可用作 watchlist / 代表作參考）：
+{json.dumps(peak_gaps, ensure_ascii=False)}
+
+Wynn 官方定位參考（來自 Wynn Resorts Macau 官網）：
+- 永利皇宮、永利澳門主打五星級酒店體驗
+- 強項包括米芝蓮級餐飲、時尚購物、水療、會員禮遇、會議及活動服務
+- 品牌調性偏高端、精緻、藝術感、度假體驗整合
+
+以下係每個 category 嘅對比資料：
+
+{chr(10).join(blocks)}
+
+輸出要求：
+1. 逐個 category 生成一條 Recommendation for Wynn。
+2. 必須站喺 Wynn 角度，用繁體中文寫。
+3. 文字要簡而精，中文 point form 風格，每條寫 1-2 句即可；寧願短，但一定要有具體動作。
+4. 要可行，盡量具體，並結合 heat score、對手活動名、Wynn 現況去講；避免只講抽象方向。
+5. 如果對手有明顯高 heat 代表作，可以點名引用活動名；如提及活動，必須同時寫明係邊個 organiser 主辦，格式盡量寫成「Sands《藝術中環》」、「Wynn《Illuminarium幻影空間》」。
+6. 如果 Wynn 同對手都低 heat，唔好叫 Wynn 參考弱對手；應直接建議 Wynn 點樣主動提升熱度與吸引力。
+7. 避免空泛字眼，例如「提升體驗」「加強宣傳」而冇 context。
+8. 唔好寫長篇分析、唔好分段，只要最終建議句子；但可以壓縮成「動作 + 目的」兩小句。
+9. 句式可直接以「建議 Wynn ...」開頭。
+10. 如提及活動名，請盡量用《活動名》格式；如提及 organiser，請保留英文名，例如 Melco、SJM、MGM。唔好只寫裸活動名，應優先寫成「organiser + 《活動名》」。
+11. 必須先參考第1點同第2點：如果某 category 已被判定為 Wynn 優勢，唔可以再建議 Wynn 去模仿較弱 competitor；建議核心意思必須係 keep it up、延續現有成功方向、繼續做同類型高質活動或把現有模式延伸轉化，但 wording 可以自然啲，唔需要逐字寫 keep it up。
+12. 如果某 category 屬於 Wynn 補足空間，第一句請直接寫明缺口，例如「現時 Wynn Concert 熱度偏低（🔥24.4），反映內容吸引力不足。」第二句先補一個實際建議。
+13. 如果某 category 屬於 Wynn 補足空間，建議要盡量結合 Wynn 自身品牌資產，例如酒店、Fine Dining、購物、水療、會員禮遇、會議活動服務。
+14. 請吸收以下決策邏輯，但唔好照抄用戶原句：強項類別應表達「延續現有成功模式、繼續做同類型高質活動、放大已驗證優勢」；弱項類別應先點出缺口，再提出一個具體可行動作。
+15. 優先寫出具體執行方法，例如「會員預覽」、「購物禮遇」、「限時快閃」、「沉浸式特展」、「heat 目標 45+」，而唔好只講空泛方向。
+16. 對於強項類別，避免亂加唔必要套餐或過度包裝；重點係延續成功活動類型本身。對於弱項類別，如果 Wynn 目前 0 場，應表達為「Wynn 未有舉辦，但市場已有活動」，而唔好寫成「熱度偏低 0.0」。
+17. 請特別參考最高 heat score 的 post / event，而唔只係平均 heat。若對手最高 heat 活動明顯高於 Wynn，應可將該對象視為 watchlist，建議 Wynn mark 低該類高熱度歌手、品牌、IP 或展覽主題，之後主動爭取邀請或延伸合作活動。
+18. 上述「mark 低高 heat 對象，再請佢哋來澳／做相關活動」係一個可跨多個 category 應用的通用策略；請按當前 panel 結果自動判斷對應對象，唔好硬寫固定名字。
+19. 對於 Concert 強項，建議應偏向「繼續鎖定高 heat 歌手 / 延續成功選角方向」，同時可點名當前結果中 heat 更高的對手演出作 booking watchlist；唔好再加米芝蓮晚宴、會員優先預訂、VIP 套票呢類多餘包裝。
+
+請只返回 JSON array，例如：
+[
+  {{"catKey":"concert","text":"建議 Wynn 延續現有高 heat 演唱會方向，持續鎖定高熱度歌手，並留意市場上更高 heat 的演出作後續邀請目標。"}},
+  {{"catKey":"exhibition","text":"建議 Wynn 以高端收藏策劃沉浸式特展，配合會員預覽及購物回贈，盡快建立 Exhibition 代表作。"}}
+]
+唔需要任何解釋。"""
+
+    try:
+        resp = client.chat.completions.create(
+            model=DEEPSEEK_REASON_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=700,
+        )
+        raw = (resp.choices[0].message.content or "").strip()
+        raw = re.sub(r'^```[a-z]*\n?', '', raw).rstrip('`').strip()
+        try:
+            recs = json.loads(raw)
+        except Exception:
+            match = re.search(r'(\[\s*\{.*\}\s*\])', raw, re.S)
+            if match:
+                recs = json.loads(match.group(1))
+            else:
+                print(f"⚠️ wynn_recommendations raw parse failed: {raw[:500]}")
+                raise
+        if not isinstance(recs, list):
+            recs = []
+        try:
+            from trad_simp import to_trad as _to_trad
+            normalized = []
+            for item in recs:
+                if not isinstance(item, dict):
+                    continue
+                cat_key = str(item.get("catKey") or "").strip().lower()
+                text = _to_trad(str(item.get("text") or "").strip())
+                if cat_key and text:
+                    normalized.append({"catKey": cat_key, "text": text})
+            recs = normalized
+        except Exception:
+            recs = [item for item in recs if isinstance(item, dict)]
+        return {"recommendations": recs}
+    except Exception as e:
+        print(f"⚠️ wynn_recommendations 出錯: {e}")
+        return {"recommendations": []}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
