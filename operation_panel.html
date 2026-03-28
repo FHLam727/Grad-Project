@@ -967,9 +967,14 @@
         <div class="section">
           <h4 style="display:flex;align-items:center;justify-content:space-between;">
             Organisers
-            <label class="check" style="font-size:11px;font-weight:600;color:var(--brand);cursor:pointer;gap:5px;">
-              <input type="checkbox" id="selectAllOps" onchange="setAllCheckbox('operator', this.checked)"> Select All
-            </label>
+            <button id="selectAllOpsBtn" type="button" onclick="toggleSelectAll('operator', this)" style="
+              font-size:11px;font-weight:650;color:var(--brand);
+              background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.20);
+              border-radius:8px;padding:3px 10px;cursor:pointer;
+              font-family:var(--font);transition:.15s;white-space:nowrap;
+              line-height:1.6;"
+              onmouseover="this.style.background='rgba(37,99,235,0.16)'"
+              onmouseout="this.style.background='rgba(37,99,235,0.08)'">Select All</button>
           </h4>
           <div class="grid-3">
             <label class="check"><input type="checkbox" name="operator" value="wynn"> Wynn</label>
@@ -985,9 +990,14 @@
         <div class="section">
           <h4 style="display:flex;align-items:center;justify-content:space-between;">
             Event Categories
-            <label class="check" style="font-size:11px;font-weight:600;color:var(--brand);cursor:pointer;gap:5px;">
-              <input type="checkbox" id="selectAllCats" onchange="setAllCheckbox('category', this.checked)"> Select All
-            </label>
+            <button id="selectAllCatsBtn" type="button" onclick="toggleSelectAll('category', this)" style="
+              font-size:11px;font-weight:650;color:var(--brand);
+              background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.20);
+              border-radius:8px;padding:3px 10px;cursor:pointer;
+              font-family:var(--font);transition:.15s;white-space:nowrap;
+              line-height:1.6;"
+              onmouseover="this.style.background='rgba(37,99,235,0.16)'"
+              onmouseout="this.style.background='rgba(37,99,235,0.08)'">Select All</button>
           </h4>
           <div class="grid-3">
             <label class="check"><input type="checkbox" name="category" value="concert"> Concert</label>
@@ -1456,19 +1466,31 @@
 
     function setAllCheckbox(name, checked){
       document.querySelectorAll(`input[name="${name}"]`).forEach(x => x.checked = checked);
-      // Sync the master "Select All" checkbox
-      const masterId = name === 'operator' ? 'selectAllOps' : 'selectAllCats';
-      const master = document.getElementById(masterId);
-      if (master) master.checked = checked;
+      _syncSelectAllBtn(name);
     }
-    // Keep "Select All" in sync when individual boxes are clicked
+
+    // Toggle between Select All / Deselect All
+    function toggleSelectAll(name, btn) {
+      const allBoxes = document.querySelectorAll(`input[name="${name}"]`);
+      const allChecked = [...allBoxes].every(x => x.checked);
+      allBoxes.forEach(x => x.checked = !allChecked);
+      _syncSelectAllBtn(name);
+    }
+
+    // Sync button label based on current checkbox state
+    function _syncSelectAllBtn(name) {
+      const btnId = name === 'operator' ? 'selectAllOpsBtn' : 'selectAllCatsBtn';
+      const btn   = document.getElementById(btnId);
+      if (!btn) return;
+      const allBoxes = document.querySelectorAll(`input[name="${name}"]`);
+      const allChecked = [...allBoxes].every(x => x.checked);
+      btn.textContent = allChecked ? 'Deselect All' : 'Select All';
+    }
+
+    // Keep button label in sync when individual boxes are clicked
     document.addEventListener('change', function(e) {
       if (e.target.name === 'operator' || e.target.name === 'category') {
-        const name = e.target.name;
-        const all  = document.querySelectorAll(`input[name="${name}"]`);
-        const masterId = name === 'operator' ? 'selectAllOps' : 'selectAllCats';
-        const master = document.getElementById(masterId);
-        if (master) master.checked = [...all].every(x => x.checked);
+        _syncSelectAllBtn(e.target.name);
       }
     });
 
@@ -2286,13 +2308,11 @@
             const ops  = JSON.parse(_ss.get(_SK.ops)  || 'null');
             if (Array.isArray(cats)) {
                 document.querySelectorAll('input[name="category"]').forEach(x => x.checked = cats.includes(x.value));
-                const m = document.getElementById('selectAllCats');
-                if (m) m.checked = [...document.querySelectorAll('input[name="category"]')].every(x => x.checked);
+                if (typeof _syncSelectAllBtn === 'function') _syncSelectAllBtn('category');
             }
             if (Array.isArray(ops)) {
                 document.querySelectorAll('input[name="operator"]').forEach(x => x.checked = ops.includes(x.value));
-                const m = document.getElementById('selectAllOps');
-                if (m) m.checked = [...document.querySelectorAll('input[name="operator"]')].every(x => x.checked);
+                if (typeof _syncSelectAllBtn === 'function') _syncSelectAllBtn('operator');
             }
             // Restore date mode/range
             const dateState = JSON.parse(_ss.get(_SK.date) || 'null');
@@ -2933,9 +2953,12 @@ function renderBarChart() {
 function refreshAnalyticsCharts(rawSummaries) {
   _chartCatData = _extractCatData(rawSummaries);
   _comparisonCatData = _chartCatData;  // keep _chartDataSource() in sync
+  // In DEMO mode nothing is checked yet → fall back to full default lists
+  const _ops  = typeof getSelectedValues === 'function' ? getSelectedValues('operator')  : [];
+  const _cats = typeof getSelectedValues === 'function' ? getSelectedValues('category') : [];
   _appliedFilterState = {
-    operators: typeof getSelectedValues === 'function' ? getSelectedValues('operator') : _appliedFilterState.operators,
-    categories: typeof getSelectedValues === 'function' ? getSelectedValues('category') : _appliedFilterState.categories
+    operators:  _ops.length  ? _ops  : ['wynn','sands','galaxy','mgm','melco','sjm','government'],
+    categories: _cats.length ? _cats : ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping','gaming']
   };
   _chartFilter  = { operator: null, catKey: null };
   const banner  = document.getElementById('chartFilterBanner');
