@@ -1282,13 +1282,20 @@
                 <li class="prompt-item">
                   <span class="prompt-item-index">1</span>
                   <div class="prompt-item-text">
-                    <div class="prompt-item-title">Loading</div>
-                    <div class="prompt-item-body">Building Wynn comparison points…</div>
+                    <div class="prompt-item-title">Wynn's Competitive Advantage</div>
+                    <div class="prompt-item-body">Building comparison points…</div>
+                  </div>
+                </li>
+                <li class="prompt-item">
+                  <span class="prompt-item-index">2</span>
+                  <div class="prompt-item-text">
+                    <div class="prompt-item-title">Wynn's Potential Improvements</div>
+                    <div class="prompt-item-body">Building comparison points…</div>
                   </div>
                 </li>
               </ul>
               <div class="prompt-foot">
-                <div id="strategyPromptStatus" class="prompt-status">Waiting for analytics data…</div>
+                <div id="strategyPromptStatus" class="prompt-status" style="display:none;"></div>
               </div>
           </section>
         </div>
@@ -1462,7 +1469,12 @@
     }
 
     function getSelectedValues(name){
-      return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(x => x.value);
+      const vals = [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(x => x.value);
+      // Wynn is always included in operator filters regardless of checkbox state
+      if (name === "operator" && vals.length && !vals.includes("wynn")) {
+        vals.unshift("wynn");
+      }
+      return vals;
     }
 
     function setAllCheckbox(name, checked){
@@ -2443,7 +2455,7 @@
         const toDate       = $("toDate").value;
         const selectedCats = getSelectedValues("category");
         const selectedOps  = getSelectedValues("operator");
-        if (selectedOps.length === 0) return alert("請至少選擇一個組織者");
+        if (selectedOps.filter(op => op !== "wynn").length === 0) return alert("請至少選擇一個其他組織者作比較");
         // Update analytics state for heatmap + Wynn positioning
         _hasAppliedFilters = true;
         _appliedFilterState = { operators: selectedOps, categories: selectedCats };
@@ -2663,6 +2675,7 @@ function clearChartFilter() {
   const sel = document.getElementById('doughnutOperatorSelect');
   renderDoughnutChart(sel ? sel.value : 'Wynn');
   renderBarChart();
+  if (typeof window.refreshHabChart === 'function') window.refreshHabChart();
 }
 
 // ── Doughnut Chart ───────────────────────────────────────
@@ -2969,6 +2982,7 @@ function refreshAnalyticsCharts(rawSummaries) {
   const sel = document.getElementById('doughnutOperatorSelect');
   renderDoughnutChart(sel ? sel.value : 'Wynn');
   renderBarChart();
+  if (typeof window.refreshHabChart === 'function') window.refreshHabChart();
 }
 
 // Doughnut operator selector
@@ -3369,23 +3383,58 @@ function _chartDataSource() {
   let heatAvgChart = null;
   let _activeHabOp = null;
 
-  // Get categories that are both checked in sidebar AND have data
-  // Falls back to all HEAT_CAT_DATA keys in DEMO mode (nothing checked yet)
+  // Build a {opLc: avgHeat} map from live _chartDataSource() for a given category
+  function _liveHeatMapForCat(cat) {
+    const liveData = (typeof _chartDataSource === 'function') ? _chartDataSource() : {};
+    const acts = liveData[cat] || [];
+    if (!acts.length) return null; // no live data → fall back to demo
+    const acc = {};
+    acts.forEach(ev => {
+      const op = (ev.operator || '').toLowerCase();
+      if (!op) return;
+      if (!acc[op]) acc[op] = { sum: 0, count: 0 };
+      const h = parseFloat(ev.heat_score ?? ev.heat ?? 0);
+      if (isFinite(h)) { acc[op].sum += h; acc[op].count++; }
+    });
+    const result = {};
+    Object.entries(acc).forEach(([op, { sum, count }]) => {
+      result[op] = count ? sum / count : 0;
+    });
+    return Object.keys(result).length ? result : null;
+  }
+
+  // Get categories: prefer live data keys, fall back to HEAT_CAT_DATA
   function activeCats() {
     const chk = _checkedCats();
-    const all = Object.keys(HEAT_CAT_DATA);
+    const liveData = (typeof _chartDataSource === 'function') ? _chartDataSource() : {};
+    const liveCats = Object.keys(liveData).filter(c => (liveData[c] || []).length > 0);
+    const all = liveCats.length ? liveCats : Object.keys(HEAT_CAT_DATA);
     return chk.length ? all.filter(c => chk.includes(c)) : all;
   }
 
-  // Get operators that are checked in sidebar AND have data for the current cat
-  // Falls back to all operators in that category row in DEMO mode
+  // Get operators + avg heat for a category, using live data when available
   function activeOpsForCat(cat) {
-    const chk    = _checkedOps();
+    const chk = _checkedOps();
+    const liveMap = _liveHeatMapForCat(cat);
+    if (liveMap) {
+      return Object.entries(liveMap)
+        .filter(([op]) => chk.length ? chk.includes(op) : true)
+        .sort((a, b) => b[1] - a[1])
+        .map(([op]) => op);
+    }
+    // Fall back to demo HEAT_CAT_DATA
     const catRow = HEAT_CAT_DATA[cat] || {};
     return Object.entries(catRow)
       .filter(([op]) => chk.length ? chk.includes(op) : true)
-      .sort((a,b) => b[1]-a[1])
+      .sort((a, b) => b[1] - a[1])
       .map(([op]) => op);
+  }
+
+  // Get the heat value for a given op+cat, preferring live data
+  function heatValForOp(cat, op) {
+    const liveMap = _liveHeatMapForCat(cat);
+    if (liveMap && op in liveMap) return liveMap[op];
+    return (HEAT_CAT_DATA[cat] || {})[op] ?? 0;
   }
 
   function buildPills() {
@@ -3421,8 +3470,8 @@ function _chartDataSource() {
     if (!selectedCat) { buildPills(); if (!selectedCat) return; }
 
     const ops    = activeOpsForCat(selectedCat);
-    const maxVal = ops.length ? HEAT_CAT_DATA[selectedCat][ops[0]] : 0;
-    const values = ops.map(op => HEAT_CAT_DATA[selectedCat][op]);
+    const values = ops.map(op => heatValForOp(selectedCat, op));
+    const maxVal = values.length ? Math.max(...values) : 0;
     const labels = ops.map(op => _OP_LABEL[op] || op);
 
     wrap.style.height = (ops.length * 48 + 40) + 'px';
@@ -3531,6 +3580,13 @@ function _chartDataSource() {
 
   buildPills();
   renderHeatAvgChart();
+
+  // Expose so refreshAnalyticsCharts can trigger a live data refresh
+  window.refreshHabChart = function() {
+    _activeHabOp = null;
+    buildPills();
+    renderHeatAvgChart();
+  };
 })();
 
 // ── Wynn Market Performance & Positioning ────────────────────────────────────
@@ -3558,9 +3614,14 @@ function _chartDataSource() {
       return `<div class="prompt-block">${lines.join("")}</div>`;
     }
 
-    function promptHeatLine(opTitle, count, avg) {
+    function promptHeatLine(opTitle, count, avg, rank) {
       const heatBadge = count > 0 ? `<span class="heat-badge">🔥 平均 ${fmtNum(avg)}</span>` : "";
-      return `<span class="rec-line">${promptOperatorRef(opTitle)}: ${count}${heatBadge}</span>`;
+      const rankStr = rank != null ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:rgba(15,23,42,0.08);font-size:11px;font-weight:800;color:rgba(15,23,42,0.55);flex:0 0 auto;margin-right:4px;">${rank}</span>` : "";
+      const isWynn = opTitle === "Wynn";
+      const highlight = isWynn
+        ? `style="background:rgba(234,179,8,0.10);border:1px solid rgba(234,179,8,0.28);border-radius:10px;padding:3px 8px 3px 4px;display:inline-flex;align-items:center;gap:4px;"`
+        : `style="display:inline-flex;align-items:center;gap:4px;"`;
+      return `<span class="rec-line"><span ${highlight}>${rankStr}${promptOperatorRef(opTitle)}: ${count}${heatBadge}</span></span>`;
     }
 
     function promptTextLine(text) {
@@ -3589,12 +3650,29 @@ function _chartDataSource() {
 
     function formatAiRecommendationText(text, events = []) {
       let html = String(text || "");
+      // Step 0: Protect existing HTML spans from double-processing
+      const placeholders = [];
+      const protectSpans = () => {
+        html = html.replace(/<span[^>]*>[\s\S]*?<\/span>/g, match => {
+          const idx = placeholders.length;
+          placeholders.push(match);
+          return `\x00PLACEHOLDER${idx}\x00`;
+        });
+      };
+      const restoreSpans = () => {
+        html = html.replace(/\x00PLACEHOLDER(\d+)\x00/g, (_, idx) => placeholders[Number(idx)] || "");
+      };
+      protectSpans();
+      // Step 1: Deduplicate bare operator names
       html = html.replace(/(Wynn|Sands|Galaxy|Melco|MGM|SJM|Government)\1+/g, "$1");
       html = html.replace(/\b(Wynn|Sands|Galaxy|Melco|MGM|SJM|Government)\s*\1\b/g, "$1");
+      // Step 2: Convert op《event》 and op「event」 → HTML refs, then immediately protect them
       ["Government", "Galaxy", "Melco", "Sands", "Wynn", "MGM", "SJM"].forEach(op => {
         const rx = new RegExp(`\\b${escapeRegex(op)}\\b\\s*[《「]([^》」]+)[》」]`, "g");
         html = html.replace(rx, (_, name) => `${promptOperatorRef(op)}${promptEventRef(name)}`);
       });
+      protectSpans();
+      // Step 3: Convert remaining 《event》 and 「event」 → HTML refs (with operator lookup), then protect
       html = html.replace(/《([^》]+)》/g, (_, name) => {
         const meta = resolvePromptEventMeta(name, events);
         return meta ? `${promptOperatorRef(meta.operator)}${promptEventRef(name)}` : promptEventRef(name);
@@ -3603,37 +3681,72 @@ function _chartDataSource() {
         const meta = resolvePromptEventMeta(name, events);
         return meta ? `${promptOperatorRef(meta.operator)}${promptEventRef(name)}` : promptEventRef(name);
       });
+      protectSpans();
+      // Step 4: Convert remaining bare operator names → HTML refs
       ["Government", "Galaxy", "Melco", "Sands", "Wynn", "MGM", "SJM"].forEach(op => {
         html = html.replace(new RegExp(`\\b${op}\\b`, "g"), promptOperatorRef(op));
         const badge = promptOperatorRef(op);
         while (html.includes(`${badge}${badge}`)) html = html.replace(`${badge}${badge}`, badge);
         while (html.includes(`${badge} ${badge}`)) html = html.replace(`${badge} ${badge}`, badge);
       });
+      // Step 5: Restore all placeholders
+      restoreSpans();
       return html;
     }
 
     function cleanRecommendationLead(text) {
-      return String(text || "")
-        .replace(/^\s*建議\s*Wynn\s*/i, "")
-        .replace(/^\s*Wynn\s*/i, "")
-        .replace(/^\s*現時\s*Wynn\s+[A-Za-z]+\s*熱度為零[，,、 ]*/i, "")
-        .replace(/^\s*現時\s*Wynn\s+[A-Za-z]+\s*熱度偏低（?🔥?\d+(?:\.\d+)?）?[，,、 ]*/i, "")
-        .replace(/^\s*反映內容吸引力不足[。．]?\s*/i, "")
-        .replace(/^\s*未有舉辦\s*[A-Za-z]+\s*，?\s*但市場已有[^。]*[。．]?\s*/i, "")
-        .replace(/^\s*Wynn\s*未有舉辦\s*[A-Za-z]+\s*，?\s*但市場已有[^。]*[。．]?\s*/i, "")
-        .replace(/^\s*目前未有舉辦\s*[A-Za-z]+\s*類別活動[，,、 ]*但市場已有相關活動[，,、 ]*顯示此類別仍有補足空間[。．]?\s*/i, "")
-        .trim();
+      let s = String(text || "");
+      // Repeatedly strip leading factual status sentences (現時/目前 Wynn ...) — already stated by prefix
+      // Run up to 3 times to catch chained sentences like "現時 Wynn X。反映...。"
+      for (let i = 0; i < 3; i++) {
+        const before = s;
+        // "現時/目前 Wynn [anything]。" — factual statement, strip it
+        s = s.replace(/^\s*(?:現時|目前)\s*(?:Wynn\s*)?[^。．]*[。．]\s*/i, "");
+        // "反映[anything]。" — consequent observation, strip it
+        s = s.replace(/^\s*反映[^。．]*[。．]\s*/i, "");
+        // "未有舉辦/Wynn未有舉辦 X，但市場已有..." — factual, strip
+        s = s.replace(/^\s*(?:Wynn\s*)?未有舉辦[^。．]*[。．]\s*/i, "");
+        if (s === before) break;
+      }
+      // Strip "建議 Wynn [熱度/表現描述]；" or "建議 Wynn [X]，反映[Y]；" — factual assessment disguised as recommendation
+      s = s.replace(/^\s*建議\s*Wynn\s*[^；。．]*(?:熱度|表現|吸引力|落後|偏低|不足)[^；。．]*[；,，]\s*/i, "");
+      // Strip bare leading "建議 Wynn " (will be re-added by caller if needed)
+      s = s.replace(/^\s*建議\s*Wynn\s*/i, "");
+      s = s.replace(/^\s*Wynn\s*/i, "");
+      return s.trim();
     }
 
+    // Strips applied only when Wynn is TRAILING (non-leader branch)
+    function sanitizeTrailingRecommendationText(text) {
+      let next = String(text || "");
+      next = next
+        .replace(/[，,、]?\s*推出結合米芝蓮晚宴與水療體驗的\s*VIP\s*套票/gi, "")
+        .replace(/[，,、]?\s*推出「?演唱會\s*\+\s*米芝蓮晚宴\s*\+\s*水療」?\s*VIP\s*套票/gi, "")
+        .replace(/[，,、]?\s*結合米芝蓮晚宴與會員優先預訂/gi, "")
+        .replace(/[，,、]?\s*並結合會員優先預訂/gi, "")
+        .replace(/[嘅的]?成功模式/g, "")
+        .replace(/[，,、。．]?\s*(?:同時將|並將)\s*(?:Wynn|Sands|Galaxy|Melco|MGM|SJM|Government)?\s*[《「][^》」]*[》」](?:[^》」]*[》」])?[^。．]*(?:列為|作為)[^。．]*[目標對象][。．]?/g, "");
+      return next.replace(/\s+/g, " ").trim();
+    }
+
+    // Strips applied only when Wynn is LEADING (leader branch)
     function sanitizeLeaderRecommendationText(item, text) {
       let next = String(text || "");
-      if (item?.catKey === "concert") {
-        next = next
-          .replace(/[，,、]?\s*推出結合米芝蓮晚宴與水療體驗的\s*VIP\s*套票/gi, "")
-          .replace(/[，,、]?\s*推出「?演唱會\s*\+\s*米芝蓮晚宴\s*\+\s*水療」?\s*VIP\s*套票/gi, "")
-          .replace(/[，,、]?\s*結合米芝蓮晚宴與會員優先預訂/gi, "")
-          .replace(/[，,、]?\s*並結合會員優先預訂/gi, "");
-      }
+      // Strip "並將/同時將 X《event》列為/列入XX目標/名單。" — redundant, watchlist hint handles this
+      next = next.replace(/[，,、。．]?\s*(?:同時將|並將)\s*(?:Wynn|Sands|Galaxy|Melco|MGM|SJM|Government)?\s*[《「][^》」]*[》」](?:[^》」]*[》」])?[^。．]*(?:列為|列入|作為)[^。．]*(?:[目標對象]|名單)[。．]?/g, "");
+      // Strip 成功模式
+      next = next.replace(/[嘅的]?成功模式/g, "");
+      // Strip "參考 X《event》嘅選角/策劃方向" — redundant with watchlist hint
+      next = next.replace(/[，,、]?\s*參考\s*(?:Wynn|Sands|Galaxy|Melco|MGM|SJM|Government)?\s*[《「][^》」]*[》」](?:[^》」]*[》」])?[^，。]*(?:選角|策劃|方向|模式)[^，。]*/g, "");
+      // Strip "可留意/關注/mark低 X《event》" sentences
+      next = next.replace(/[，,、]?\s*(?:可留意|留意|關注|mark\s*低)\s*(?:Wynn|Sands|Galaxy|Melco|MGM|SJM|Government)?\s*[《「][^》」]*[》」][^。]*[。．]?/g, "");
+      // Strip all consecutive duplicate operator names after 延續 (handles WynnWynn, Wynn Wynn etc.)
+      next = next.replace(/(延續|延续)\s*(?:Wynn|Sands|Galaxy|Melco|MGM|SJM|Government)(?:\s*(?:Wynn|Sands|Galaxy|Melco|MGM|SJM|Government))*\s*/g, "$1 ");
+      // Strip redundant operator name immediately after 建議 Wynn
+      next = next.replace(/(建議\s*(?:Wynn|Sands|Galaxy|Melco|MGM|SJM|Government)\s*(?:\S+\s*)?)\s*(Wynn|Sands|Galaxy|Melco|MGM|SJM|Government)\s+/g, (match, prefix, op) => {
+        const firstOp = match.match(/建議\s*(Wynn|Sands|Galaxy|Melco|MGM|SJM|Government)/)?.[1];
+        return firstOp === op ? prefix : match;
+      });
       return next.replace(/\s+/g, " ").trim();
     }
 
@@ -3652,9 +3765,9 @@ function _chartDataSource() {
         return acc;
       }, {});
       const refs = Object.entries(grouped).map(([opTitle, names]) => {
-        if (names.length === 1) return `${opTitle}《${names[0]}》`;
+        if (names.length === 1) return `${promptOperatorRef(opTitle)}${promptEventRef(names[0])}`;
         const [first, ...rest] = names;
-        return `${opTitle}《${first}》和${rest.map(n => `《${n}》`).join("和")}`;
+        return `${promptOperatorRef(opTitle)}${promptEventRef(first)}和${rest.map(n => promptEventRef(n)).join("和")}`;
       }).join("、");
       return ` 並可將 ${refs} 等更高 heat 演出列為重點觀察對象，記錄相關歌手或企劃，後續主動爭取來澳演出。`;
     }
@@ -3667,19 +3780,21 @@ function _chartDataSource() {
       if (wynnLeads) {
         return `${sanitizeLeaderRecommendationText(item, rawText || "")}${buildConcertWatchlistHint(item)}`.trim();
       }
+      const HIGH_HEAT_THRESHOLD = 60; // above this, Wynn's heat is considered strong despite trailing
+      const oppAvg = Number(item?.topOpponent?.avg || 0);
       const prefix = item?.wynn?.count > 0
-        ? `現時 ${promptOperatorRef("Wynn")} ${item.label} 熱度偏低（${fmtHeat}），反映內容吸引力不足。`
+        ? (avgHeat >= HIGH_HEAT_THRESHOLD
+            ? `雖然 ${promptOperatorRef("Wynn")} ${item.label} 熱度已達 ${fmtHeat}，但對手最高平均熱度達 🔥${fmtNum(oppAvg)}，仍有差距。`
+            : `現時 ${promptOperatorRef("Wynn")} ${item.label} 熱度偏低（${fmtHeat}），反映內容吸引力不足。`)
         : `${promptOperatorRef("Wynn")} 目前未有舉辦 ${item.label} 類別活動，但市場已有相關活動，顯示此類別仍有補足空間。`;
-      const next = body || `建議 ${promptOperatorRef("Wynn")} 盡快補強更具話題性的代表作，並加入更清晰的會員禮遇或跨消費聯動。`;
-      const deduped = next
-        .replace(/^\s*現時\s*Wynn\s+[A-Za-z]+\s*熱度為零[，,、 ]*/i, "")
-        .replace(/^\s*現時\s*Wynn\s+[A-Za-z]+\s*熱度偏低（?🔥?\d+(?:\.\d+)?）?[，,、 ]*/i, "")
-        .replace(/^\s*反映內容吸引力不足[。．]?\s*/i, "")
-        .replace(/^\s*未有舉辦\s*[A-Za-z]+\s*，?\s*但市場已有[^。]*[。．]?\s*/i, "")
-        .replace(/^\s*Wynn\s*未有舉辦\s*[A-Za-z]+\s*，?\s*但市場已有[^。]*[。．]?\s*/i, "")
-        .trim();
-      const normalized = deduped.startsWith("建議") ? deduped : `建議 ${promptOperatorRef("Wynn")} ${deduped}`;
-      return `${prefix} ${normalized}`;
+      // body has already had all factual status sentences stripped by cleanRecommendationLead.
+      // It should now start with the actual recommendation ("參考...", "引入...", etc.)
+      // Add "建議 Wynn " prefix only if body doesn't already start with "建議"
+      const cleanedBody = sanitizeTrailingRecommendationText(body);
+      const recommendation = cleanedBody
+        ? (cleanedBody.startsWith("建議") ? cleanedBody : `建議 ${promptOperatorRef("Wynn")} ${cleanedBody}`)
+        : `建議 ${promptOperatorRef("Wynn")} 盡快補強更具話題性的代表作，並加入更清晰的會員禮遇或跨消費聯動。`;
+      return `${prefix} ${recommendation}`;
     }
 
     let _strategyPromptReqSeq = 0;
@@ -3833,15 +3948,65 @@ function _chartDataSource() {
       return lines.slice(0, Math.max(1, promptSelectedCats().length || 0));
     }
 
+    // ── Category block helpers (module-level so updateStrategyPrompt can call them directly) ──
+    function buildRankedHeatLines(wynnData, opponentsList) {
+      const all = [
+        { opTitle: "Wynn", count: wynnData.count, avg: wynnData.avg },
+        ...opponentsList
+      ].sort((a, b) => (b.avg || 0) - (a.avg || 0));
+      return all.map((row, i) => promptHeatLine(row.opTitle, row.count, row.avg, i + 1));
+    }
+
+    function buildStrengthBlock(item, recHtml) {
+      const lines = [
+        promptCategoryRef(item.catKey, item.label),
+        ...buildRankedHeatLines(item.wynn, item.opponents)
+      ];
+      if (!item.opponents.length) {
+        lines.push(promptTextLine(`${promptOperatorRef("Wynn")} 目前於此類別獨家舉辦活動，顯示其在市場上具備明確定位。`));
+      } else {
+        const oppNames = item.opponents.map(opp => promptOperatorRef(opp.opTitle)).join(" 和 ");
+        const wynnCount = item.wynn.count;
+        const maxOppCount = Math.max(...item.opponents.map(o => o.count));
+        const MANY_EVENTS_THRESHOLD = 8;
+        const usePositive = wynnCount >= maxOppCount || wynnCount >= MANY_EVENTS_THRESHOLD;
+        lines.push(promptTextLine(usePositive
+          ? `${promptOperatorRef("Wynn")} 舉辦了 ${wynnCount} 場${item.label.toLowerCase()}活動，而且平均熱度高於 ${oppNames}，反映其在該類活動的質量與吸引力較強。`
+          : `雖然 ${promptOperatorRef("Wynn")} 舉辦了 ${wynnCount} 場${item.label.toLowerCase()}活動，但其平均熱度高於 ${oppNames}，反映其在該類活動的質量與吸引力較強。`
+        ));
+      }
+      if (recHtml) lines.push(`<span class="rec-line" style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(15,23,42,0.07);display:block;"><span style="font-size:12px;font-weight:800;color:rgba(15,23,42,0.45);letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:4px;">Recommendations for Wynn</span>${recHtml}</span>`);
+      return promptBlock(lines);
+    }
+
+    function buildGapBlock(item, recHtml) {
+      const opp = item.topOpponent;
+      const lines = [
+        promptCategoryRef(item.catKey, item.label),
+        ...buildRankedHeatLines(item.wynn, item.opponents)
+      ];
+      lines.push(promptTextLine(item.wynn.count === 0
+        ? `${item.label} 於本次篩選範圍內已有市場活動，而 ${promptOperatorRef("Wynn")} 目前尚未舉辦，顯示此類別仍有補足空間。`
+        : (() => {
+            if (!opp) return `${promptOperatorRef("Wynn")} 在此類別仍有改進空間。`;
+            if (opp.count > item.wynn.count && opp.avg > item.wynn.avg) {
+              return `${promptOperatorRef(opp.opTitle)} 於此類別的場次與平均熱度均高於 ${promptOperatorRef("Wynn")}，顯示 ${promptOperatorRef("Wynn")} 在此類別仍有明顯改進空間。`;
+            }
+            return `${promptOperatorRef(opp.opTitle)} 於此類別的平均熱度高於 ${promptOperatorRef("Wynn")}，顯示 ${promptOperatorRef("Wynn")} 在活動質量與吸引力上仍有提升空間。`;
+          })()
+      ));
+      if (recHtml) lines.push(`<span class="rec-line" style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(15,23,42,0.07);display:block;"><span style="font-size:12px;font-weight:800;color:rgba(15,23,42,0.45);letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:4px;">Recommendations for Wynn</span>${recHtml}</span>`);
+      return promptBlock(lines);
+    }
+
     function buildWynnDeepSeekPoints() {
       const events = getPromptEvents();
       const status = getPromptStatusEl();
       if (!events.length) {
         if (status) status.textContent = "No filtered events yet. Apply filters to build Wynn comparison points.";
         return [
-          { title: "Wynn's Competitive Advantage", body: "比較 Wynn 與其他 organiser 的活動數量及平均 heat，指出 Wynn 在哪些類別即使場次較少，仍具較高熱度。" },
-          { title: "Wynn's Potential Improvements", body: "比較 Wynn 與其他 organiser 的活動數量及熱度表現，指出 Wynn 在哪些類別仍有優化空間。" },
-          { title: "Recommendations for Wynn", body: "如 Wynn 已於相關類別領先，則提出鞏固優勢的建議；如尚未領先，則提出具針對性的補位方向。" }
+          { title: "Wynn's Competitive Advantage", body: "比較 Wynn 與其他 organiser 的活動數量及平均 heat，指出 Wynn 在哪些類別即使場次較少，仍具較高熱度；並附上對應建議。" },
+          { title: "Wynn's Potential Improvements", body: "比較 Wynn 與其他 organiser 的活動數量及熱度表現，指出 Wynn 在哪些類別仍有優化空間；並附上對應建議。" }
         ];
       }
       const selectedOps = promptSelectedOpTitles();
@@ -3852,57 +4017,47 @@ function _chartDataSource() {
       const selectedCategories = promptSelectedCats().map(catKey => CAT_CONFIG[catKey]?.label || titleCaseWord(catKey));
       const selectedCatKeys = promptSelectedCats();
       const strengthsBody = summary.leaders.length
-        ? summary.leaders.map(item => promptBlock([
-            promptCategoryRef(item.catKey, item.label),
-            promptHeatLine("Wynn", item.wynn.count, item.wynn.avg),
-            ...item.opponents.map(opp => promptHeatLine(opp.opTitle, opp.count, opp.avg)),
-            promptTextLine(!item.opponents.length
-              ? `${promptOperatorRef("Wynn")} 目前於此類別獨家舉辦活動，顯示其在市場上具備明確定位。`
-              : `雖然 ${promptOperatorRef("Wynn")} 只舉辦了 ${item.wynn.count} 場${item.label.toLowerCase()}活動，但其平均熱度仍高於 ${item.opponents.map(opp => promptOperatorRef(opp.opTitle)).join(" 和 ")}。這反映 ${promptOperatorRef("Wynn")} 在該類活動的質量與吸引力較強。`)
-          ])).join("")
+        ? summary.leaders.map(item => buildStrengthBlock(item, null)).join("")
         : promptBlock([
             ...selectedCatKeys.map((catKey, idx) => promptCategoryRef(catKey, selectedCategories[idx])),
             promptTextLine(`對比 ${opponents.length ? opponents.map(promptOperatorRef).join("和") : promptOperatorRef("Wynn")} 而言，${promptOperatorRef("Wynn")} 暫未見明顯的平均 heat 領先優勢。`)
           ]);
+
       const gapItems = [];
       summary.gaps.forEach(item => {
-        const opp = item.topOpponent;
-        if (!opp) return;
-        const block = [
-          promptCategoryRef(item.catKey, item.label),
-          promptHeatLine("Wynn", item.wynn.count, item.wynn.avg),
-          ...item.opponents.map(row => promptHeatLine(row.opTitle, row.count, row.avg))
-        ];
-        block.push(promptTextLine(item.wynn.count === 0
-          ? `${item.label} 於本次篩選範圍內已有市場活動，而 ${promptOperatorRef("Wynn")} 目前尚未舉辦，顯示此類別仍有補足空間。`
-          : (item.wynn.avg < 30
-            ? `${promptOperatorRef(opp.opTitle)} 於此類別的場次與熱度均高於 ${promptOperatorRef("Wynn")}，顯示 ${promptOperatorRef("Wynn")} 在此類別仍有明顯改進空間。`
-            : `${promptOperatorRef(opp.opTitle)} 的場次與平均熱度表現更強，顯示 ${promptOperatorRef("Wynn")} 仍有改進空間。`)
-        ));
-        gapItems.push(promptBlock(block));
+        if (!item.topOpponent) return;
+        gapItems.push(buildGapBlock(item, null));
       });
       summary.peakGaps.filter(item => !summary.gaps.some(gap => gap.catKey === item.catKey)).forEach(item => {
         const oppEvent = item.topOpponent?.topEvent;
         const wynnEvent = item.wynn?.topEvent;
         if (!oppEvent) return;
-        gapItems.push(promptBlock([
+        const lines = [
           promptCategoryRef(item.catKey, item.label),
-          promptHeatLine("Wynn", item.wynn.count, item.wynn.avg),
-          ...item.opponents.map(row => promptHeatLine(row.opTitle, row.count, row.avg)),
+          ...buildRankedHeatLines(item.wynn, item.opponents),
           promptTextLine(wynnEvent
             ? `雖然 ${promptOperatorRef("Wynn")} 的平均 heat 仍具競爭力，但 ${promptOperatorRef(item.topOpponent.opTitle)} 的最高熱度活動 ${promptEventRef(oppEvent.name)} 🔥${fmtNum(oppEvent.heat)} 仍高於 ${promptOperatorRef("Wynn")} 目前最高熱度活動 ${promptEventRef(wynnEvent.name)} 🔥${fmtNum(wynnEvent.heat)}，顯示旗艦級話題活動仍有提升空間。`
             : `${promptOperatorRef(item.topOpponent.opTitle)} 目前已擁有最高熱度活動 ${promptEventRef(oppEvent.name)} 🔥${fmtNum(oppEvent.heat)}，而 ${promptOperatorRef("Wynn")} 尚未建立對應的代表性活動。`)
-        ]));
+        ];
+        gapItems.push(promptBlock(lines));
       });
       const gapsBody = gapItems.length ? gapItems.join("") : promptBlock([
         ...selectedCatKeys.map((catKey, idx) => promptCategoryRef(catKey, selectedCategories[idx])),
         promptTextLine(`以目前${[...opponents.map(promptOperatorRef), promptOperatorRef("Wynn")].join("和")}的對比，${promptOperatorRef("Wynn")} 未見明顯弱項，可維持現有高質活動策略。`)
       ]);
+
       if (status) status.textContent = `Comparison points ready from ${events.length} filtered event(s) across ${selectedOps.length || 0} organiser(s).`;
+
+      // Store items for AI injection later
+      window._wynnStrengthItems = summary.leaders;
+      window._wynnGapItems = [
+        ...summary.gaps.filter(item => item.topOpponent),
+        ...summary.peakGaps.filter(item => !summary.gaps.some(gap => gap.catKey === item.catKey) && item.topOpponent?.topEvent)
+      ];
+
       return [
         { title: "Wynn's Competitive Advantage", body: strengthsBody },
-        { title: "Wynn's Potential Improvements", body: gapsBody },
-        { title: "Recommendations for Wynn", body: recommendations.join("") }
+        { title: "Wynn's Potential Improvements", body: gapsBody }
       ];
     }
 
@@ -3958,52 +4113,66 @@ function _chartDataSource() {
       renderStrategyPromptPoints(state.points || buildWynnDeepSeekPoints());
       if (status) status.textContent = state.statusText || "Wynn comparison points ready.";
 
-      // Step 2: Fetch AI recommendations async — update only point[2] when ready
+      // Step 2: Fetch AI recommendations and inject inline under each category
       const { comparisons, selectedOps, events, summary } = state;
       if (!events || !events.length || !comparisons || !comparisons.length) return;
-      // Show loading state in item[2] body while AI fetches
-      const listEl = getPromptListEl();
-      if (listEl) {
-        const items = listEl.querySelectorAll('.prompt-item');
-        if (items[2]) {
-          items[2].querySelector('.prompt-item-body').innerHTML =
-            '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;' +
-            'color:rgba(37,99,235,0.75);font-size:13px;font-weight:600;">'
-            + '<span style="font-size:18px;">⏳</span>'
-            + 'Analysing recommendations for Wynn…</div>';
-        }
-      }
       if (status) status.textContent = 'Analysing recommendations for Wynn…';
-      const aiRecommendations = await fetchAiWynnRecommendations(comparisons, selectedOps, events, summary);
-      if (reqSeq !== _strategyPromptReqSeq) return; // superseded by a newer call
-      if (aiRecommendations.length) {
-        const aiMap = new Map(
-          aiRecommendations
-            .map(item => [String(item.catKey || "").toLowerCase(), String(item.text || "").trim()])
-            .filter(([, text]) => text)
-        );
-        const aiBody = comparisons.filter(item => aiMap.has(item.catKey))
-          .map(item => promptBlock([
-            promptCategoryRef(item.catKey, item.label),
-            promptTextLine(formatAiRecommendationText(
-              buildRecommendationDisplayText(item, aiMap.get(item.catKey)),
-              item.wynn.events.concat(item.opponents.flatMap(op => op.events || []))
-            ))
-          ])).join("");
-        if (aiBody) {
-          // Surgically update only the Recommendations item (index 2), preserving the other two
-          const list = getPromptListEl();
-          if (list) {
-            const items = list.querySelectorAll('.prompt-item');
-            if (items[2]) items[2].querySelector('.prompt-item-body').innerHTML = aiBody;
-          }
-          if (status) status.textContent = `DeepSeek recommendations ready from ${events.length} filtered event(s) across ${selectedOps.length || 0} organiser(s).`;
-        } else {
-          if (status) status.textContent = state.statusText || "Wynn comparison points ready.";
-        }
-      } else {
-        if (status) status.textContent = state.statusText || "Wynn comparison points ready.";
+
+      // Show loading indicator at bottom of each section
+      const loadingHtml = '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;color:rgba(37,99,235,0.75);font-size:13px;font-weight:600;"><span style="font-size:18px;">⏳</span>Analysing recommendations for Wynn…</div>';
+      const listElLoading = getPromptListEl();
+      if (listElLoading) {
+        listElLoading.querySelectorAll('.prompt-item').forEach(el => {
+          const body = el.querySelector('.prompt-item-body');
+          if (body) body.insertAdjacentHTML('beforeend', `<div class="wynn-rec-loading">${loadingHtml}</div>`);
+        });
       }
+
+      const aiRecommendations = await fetchAiWynnRecommendations(comparisons, selectedOps, events, summary);
+      if (reqSeq !== _strategyPromptReqSeq) return;
+
+      const aiMap = new Map(
+        (aiRecommendations || [])
+          .map(item => [String(item.catKey || "").toLowerCase(), String(item.text || "").trim()])
+          .filter(([, text]) => text)
+      );
+
+      // Helper: build rec HTML for a comparison item
+      function recHtmlForItem(item) {
+        const raw = aiMap.get(item.catKey);
+        if (!raw) return null;
+        const allEvents = (item.wynn?.events || []).concat(item.opponents.flatMap(op => op.events || []));
+        return formatAiRecommendationText(
+          buildRecommendationDisplayText(item, raw),
+          allEvents
+        );
+      }
+
+      // Rebuild section[0]: Competitive Advantage with inline recs
+      const strengthItems = window._wynnStrengthItems || summary.leaders || [];
+      const strengthsBody = strengthItems.length
+        ? strengthItems.map(item => {
+            const compItem = comparisons.find(c => c.catKey === item.catKey) || item;
+            return buildStrengthBlock(item, recHtmlForItem(compItem));
+          }).join("")
+        : (state.points[0]?.body || "");
+
+      // Rebuild section[1]: Potential Improvements with inline recs
+      const gapItemsList = window._wynnGapItems || [];
+      const gapsBody = gapItemsList.length
+        ? gapItemsList.map(item => {
+            const compItem = comparisons.find(c => c.catKey === item.catKey) || item;
+            return buildGapBlock(item, recHtmlForItem(compItem));
+          }).join("")
+        : (state.points[1]?.body || "");
+
+      const list = getPromptListEl();
+      if (list) {
+        const items = list.querySelectorAll(".prompt-item");
+        if (items[0]) items[0].querySelector(".prompt-item-body").innerHTML = strengthsBody;
+        if (items[1]) items[1].querySelector(".prompt-item-body").innerHTML = gapsBody;
+      }
+      if (status) status.textContent = `Qwen3.5-plus recommendations ready from ${events.length} filtered event(s) across ${selectedOps.length || 0} organiser(s).`;
     }
 
 // ── Activity Heatmap ─────────────────────────────────────────────────────────

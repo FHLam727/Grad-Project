@@ -1442,10 +1442,16 @@ Wynn:
 最高 heat score 對照（可用作 watchlist / 代表作參考）：
 {json.dumps(peak_gaps, ensure_ascii=False)}
 
-Wynn 官方定位參考（來自 Wynn Resorts Macau 官網）：
-- 永利皇宮、永利澳門主打五星級酒店體驗
-- 強項包括米芝蓮級餐飲、時尚購物、水療、會員禮遇、會議及活動服務
-- 品牌調性偏高端、精緻、藝術感、度假體驗整合
+Wynn 品牌資產（來自官網，僅適用於 Wynn 落後嘅 category，作為建議嘅具體錨點）：
+- 餐飲：永利軒（連續15年米芝蓮星級，廣東菜）、譚卉（米芝蓮兩星、亞洲50最佳餐廳延伸榜）、永利扒房、泓日本料理；Fine Dining 係 Wynn 最強差異化資產
+- 住宿：永利皇宮、永利澳門雙物業，Forbes Travel Guide 五星級，強調貼心禮賓服務、客房浸浴體驗
+- 藝術：永利皇宮設有珍罕藝術收藏展示，具備策展空間與藝術氛圍
+- 水療：永利設有水療中心，係體驗類活動可聯動嘅資源
+- 購物：永利皇宮名店街，雲集全球頂級品牌，定位奢侈品購物
+- 會員計劃：Wynn Insider，提供餐廳折扣、延遲退房、活動門票折扣等禮遇
+- 標誌性體驗：永利皇宮觀光纜車、音樂噴泉，係免費引流嘅著名景點
+
+重要限制：以上品牌資產只可用於 Wynn 落後（improvements）嘅 category 建議中，作為具體可執行嘅聯動方向；對於 Wynn 已領先（strengths）嘅 category，唔需要加呢啲資產，只需延續現有活動方向。
 
 以下係每個 category 嘅對比資料：
 
@@ -1463,14 +1469,15 @@ Wynn 官方定位參考（來自 Wynn Resorts Macau 官網）：
 9. 句式可直接以「建議 Wynn ...」開頭。
 10. 如提及活動名，請盡量用《活動名》格式；如提及 organiser，請保留英文名，例如 Melco、SJM、MGM。唔好只寫裸活動名，應優先寫成「organiser + 《活動名》」。
 11. 必須先參考第1點同第2點：如果某 category 已被判定為 Wynn 優勢，唔可以再建議 Wynn 去模仿較弱 competitor；建議核心意思必須係 keep it up、延續現有成功方向、繼續做同類型高質活動或把現有模式延伸轉化，但 wording 可以自然啲，唔需要逐字寫 keep it up。
-12. 如果某 category 屬於 Wynn 補足空間，第一句請直接寫明缺口，例如「現時 Wynn Concert 熱度偏低（🔥24.4），反映內容吸引力不足。」第二句先補一個實際建議。
+12. 如果某 category 屬於 Wynn 補足空間，請直接寫實際建議，唔好寫「現時 Wynn X 熱度偏低」或「反映內容吸引力不足」呢類陳述句——系統已另行顯示缺口數據，你只需要提供具體建議動作。
 13. 如果某 category 屬於 Wynn 補足空間，建議要盡量結合 Wynn 自身品牌資產，例如酒店、Fine Dining、購物、水療、會員禮遇、會議活動服務。
 14. 請吸收以下決策邏輯，但唔好照抄用戶原句：強項類別應表達「延續現有成功模式、繼續做同類型高質活動、放大已驗證優勢」；弱項類別應先點出缺口，再提出一個具體可行動作。
 15. 優先寫出具體執行方法，例如「會員預覽」、「購物禮遇」、「限時快閃」、「沉浸式特展」、「heat 目標 45+」，而唔好只講空泛方向。
 16. 對於強項類別，避免亂加唔必要套餐或過度包裝；重點係延續成功活動類型本身。對於弱項類別，如果 Wynn 目前 0 場，應表達為「Wynn 未有舉辦，但市場已有活動」，而唔好寫成「熱度偏低 0.0」。
 17. 請特別參考最高 heat score 的 post / event，而唔只係平均 heat。若對手最高 heat 活動明顯高於 Wynn，應可將該對象視為 watchlist，建議 Wynn mark 低該類高熱度歌手、品牌、IP 或展覽主題，之後主動爭取邀請或延伸合作活動。
 18. 上述「mark 低高 heat 對象，再請佢哋來澳／做相關活動」係一個可跨多個 category 應用的通用策略；請按當前 panel 結果自動判斷對應對象，唔好硬寫固定名字。
-19. 對於 Concert 強項，建議應偏向「繼續鎖定高 heat 歌手 / 延續成功選角方向」，同時可點名當前結果中 heat 更高的對手演出作 booking watchlist；唔好再加米芝蓮晚宴、會員優先預訂、VIP 套票呢類多餘包裝。
+19. 對於 Concert 強項，建議只需一句：「延續現有高質演唱會選角方向，持續鎖定高 heat 歌手。」唔好提及任何具體對手活動名、唔好寫參考方向、唔好加任何 watchlist 句。
+20. 絕對唔好在任何 category 嘅建議中出現以下任何內容：「並將/同時將 X《event》列為目標/名單」、「參考 X《event》嘅選角/策劃方向」、「可留意/關注 X《event》」、「mark 低」——呢啲邏輯全部由系統另行處理，你只需寫核心建議動作。
 
 請只返回 JSON array，例如：
 [
@@ -1483,7 +1490,7 @@ Wynn 官方定位參考（來自 Wynn Resorts Macau 官網）：
         resp = QWEN_RECOMMENDATION_CLIENT.chat.completions.create(
             model=QWEN_RECOMMENDATION_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=700,
+            max_tokens=900,
         )
         raw = (resp.choices[0].message.content or "").strip()
         raw = re.sub(r'^```[a-z]*\n?', '', raw).rstrip('`').strip()
