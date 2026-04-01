@@ -87,6 +87,17 @@ body{font-family:var(--font);color:var(--text);min-height:100vh;
 .lb-desc{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:7px;
   display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;}
 .lb-tags{display:flex;align-items:center;flex-wrap:wrap;gap:5px;}
+.footfall-slot{min-height:0;margin-top:8px;}
+.footfall-box{
+  font-size:11px;line-height:1.45;padding:8px 10px;border-radius:10px;
+  border:1px solid rgba(37,99,235,0.22);background:rgba(37,99,235,0.07);color:#334155;
+}
+.footfall-box.footfall-loading{
+  border-color:rgba(100,116,139,0.35);background:rgba(15,23,42,0.04);
+}
+.footfall-box .fb-pending{color:rgba(15,23,42,0.45);font-weight:500;}
+.footfall-box .fb-line{font-weight:650;color:#0f172a;margin-bottom:2px;}
+.footfall-box .fb-sub{font-size:10px;color:rgba(15,23,42,0.55);}
 .lb-score{padding:14px 20px;display:flex;flex-direction:column;align-items:flex-end;
   justify-content:center;gap:5px;flex-shrink:0;border-left:1px solid var(--panelBorder);min-width:130px;}
 .heat-num{font-size:28px;font-weight:800;line-height:1;
@@ -392,6 +403,107 @@ const API_AI         = `${API_BASE}/api/heat/leaderboard-ai`;
 const API_AI_REFRESH = `${API_BASE}/api/heat/leaderboard-ai/refresh`;
 const API_RAW        = `${API_BASE}/api/heat/leaderboard?top=10`;
 
+function heatBridgeOrigin(){
+  if(window.location.protocol==='http:'||window.location.protocol==='https:')
+    return window.location.origin.replace(/\/$/,'');
+  return API_BASE;
+}
+function leaderNameForKey(e){
+  if(e.name&&e.name.trim().length>2) return e.name.trim();
+  if(e.ai_name) return String(e.ai_name).trim();
+  const m=(e.content||e.description||'').match(/【([^】]{4,40})】/);
+  if(m) return m[1].trim();
+  const t=(e.content||e.description||'').trim();
+  return t.slice(0,55)+(t.length>55?'…':'');
+}
+function bridgeApiBase(){
+  const p=new URLSearchParams(window.location.search).get('_bridge_port');
+  if(p&&/^\d+$/.test(p)) return 'http://127.0.0.1:'+p;
+  return API_BASE;
+}
+function escAttr(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+function footfallKeyHeat(e){
+  return `${leaderNameForKey(e)}|${(e.operator||'').toLowerCase()}`;
+}
+function footfallDateRange(){
+  let from=_lbFrom, to=_lbTo;
+  if(!from||!to){
+    const n=new Date();
+    const y=n.getFullYear(), m=n.getMonth();
+    from=`${y}-${String(m+1).padStart(2,'0')}-01`;
+    to=new Date(y,m+1,0).toISOString().slice(0,10);
+  }
+  return {from,to};
+}
+var FOOTFALL_STAGGER_MS=110;
+function nmFindFootfallSlot(key){
+  if(!key)return null;
+  var slots=document.querySelectorAll('#lb-list .footfall-slot[data-footfall-key]');
+  for(var i=0;i<slots.length;i++){
+    if(slots[i].getAttribute('data-footfall-key')===key)return slots[i];
+  }
+  return null;
+}
+function nmRenderFootfallRec(slot,rec){
+  if(!slot)return;
+  if(!rec){
+    slot.innerHTML='<div class="footfall-box"><div class="fb-line">客流量：<strong>—</strong></div></div>';
+    return;
+  }
+  var avg=rec.avg_daily_visitors!=null?Math.round(rec.avg_daily_visitors).toLocaleString('zh-CN'):'—';
+  var dc=rec.days_count||0;
+  var sub=dc>1?'<div class="fb-sub">活动 '+dc+' 天</div>':'';
+  slot.innerHTML='<div class="footfall-box">'+
+    '<div class="fb-line">客流量：<strong>'+avg+'</strong> 人次</div>'+sub+'</div>';
+}
+async function loadFootfallForHeatLb(){
+  if(!TOP10||!TOP10.length)return;
+  const {from,to}=footfallDateRange();
+  const base=bridgeApiBase();
+  const events=TOP10.slice(0,10).map(e=>({
+    key:footfallKeyHeat(e),
+    name:leaderNameForKey(e)||e.name||e.ai_name||'',
+    description:(e.description||e.content||'').slice(0,800),
+    location:e.location||'',
+    operator:e.operator||'',
+    heat_score:e.heat_score!=null?e.heat_score:0,
+    date:e.newest_post||'',
+  }));
+  let j;
+  try{
+    const res=await fetch(base+'/api/footfall-event-allocate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({from_date:from,to_date:to,events:events}),
+    });
+    j=await res.json();
+  }catch(err){
+    console.warn('footfall-event-allocate',err);
+    const hostHint=(API_BASE||'').replace(/^https?:\/\//,'');
+    document.querySelectorAll('#lb-list .footfall-slot[data-footfall-key]').forEach(slot=>{
+      slot.innerHTML='<div class="footfall-box" style="border-color:rgba(220,38,38,0.25);background:rgba(220,38,38,0.06);"><div class="fb-line">客流量加载失败（网络或端口）</div><div class="fb-sub">请确认 bridge 在 '+hostHint+' 运行，或 URL 加 ?_bridge_port=端口</div></div>';
+    });
+    return;
+  }
+  if(!j||!j.ok){
+    const msg=(j&&j.message)?String(j.message):'模型或数据未就绪';
+    document.querySelectorAll('#lb-list .footfall-slot[data-footfall-key]').forEach(slot=>{
+      slot.innerHTML='<div class="footfall-box" style="border-color:rgba(217,119,6,0.28);background:rgba(245,158,11,0.08);"><div class="fb-line">客流量暂不可用</div><div class="fb-sub">'+msg.replace(/</g,'&lt;')+'</div></div>';
+    });
+    return;
+  }
+  if(!j.by_key)return;
+  TOP10.slice(0,10).forEach(function(e,idx){
+    var k=footfallKeyHeat(e);
+    var rec=j.by_key[k];
+    setTimeout(function(){
+      nmRenderFootfallRec(nmFindFootfallSlot(k),rec);
+    },idx*FOOTFALL_STAGGER_MS);
+  });
+}
+
 // ── Date sync from Operation Panel ───────────────────────────────────────────
 const _lbFrom = sessionStorage.getItem('_lbFromDate') || '';
 const _lbTo   = sessionStorage.getItem('_lbToDate')   || '';
@@ -493,6 +605,13 @@ function loadData(data){
   }
   document.getElementById('nav-meta').textContent=`🤖 AI Activities · ${data.total||'?'} events`;
   renderTop10(); renderCats(); renderMiniLb(); renderStats();
+  if(typeof requestAnimationFrame==='function'){
+    requestAnimationFrame(function(){
+      setTimeout(function(){loadFootfallForHeatLb().catch(function(){});},0);
+    });
+  }else{
+    setTimeout(function(){loadFootfallForHeatLb().catch(function(){});},0);
+  }
 }
 
 // ── Refresh ──────────────────────────────────────────────────────────────────
@@ -525,7 +644,8 @@ function renderTop10(){
     const wid=`lbw-${i}`;
     const purl=buildUrl(e.event_id,plt);
     const srcPosts=Array.isArray(e.source_posts)?e.source_posts.filter(p=>p.url):[];
-
+    const ffk=escAttr(footfallKeyHeat(e));
+    
     const postsHtml=srcPosts.length
       ?srcPosts.map(p=>`<div class="lb-post">
           <div class="post-head"><span class="plt-badge plt-${p.platform}">${PLT_ICONS[p.platform]||'🔗'} ${PLT_LABELS[p.platform]||p.platform}</span><span class="post-date">${p.published_at||''}</span></div>
@@ -548,6 +668,7 @@ function renderTop10(){
         ${tagOp(e.operator)}${plats.slice(0,3).map(tagPlt).join('')}${getCats(e).slice(0,2).map(tagCat).join('')}${tagSrc(e.source_count||1)}
         <span class="exp-btn" id="expbtn-${wid}">▼ Source Posts</span>
       </div>
+            <div class="footfall-slot" data-footfall-key="${ffk}"><div class="footfall-box footfall-loading"><div class="fb-line">客流量：<span class="fb-pending">计算中…</span></div></div></div>
     </div>
     <div class="lb-score">
       <div class="heat-num">${(e.heat_score||0).toFixed(1)}</div>
