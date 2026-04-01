@@ -425,7 +425,9 @@ input:focus, select:focus{outline:none; border-color:var(--brand); background:#f
 </div><!-- end wrapper -->
 
 <script>
-const API = 'http://127.0.0.1:9038';
+const API = (typeof window !== 'undefined' && (window.location.protocol === 'http:' || window.location.protocol === 'https:'))
+  ? window.location.origin.replace(/\/$/, '')
+  : 'http://127.0.0.1:9038';
 
 // ── Navigation ──────────────────────────────────────────────────────────────
 function showView(id) {
