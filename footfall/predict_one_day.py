@@ -12,7 +12,6 @@ import pandas as pd
 from feature_config import AI_BINARY_KEYS, CONTINUOUS_COLUMNS, REGRESSOR_COLUMNS
 from zone_daily_from_total import split_forecast_by_zone_shares
 
-
 def _default_zone_csv() -> Path:
     return Path(__file__).resolve().parent / "zone_table1_monthly_share.csv"
 
