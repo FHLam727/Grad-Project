@@ -40,8 +40,13 @@ cp -R footfall /path/to/MediaCrawler/
 
 ```bash
 cp mediacrawler_patches/config/base_config.py /path/to/MediaCrawler/config/
+cp mediacrawler_patches/config/weibo_config.py /path/to/MediaCrawler/config/
+cp mediacrawler_patches/config/xhs_config.py /path/to/MediaCrawler/config/
 cp mediacrawler_patches/media_platform/weibo/client.py /path/to/MediaCrawler/media_platform/weibo/
 cp mediacrawler_patches/media_platform/weibo/core.py /path/to/MediaCrawler/media_platform/weibo/
+cp mediacrawler_patches/media_platform/xhs/login.py /path/to/MediaCrawler/media_platform/xhs/
+cp mediacrawler_patches/media_platform/xhs/core.py /path/to/MediaCrawler/media_platform/xhs/
+cp mediacrawler_patches/tools/negative_monitor_date.py /path/to/MediaCrawler/tools/
 ```
 
 **改動摘要：**
