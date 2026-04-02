@@ -363,9 +363,9 @@ function miniHeader(data, pageLabel) {
 }
 
 // ── Bold key numbers & names in summary ──────────────────────────────────────
-function boldSummary(para, kpis, hotThemes) {
+function boldSummary(para, kpis) {
   if (!para) return '—';
-  let s = esc(para);
+  let s = esc(para).replace(/\s*Top categories:[^.]+\./i, '');
 
   // Bold numbers (longest first to avoid nested partial replacement)
   const nums = [kpis.totalEvents, kpis.topOrganiserCount, kpis.topCategoryCount, kpis.activeOrganiserCount]
@@ -379,12 +379,20 @@ function boldSummary(para, kpis, hotThemes) {
     s = s.replace(new RegExp(`(?<![\\w>])${safe}(?![\\w<])`,'g'), `<strong>${esc(name)}</strong>`);
   }
 
-  // Append hot themes if present
-  if (hotThemes && hotThemes.length) {
-    const themeStr = hotThemes.map(t => `<strong>${esc(t.label)}</strong>`).join(', ');
-    s += ` Hot themes: ${themeStr}.`;
-  }
   return s;
+}
+
+function buildTopCategoryPills(data) {
+  const categoryMix = data.chartData?.categoryMix || [];
+  const topCats = categoryMix.slice(0, 3);
+  if (!topCats.length) return '';
+  return `<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px;">
+    <span style="font-size:12px;font-weight:700;color:#777;white-space:nowrap;">Top categories:</span>
+    ${topCats.map(cat => {
+      const cfg = CAT_CONFIG[cat.catKey] || { icon:'📍', label:cat.label || cat.catKey || 'Category', color:'#6B7280' };
+      return `<span style="padding:5px 13px;border-radius:20px;font-size:12px;font-weight:700;background:${cfg.color}14;color:${cfg.color};border:1px solid ${cfg.color}30;">${esc(cfg.icon)} ${esc(cfg.label)}</span>`;
+    }).join('')}
+  </div>`;
 }
 
 // ── Topbar ────────────────────────────────────────────────────────────────────
@@ -460,7 +468,10 @@ function renderCover(data) {
       <div class="cover-gen">Generated: ${fmtGenerated(data.generatedAt)}</div>
     </div>
 
-    <div class="summary-block">${boldSummary(data.summary?.paragraph, kpis, hotThemes)}</div>
+    <div class="summary-block">
+      ${boldSummary(data.summary?.paragraph, kpis)}
+      ${buildTopCategoryPills(data)}
+    </div>
 
     ${hotThemeHtml}
 
