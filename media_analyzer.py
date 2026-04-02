@@ -28,7 +28,8 @@ import httpx
 from openai import OpenAI
 
 # ── 配置 ───────────────────────────────────────────────────
-DB_PATH           = os.getenv("DB_PATH", "C:/Users/user/MediaCrawler/macau_analytics.db")
+_MA_BASE = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.environ.get("DB_PATH", os.path.join(_MA_BASE, "macau_analytics.db"))
 DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", "")
 QWEN_VL_MODEL     = "qwen-vl-plus"
 MAX_IMAGES        = 4
