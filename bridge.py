@@ -237,6 +237,10 @@ async def negative_monitor_page():
         return {"error": "negative_monitor.html missing", "path": str(p)}
     return FileResponse(p, media_type="text/html; charset=utf-8")
 
+@app.get("/negative_monitor.html")
+async def bridge_negative_monitor_html():
+    return _bridge_html_file("negative_monitor.html")
+
 @app.get("/login_page.html")
 async def bridge_login_page_html():
     return _bridge_html_file("login_page.html")
