@@ -476,6 +476,34 @@
       line-height:1.2;
     }
 
+    /* Clear Filter Button */
+    .clear-filter-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(220,38,38,0.28);
+      background: rgba(220,38,38,0.07);
+      color: #B91C1C;
+      font-size: 12px;
+      font-weight: 650;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: .15s ease;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .clear-filter-btn:hover {
+      background: rgba(220,38,38,0.14);
+      border-color: rgba(220,38,38,0.40);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(220,38,38,0.12);
+    }
+    .clear-filter-btn:active {
+      transform: translateY(0);
+    }
+
     /* Updated Button Container Styles */
     .button-container {
       display: flex;
@@ -934,16 +962,6 @@
         onmouseout="this.style.background='rgba(234,88,12,0.09)'">
         🔥 Heat Leaderboard
       </a>
-      <a id="negMonitorLink" href="/negative-monitor" style="
-        display:inline-flex;align-items:center;gap:5px;
-        padding:6px 14px;border-radius:16px;
-        background:rgba(245,158,11,0.12);border:1px solid rgba(217,119,6,0.28);
-        color:#B45309;font-size:12px;font-weight:650;
-        text-decoration:none;white-space:nowrap;transition:.15s;"
-        onmouseover="this.style.background='rgba(245,158,11,0.22)'"
-        onmouseout="this.style.background='rgba(245,158,11,0.12)'">
-        📊 Negative keyword monitor
-      </a>
       <a id="archiveNavLink" href="./archived.html" style="
         display:inline-flex;align-items:center;gap:5px;
         padding:6px 14px;border-radius:16px;
@@ -1019,7 +1037,6 @@
             <label class="check"><input type="checkbox" name="category" value="accommodation"> Hotel</label>
             <label class="check"><input type="checkbox" name="category" value="food"> Food</label>
             <label class="check"><input type="checkbox" name="category" value="shopping"> Shopping</label>
-            <label class="check"><input type="checkbox" name="category" value="gaming"> Gaming</label>
           </div>
         </div>
 
@@ -1127,18 +1144,12 @@
             <div class="pill total" id="totalEventsPill">Total Events: 0</div>
           </div>
 
-          <!-- Block #1: Events -->
-          <section class="block">
-            <div class="block-head">
-              <div>
-                <h3 class="block-title">Events</h3>
-              </div>
-            </div>
-
-            <div id="analyticsContent" class="analytics-render-area">
-              <div id="gamingEmpty" class="empty-state">
-                <h4>Ready for Market Analysis</h4>
-                <p>Select organisers and categories to start deep analysis.</p>
+          <!-- Block #1: Results Summary -->
+          <section class="block" id="resultsSummaryBlock">
+            <div id="resultsSummaryHost">
+              <div class="empty-state" style="padding:28px 24px;">
+                <h4>Results Summary</h4>
+                <p>Apply filters to generate the latest summary before reviewing analytics charts.</p>
               </div>
             </div>
           </section>
@@ -1148,8 +1159,9 @@
             <div class="block-head">
               <div>
                 <h3 class="block-title">Analytics Charts</h3>
-                <div class="block-sub">Click any segment or bar to filter the Events list above.</div>
+                <div class="block-sub">Click any segment or bar to filter the Posts block below.</div>
               </div>
+              <button id="analyticsChartsClearBtn" class="clear-filter-btn" onclick="clearAllChartFilters()" title="Clear all chart & heatmap filters">✕ Clear Filter</button>
             </div>
 
             <!-- Active filter banner (hidden until a chart is clicked) -->
@@ -1242,7 +1254,7 @@
 
           </section>
 
-          <!-- Block #2.5: Activity Heatmap -->
+          <!-- Block #3: Activity Heatmap -->
           <section class="block" id="activityHeatmapBlock">
             <div class="block-head">
               <div>
@@ -1278,35 +1290,40 @@
             </div>
           </section>
 
-          <!-- Block #3: Wynn's Market Performance & Positioning -->
+          <!-- Block #4: Strategic Recommendations for Wynn -->
           <section class="block">
             <div class="block-head">
               <div>
-                <h3 class="block-title">Wynn's Market Performance & Positioning</h3>
-                <div class="block-sub">Analysis of Wynn's strength and potential improvements, as well as AI recommendations made to Wynn.</div>
+                <h3 class="block-title">Strategic Recommendations for Wynn</h3>
+                <div class="block-sub">Focused strategic recommendations grounded in Wynn's real brand strengths and live market heat data.</div>
               </div>
-              <div class="pill ai">Recommendations by AI</div>
+              <div class="pill ai">✦ AI-Generated</div>
             </div>
 
               <ul id="strategyPromptList" class="prompt-list">
                 <li class="prompt-item">
-                  <span class="prompt-item-index">1</span>
-                  <div class="prompt-item-text">
-                    <div class="prompt-item-title">Wynn's Competitive Advantage</div>
-                    <div class="prompt-item-body">Building comparison points…</div>
-                  </div>
-                </li>
-                <li class="prompt-item">
-                  <span class="prompt-item-index">2</span>
-                  <div class="prompt-item-text">
-                    <div class="prompt-item-title">Wynn's Potential Improvements</div>
-                    <div class="prompt-item-body">Building comparison points…</div>
-                  </div>
+                  <div class="prompt-item-body">Apply filters to generate recommendations.</div>
                 </li>
               </ul>
               <div class="prompt-foot">
                 <div id="strategyPromptStatus" class="prompt-status" style="display:none;"></div>
               </div>
+          </section>
+
+          <!-- Block #5: Posts -->
+          <section class="block">
+            <div class="block-head">
+              <div>
+                <h3 class="block-title">Posts</h3>
+              </div>
+            </div>
+
+            <div id="analyticsContent" class="analytics-render-area">
+              <div id="gamingEmpty" class="empty-state">
+                <h4>Ready for Market Analysis</h4>
+                <p>Select organisers and categories to start deep analysis.</p>
+              </div>
+            </div>
           </section>
         </div>
       </main>
@@ -1351,11 +1368,6 @@
       const lbLink = document.getElementById('heatLbLink');
       if(lbLink && window.location.search){
         lbLink.href = './heat_leaderboard_v2.html' + window.location.search;
-      }
-      const nm = document.getElementById('negMonitorLink');
-      if(nm){
-        const q = window.location.search || '';
-        nm.href = '/negative-monitor' + q;
       }
     })();
 
@@ -1771,13 +1783,13 @@
         experience:    { icon: '✨', label: 'EXPERIENCE',     color: '#059669' },
         food:          { icon: '🍴', label: 'FOOD',           color: '#EA580C' },
         accommodation: { icon: '🏨', label: 'HOTEL',          color: '#2563EB' },
-        shopping:      { icon: '💰', label: 'SHOPPING',       color: '#7C3AED' },
+        shopping:      { icon: '💰', label: 'SHOPPING',       color: '#EC4899' },
         gaming:        { icon: '🎰', label: 'GAMING',         color: '#BE185D' },
     };
 
     const OP_LABELS = {
         wynn:'Wynn', sands:'Sands', galaxy:'Galaxy',
-        mgm:'MGM', melco:'Melco', sjm:'SJM', government:'政府'
+        mgm:'MGM', melco:'Melco', sjm:'SJM', government:'Government'
     };
     const OP_COLORS = {
         wynn:'#B45309', sands:'#1D4ED8', galaxy:'#047857',
@@ -1892,7 +1904,10 @@
         banner.innerHTML = `
             <div class="summary-top-row">
                 <div class="summary-title">📊 Results Summary</div>
-                ${dateRangeHtml}
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                  ${dateRangeHtml}
+                  <button id="summaryBannerClearBtn" class="clear-filter-btn" onclick="clearAllChartFilters()" title="Clear all chart & heatmap filters">✕ Clear Filter</button>
+                </div>
             </div>
             <div class="summary-stats-row">
                 <div class="summary-stat">
@@ -1926,18 +1941,16 @@
 
         // ── Fire async DeepSeek call, inject result when ready ──
         fetchHotThemes(catData).then(themes => {
-            const slot = banner.querySelector('#hotThemesSlot');
+            // Use document.getElementById so we always get the live DOM node,
+            // even if the banner was re-rendered since the fetch started.
+            const slot = document.getElementById('hotThemesSlot');
             if (!slot) return;
             const hotColors = ['#DC2626','#D97706','#7C3AED'];
-            // Client-side fallback: derive themes from category/event data if API returns empty
+            // If API returns empty (backend unavailable), show a clean message — do NOT fallback to category names
             if (!themes.length) {
-                const fallbackThemes = _deriveFallbackHotThemes(catData);
-                if (fallbackThemes.length) {
-                    themes = fallbackThemes;
-                } else {
-                    slot.innerHTML = `<span style="color:rgba(15,23,42,0.4);font-size:12px;font-style:italic;">Not enough data</span>`;
-                    return;
-                }
+                slot.innerHTML = `<span style="color:rgba(15,23,42,0.4);font-size:12px;font-style:italic;">Unable to analyse themes — backend unavailable</span>`;
+                _cachedHotThemesHTML = slot.innerHTML;
+                return;
             }
             // Build flat event list for index-based filtering (1-based)
             const allActs = Object.values(catData).flat();
@@ -1949,7 +1962,7 @@
             };
             const OP_CHIP_LABELS = {
                 wynn:'Wynn', sands:'Sands', galaxy:'Galaxy',
-                mgm:'MGM', melco:'Melco', sjm:'SJM', government:'Gov'
+                mgm:'MGM', melco:'Melco', sjm:'SJM', government:'Government'
             };
 
             // Pre-compute avgHeat + operators for each theme, then sort by avgHeat desc
@@ -1981,6 +1994,8 @@
             });
 
             slot.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:6px;width:100%;';
+            // Cache the rendered HTML so Clear Filter can restore it
+            const _isBaseRender = !_chartFilter.operator && !_chartFilter.catKey;
             slot.innerHTML = themesMeta.map(({ t, label, indices, avgHeat, opSet }, i) => {
                 const color   = hotColors[i % hotColors.length];
                 const hasFilter = indices.length > 0;
@@ -2003,6 +2018,19 @@
                     ${opTags}
                 </div>`;
             }).join('');
+
+            // Cache the initial (non-filtered) hot themes HTML for restore on Clear Filter
+            if (_isBaseRender) {
+                _cachedHotThemesHTML = slot.innerHTML;
+                _cachedHotThemesStyle = slot.style.cssText;
+                // Also store structured data for Preview Report (no DOM scraping needed)
+                if (_reportCache) {
+                    _reportCache.hotThemes = themesMeta.map(({ label, avgHeat, opSet }) => ({
+                        label, icon: '🔥', avgHeat: avgHeat ?? null, operators: [...opSet]
+                    }));
+                    _persistFullReportInsightsIfReady();
+                }
+            }
 
             // Click-to-filter by theme indices
             slot.querySelectorAll('.hot-theme-card[data-theme-idx]').forEach(chip => {
@@ -2050,6 +2078,7 @@
     async function _renderGroupedBody(data, container) {
         if (!container) container = document.getElementById("analyticsContent");
         if (!container) return;
+        const summaryHost = document.getElementById('resultsSummaryHost');
 
         // data 可以係 category_summaries (新格式) 或 operator_summaries (舊格式)
         // 判斷：如果 key 係 category 名就用新格式，否則轉換
@@ -2078,6 +2107,12 @@
 
         const totalCards = Object.values(catData).reduce((s,a) => s + a.length, 0);
         if (totalCards === 0) {
+            if (summaryHost) {
+                summaryHost.innerHTML = `<div class="empty-state" style="padding:28px 24px;">
+                    <h4>Results Summary</h4>
+                    <p>No matching activities found for the current selection.</p>
+                </div>`;
+            }
             container.innerHTML += `<div style="text-align:center;padding:40px;color:gray;">
                 No matching activities found. Results will refresh automatically once crawling completes.</div>`;
             return;
@@ -2090,7 +2125,10 @@
             selectedCats: typeof getSelectedValues === 'function' ? getSelectedValues("category") : [],
             selectedOps:  typeof getSelectedValues === 'function' ? getSelectedValues("operator")  : [],
         };
-        container.appendChild(await buildSummaryBanner(catData, filterParams));
+        if (summaryHost) {
+            summaryHost.innerHTML = '';
+            summaryHost.appendChild(await buildSummaryBanner(catData, filterParams));
+        }
 
         // 按 CAT_CONFIG 定義嘅順序渲染
         const orderedCats = [...CAT_KEYS, ...Object.keys(catData).filter(k => !CAT_KEYS.includes(k))];
@@ -2674,6 +2712,138 @@ function applyChartFilter(operatorName, catKey) {
 
   renderDoughnutChart(operatorName);
   renderBarChart();
+
+  // Re-gen hot themes for this filtered subset
+  _refreshHotThemesForFilter(filtered);
+}
+
+// ── Hot Themes cache (base = after Apply Filter; restored on Clear Filter) ───
+let _cachedHotThemesHTML  = null;
+let _cachedHotThemesStyle = null;
+
+// ── Report cache — built incrementally after Apply Filter ─────────────────────
+// hotThemes filled by buildSummaryBanner; aiRecommendations+comparisons by updateStrategyPrompt
+let _reportCache = null;
+let _reportInsightsPersistedKey = null;
+
+function _currentKeywordString() {
+  return (($("keywords") || {}).value || '').trim();
+}
+
+function _isFullReportSelection(ops, cats) {
+  const opSet = new Set((ops || []).map(v => String(v).toLowerCase()));
+  const catSet = new Set((cats || []).map(v => String(v).toLowerCase()));
+  return REPORT_ALL_OPERATORS.every(op => opSet.has(op))
+    && REPORT_SELECTABLE_CATEGORIES.every(cat => catSet.has(cat))
+    && opSet.size === REPORT_ALL_OPERATORS.length
+    && catSet.size === REPORT_SELECTABLE_CATEGORIES.length;
+}
+
+function _reportInsightCacheKey(period, keyword) {
+  const start = period?.start || '';
+  const end = period?.end || '';
+  const kw = String(keyword || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean).sort().join(',');
+  return `${start}|${end}|${kw}`;
+}
+
+async function _persistFullReportInsightsIfReady() {
+  if (!_reportCache) return;
+  const filters = _reportCache.filters || {};
+  if (!_isFullReportSelection(filters.operators || [], filters.categories || [])) return;
+  if (!_reportCache.period?.start || !_reportCache.period?.end) return;
+  if (!Array.isArray(_reportCache.hotThemes) || !_reportCache.hotThemes.length) return;
+  if (!Array.isArray(_reportCache.aiRecommendations) || !_reportCache.aiRecommendations.length) return;
+  if (!Array.isArray(_reportCache.comparisons) || !_reportCache.comparisons.length) return;
+
+  const cacheKey = _reportInsightCacheKey(_reportCache.period, _reportCache.keyword || '');
+  if (_reportInsightsPersistedKey === cacheKey) return;
+
+  try {
+    const resp = await fetch('http://127.0.0.1:9038/api/report-insights', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from_date: _reportCache.period.start,
+        to_date: _reportCache.period.end,
+        keyword: _reportCache.keyword || '',
+        hotThemes: _reportCache.hotThemes || [],
+        aiRecommendations: _reportCache.aiRecommendations || [],
+        comparisons: _reportCache.comparisons || []
+      })
+    });
+    const data = await resp.json();
+    if (data.status === 'success') _reportInsightsPersistedKey = cacheKey;
+  } catch (err) {
+    console.warn('report insights persist failed:', err);
+  }
+}
+
+async function _fetchStoredReportInsights(period, keyword) {
+  if (!period?.start || !period?.end) return null;
+  try {
+    const params = new URLSearchParams({
+      from_date: period.start,
+      to_date: period.end,
+      keyword: keyword || ''
+    });
+    const resp = await fetch(`http://127.0.0.1:9038/api/report-insights?${params.toString()}`);
+    const data = await resp.json();
+    if (data.status !== 'success') return null;
+    return {
+      hotThemes: Array.isArray(data.hotThemes) ? data.hotThemes : [],
+      aiRecommendations: Array.isArray(data.aiRecommendations) ? data.aiRecommendations : [],
+      comparisons: Array.isArray(data.comparisons) ? data.comparisons : []
+    };
+  } catch (err) {
+    console.warn('report insights fetch failed:', err);
+    return null;
+  }
+}
+
+// Re-fetch hot themes for a filtered subset and inject into the live slot
+async function _refreshHotThemesForFilter(filteredCatData) {
+  const slot = document.getElementById('hotThemesSlot');
+  if (!slot) return;
+  slot.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;';
+  slot.innerHTML = '<span style="color:rgba(15,23,42,0.35);font-size:12px;font-style:italic;">Analysing themes…</span>';
+  const themes = await fetchHotThemes(filteredCatData);
+  const liveSlot = document.getElementById('hotThemesSlot');
+  if (!liveSlot) return;
+  if (!themes.length) {
+    liveSlot.innerHTML = '<span style="color:rgba(15,23,42,0.4);font-size:12px;font-style:italic;">No themes found for this filter</span>';
+    return;
+  }
+  const hotColors = ['#DC2626','#D97706','#7C3AED'];
+  const OP_CHIP_COLORS = { wynn:'#B45309', sands:'#1D4ED8', galaxy:'#15803D', mgm:'#7C3AED', melco:'#DB2777', sjm:'#0369A1', government:'#374151' };
+  const OP_CHIP_LABELS = { wynn:'Wynn', sands:'Sands', galaxy:'Galaxy', mgm:'MGM', melco:'Melco', sjm:'SJM', government:'Government' };
+  const allActs = Object.values(filteredCatData).flat();
+  const themesMeta = themes.map(t => {
+    const label = typeof t === 'string' ? t : (t.theme || '');
+    const indices = (typeof t === 'object' && Array.isArray(t.indices)) ? t.indices : [];
+    let avgHeat = null;
+    const opSet = new Set();
+    if (indices.length) {
+      const heats = [];
+      indices.forEach(n => {
+        const act = allActs[n - 1]; if (!act) return;
+        const h = parseFloat(act.heat_score); if (isFinite(h)) heats.push(h);
+        const op = (act.operator || '').toLowerCase(); if (op) opSet.add(op);
+      });
+      if (heats.length) avgHeat = heats.reduce((s,v)=>s+v,0)/heats.length;
+    }
+    return { label, indices, avgHeat, opSet };
+  }).sort((a,b) => {
+    if (a.avgHeat==null && b.avgHeat==null) return 0;
+    if (a.avgHeat==null) return 1; if (b.avgHeat==null) return -1;
+    return b.avgHeat - a.avgHeat;
+  });
+  liveSlot.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:6px;width:100%;';
+  liveSlot.innerHTML = themesMeta.map(({ label, indices, avgHeat, opSet }, i) => {
+    const color = hotColors[i % hotColors.length];
+    const heatBadge = avgHeat != null ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;background:rgba(234,88,12,0.10);color:#C2410C;border:1px solid rgba(234,88,12,0.20);border-radius:999px;padding:2px 6px;">🔥${avgHeat.toFixed(1)}</span>` : '';
+    const opTags = [...opSet].map(op => { const c=OP_CHIP_COLORS[op]||'#6B7280'; const lbl=OP_CHIP_LABELS[op]||(op[0].toUpperCase()+op.slice(1)); return `<span style="display:inline-flex;align-items:center;font-size:10px;font-weight:600;background:${c}14;color:${c};border:1px solid ${c}30;border-radius:999px;padding:2px 7px;">${lbl}</span>`; }).join('');
+    return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:${color}0d;border:1px solid ${color}28;border-radius:12px;padding:6px 12px;"><span style="font-size:11px;font-weight:700;color:${color};flex:0 0 auto;">🔥 ${label}</span>${heatBadge}${opTags}</div>`;
+  }).join('');
 }
 
 function clearChartFilter() {
@@ -2693,6 +2863,54 @@ function clearChartFilter() {
   if (typeof window.refreshHabChart === 'function') window.refreshHabChart();
 }
 
+// ── Master "Clear Filter" — resets ALL chart/heatmap drill-down filters ──────
+// Does NOT touch: nav bar, organiser checkboxes, category checkboxes
+let _suppressClearRerender = false;
+
+function clearAllChartFilters() {
+  // 1. Reset chart filter state
+  _chartFilter = { operator: null, catKey: null };
+  const chartBanner = document.getElementById('chartFilterBanner');
+  if (chartBanner) chartBanner.style.display = 'none';
+
+  // 2. Clear the heatmap filter banner
+  const hmBanner = document.getElementById('hmFilterBanner');
+  if (hmBanner) hmBanner.style.display = 'none';
+
+  // 3. Reset heatmap banner
+  if (typeof window._clearHeatmapFilter === 'function') window._clearHeatmapFilter();
+
+  // 4. Reset heat tier chart filter
+  if (typeof window._clearTierFilter === 'function') window._clearTierFilter();
+
+  // 5. Reset the "Avg Heat by Category" bar chart operator filter
+  if (typeof window._clearHabFilter === 'function') window._clearHabFilter();
+
+  // 6. Reset the bar category tab selection
+  _barSelectedCat = null;
+  renderBarChart();
+
+  // 7. Refresh doughnut
+  const sel = document.getElementById('doughnutOperatorSelect');
+  renderDoughnutChart(sel ? sel.value : 'Wynn');
+
+  // 8. Always re-render full events (unless suppressed during a fresh Apply Filter render)
+  if (!_suppressClearRerender) {
+    const container = document.getElementById('analyticsContent');
+    if (container && Object.keys(_chartCatData).length) {
+      container.innerHTML = '';
+      _renderGroupedBody(_chartCatData, container);
+    }
+  }
+
+  // 9. Restore original hot themes (from when Apply Filter first ran)
+  const slot = document.getElementById('hotThemesSlot');
+  if (slot && _cachedHotThemesHTML !== null) {
+    slot.style.cssText = _cachedHotThemesStyle || 'display:flex;flex-direction:column;gap:8px;margin-top:6px;width:100%;';
+    slot.innerHTML = _cachedHotThemesHTML;
+  }
+}
+
 // ── Doughnut Chart ───────────────────────────────────────
 function renderDoughnutChart(operatorName) {
   const canvas    = document.getElementById('doughnutChart');
@@ -2701,9 +2919,17 @@ function renderDoughnutChart(operatorName) {
   if (!canvas) return;
 
   const counts = {};
-  for (const [catKey, acts] of Object.entries(_chartCatData)) {
-    const n = acts.filter(a => (a.operator||'').toLowerCase() === operatorName.toLowerCase()).length;
-    if (n > 0) counts[catKey] = n;
+  if (!_hasAppliedFilters) {
+    const opLc = String(operatorName || '').toLowerCase();
+    for (const [catKey, row] of Object.entries(DEMO_EVT_COUNTS || {})) {
+      const n = Number(row?.[opLc] || 0);
+      if (n > 0) counts[catKey] = n;
+    }
+  } else {
+    for (const [catKey, acts] of Object.entries(_chartCatData)) {
+      const n = acts.filter(a => (a.operator||'').toLowerCase() === operatorName.toLowerCase()).length;
+      if (n > 0) counts[catKey] = n;
+    }
   }
 
   const labels = [], values = [], colors = [], catKeys = [];
@@ -2980,6 +3206,9 @@ function renderBarChart() {
 
 // ── Master refresh ───────────────────────────────────────
 function refreshAnalyticsCharts(rawSummaries) {
+  // Reset hot themes cache — fresh Apply Filter means fresh base themes
+  _cachedHotThemesHTML  = null;
+  _cachedHotThemesStyle = null;
   _chartCatData = _extractCatData(rawSummaries);
   _comparisonCatData = _chartCatData;  // keep _chartDataSource() in sync
   // In DEMO mode nothing is checked yet → fall back to full default lists
@@ -2994,10 +3223,13 @@ function refreshAnalyticsCharts(rawSummaries) {
   if (banner) banner.style.display = 'none';
   const hmBanner = document.getElementById('hmFilterBanner');
   if (hmBanner) hmBanner.style.display = 'none';
+  // Suppress clearAllChartFilters from re-rendering — content is already fresh from renderGroupedResults
+  _suppressClearRerender = true;
   const sel = document.getElementById('doughnutOperatorSelect');
   renderDoughnutChart(sel ? sel.value : 'Wynn');
   renderBarChart();
   if (typeof window.refreshHabChart === 'function') window.refreshHabChart();
+  _suppressClearRerender = false;
 }
 
 // Doughnut operator selector
@@ -3022,18 +3254,19 @@ function syncDoughnutOps() {
   const sel     = document.getElementById('doughnutOperatorSelect');
   if (!sel) return;
   const checked = _checkedOps(); // lowercase
+  const allowed = checked.length ? checked : _OP_TITLE_ORDER.map(op => (_OP_LC[op] || op.toLowerCase()));
   const current = sel.value;
   sel.innerHTML = _OP_TITLE_ORDER
-    .filter(op => checked.includes((_OP_LC[op] || op.toLowerCase())))
+    .filter(op => allowed.includes((_OP_LC[op] || op.toLowerCase())))
     .map(op => `<option value="${op}">${op}</option>`)
     .join('');
   // Restore previous selection if still available, else default to first
   if ([...sel.options].some(o => o.value === current)) {
     sel.value = current;
-  } else {
+  } else if (sel.options.length) {
     sel.selectedIndex = 0;
   }
-  renderDoughnutChart(sel.value);
+  renderDoughnutChart(sel.value || 'Wynn');
 }
 
 // Hook into every operator checkbox
@@ -3049,13 +3282,38 @@ window.renderGroupedResults = async function(summaries, isCrawling) {
   if (typeof window._rebuildTierChart === 'function') window._rebuildTierChart();
   if (typeof window._rebuildHeatmap === 'function') window._rebuildHeatmap();
   if (typeof window._rebuildHeatAvgChart === 'function') window._rebuildHeatAvgChart();
+
+  // Initialise report cache whenever a live Apply Filter completes (not crawling, not demo)
+  if (_hasAppliedFilters && !isCrawling) {
+    const _fromDate = (document.getElementById('fromDate') || {}).value || '';
+    const _toDate   = (document.getElementById('toDate')   || {}).value || '';
+    _reportCache = {
+      rawSummaries:      summaries,
+      filters:           { operators: [..._appliedFilterState.operators], categories: [..._appliedFilterState.categories] },
+      period:            { start: _fromDate, end: _toDate },
+      keyword:           _currentKeywordString(),
+      hotThemes:         [],   // filled async by buildSummaryBanner → fetchHotThemes
+      aiRecommendations: [],   // filled async by updateStrategyPrompt → fetchAiWynnRecommendations
+      comparisons:       []    // filled async by updateStrategyPrompt
+    };
+    _reportInsightsPersistedKey = null;
+  }
+
   if (typeof updateStrategyPrompt === 'function') updateStrategyPrompt();
 };
 
 // ── Patch fillResults (DEMO mode) ────────────────────────
 const _origFillResults = fillResults;
 window.fillResults = function(data) {
+  _suppressClearRerender = true;
   _origFillResults(data);
+  const summaryHost = document.getElementById('resultsSummaryHost');
+  if (summaryHost && !_hasAppliedFilters) {
+    summaryHost.innerHTML = `<div class="empty-state" style="padding:28px 24px;">
+      <h4>Results Summary</h4>
+      <p>Apply filters to generate the latest summary before reviewing analytics charts.</p>
+    </div>`;
+  }
   const demoCatData = {};
   const allDemoEvents = [
     ...Object.entries(data.gamingByOperator || {}).flatMap(([op, evs]) =>
@@ -3079,6 +3337,7 @@ window.fillResults = function(data) {
   if (typeof window._rebuildHeatmap === 'function') window._rebuildHeatmap();
   if (typeof window._rebuildHeatAvgChart === 'function') window._rebuildHeatAvgChart();
   if (typeof updateStrategyPrompt === 'function') setTimeout(() => updateStrategyPrompt(), 0);
+  _suppressClearRerender = false;
 };
 
 // Initial render — only use DEMO if no saved session state exists
@@ -3156,7 +3415,7 @@ function _chartDataSource() {
 
 
 (function() {
-  const ALL_OPS  = ['Melco','Wynn','MGM','Galaxy','Sands','SJM'];
+  const ALL_OPS  = ['Melco','Wynn','MGM','Galaxy','Sands','SJM','Government'];
   const TIER_HIGH = '#1E40AF', TIER_MID = '#60A5FA', TIER_LOW = '#CBD5E1';
   let _tf = { op:null, tier:null };
   let _tc = null;
@@ -3166,6 +3425,7 @@ function _chartDataSource() {
     Melco:{high:29,mid:23,low:10,total:62}, Wynn:{high:8,mid:20,low:5,total:33},
     MGM:{high:8,mid:45,low:7,total:60},     Galaxy:{high:13,mid:25,low:17,total:55},
     Sands:{high:13,mid:42,low:28,total:83}, SJM:{high:7,mid:39,low:23,total:69},
+    Government:{high:4,mid:8,low:3,total:15},
   };
 
   // Compute tier counts from live _chartCatData; falls back to DEMO_TIER if no heat_score found
@@ -3361,10 +3621,21 @@ function _chartDataSource() {
     _chartFilter = { operator: op, catKey: null };
     renderDoughnutChart(op);
     renderBarChart();
+    _refreshHotThemesForFilter(filtered);
   }
 
   // Expose so external refreshes (after crawl) can rebuild
   window._rebuildTierChart = buildTierChart;
+
+  // Expose clear function for the master "Clear Filter" button
+  window._clearTierFilter = function() {
+    if (_tf.op || _tf.tier) {
+      _tf = { op: null, tier: null };
+      const tierData = computeTierData();
+      const ops = activeOps(tierData);
+      _updateColors(ops, tierData);
+    }
+  };
 
   // Re-render when sidebar checkboxes change
   document.querySelectorAll('input[name="operator"]').forEach(cb =>
@@ -3400,6 +3671,7 @@ function _chartDataSource() {
 
   // Build a {opLc: avgHeat} map from live _chartDataSource() for a given category
   function _liveHeatMapForCat(cat) {
+    if (!_hasAppliedFilters) return null;
     const liveData = (typeof _chartDataSource === 'function') ? _chartDataSource() : {};
     const acts = liveData[cat] || [];
     if (!acts.length) return null; // no live data → fall back to demo
@@ -3421,6 +3693,10 @@ function _chartDataSource() {
   // Get categories: prefer live data keys, fall back to HEAT_CAT_DATA
   function activeCats() {
     const chk = _checkedCats();
+    if (!_hasAppliedFilters) {
+      const allDemoCats = Object.keys(HEAT_CAT_DATA);
+      return chk.length ? allDemoCats.filter(c => chk.includes(c)) : allDemoCats;
+    }
     const liveData = (typeof _chartDataSource === 'function') ? _chartDataSource() : {};
     const liveCats = Object.keys(liveData).filter(c => (liveData[c] || []).length > 0);
     const all = liveCats.length ? liveCats : Object.keys(HEAT_CAT_DATA);
@@ -3601,6 +3877,15 @@ function _chartDataSource() {
     _activeHabOp = null;
     buildPills();
     renderHeatAvgChart();
+  };
+
+  // Expose clear for the master "Clear Filter" button
+  window._clearHabFilter = function() {
+    if (_activeHabOp) {
+      _activeHabOp = null;
+      buildPills();
+      renderHeatAvgChart();
+    }
   };
 })();
 
@@ -4118,76 +4403,242 @@ function _chartDataSource() {
       return { points, statusText, comparisons, selectedOps, events, summary };
     }
 
+    const DEMO_RECOMMENDATIONS = [
+      {
+        catKey: "food",
+        type: "keep_up",
+        text: "永利在澳門餐飲類別具有絕對領先地位（Wing Lei連續16年米芝蓮星級，Chef Tam's Seasons為澳門唯一兩星餐廳），建議持續以Fine Dining為核心差異化資產，推出主廚私宴系列，並配合Wynn Insider會員專屬預覽禮遇，將餐飲優勢轉化為住宿及零售消費的帶動力。"
+      },
+      {
+        catKey: "concert",
+        type: "keep_up",
+        text: "永利現時場地規模（約1,200座）無法與Galaxy銀河綜藝館（16,000座）在大型演唱會市場正面競爭，惟現有演唱會的平均熱度（70.6）已領先市場。建議專注精品演出路線，同時積極與熱度逾60的頭部藝人建立長線合作關係，待2028年新場館落成後優先邀請，屆時方可全面部署大型演唱會策略。"
+      },
+      {
+        catKey: "accommodation",
+        type: "keep_up",
+        text: "永利皇宮為全球規模最大的Forbes五星度假村（2026年Forbes合共63粒星，澳門之冠），建議深化住宿、Fine Dining與水療三位一體的奢華套餐體驗，以個人化禮賓服務作核心差異化，持續鞏固頂端賓客黏性，無需追求客房規模擴張。"
+      }
+    ];
+
     async function updateStrategyPrompt(precomputedState = null) {
       const status = getPromptStatusEl();
       const reqSeq = ++_strategyPromptReqSeq;
 
-      // Step 1: Build static points synchronously and render immediately
       const state = precomputedState || buildStrategyPromptState();
       if (reqSeq !== _strategyPromptReqSeq || !state) return;
-      renderStrategyPromptPoints(state.points || buildWynnDeepSeekPoints());
-      if (status) status.textContent = state.statusText || "Wynn comparison points ready.";
 
-      // Step 2: Fetch AI recommendations and inject inline under each category
-      const { comparisons, selectedOps, events, summary } = state;
-      if (!events || !events.length || !comparisons || !comparisons.length) return;
+      const TYPE_CONFIG = {
+        keep_up: { icon: '🚀', label: 'Keep it Up',   color: '#15803D', bg: 'rgba(22,163,74,0.08)',   border: 'rgba(22,163,74,0.22)' },
+        improve: { icon: '⚡', label: 'Improve',       color: '#B45309', bg: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.22)' },
+        avoid:   { icon: '🚫', label: 'Avoid for Now', color: '#B91C1C', bg: 'rgba(220,38,38,0.06)',  border: 'rgba(220,38,38,0.18)' },
+      };
+      const CAT_ICONS = { concert:'🎤', exhibition:'🖼️', experience:'✨', sport:'🏅', crossover:'🤝', accommodation:'🏨', food:'🍽️', shopping:'🛍️' };
+      const CAT_LABELS_ZH = { concert:'Concert', exhibition:'Exhibition', experience:'Experience', sport:'Sport', crossover:'Crossover', accommodation:'Hotel', food:'Food', shopping:'Shopping' };
+      const OP_COLORS = { Wynn:'#B45309', Sands:'#1D4ED8', Galaxy:'#047857', MGM:'#991B1B', Melco:'#6D28D9', SJM:'#0E7490', Government:'#374151' };
+
+      const DEMO_HEAT = {
+        food:          [{ opTitle:'Wynn', count:2, avg:50.0 }, { opTitle:'Melco', count:2, avg:59.6 }, { opTitle:'Sands', count:3, avg:41.5 }, { opTitle:'MGM', count:2, avg:43.4 }],
+        concert:       [{ opTitle:'Wynn', count:1, avg:70.6 }, { opTitle:'Sands', count:6, avg:48.1 }, { opTitle:'Galaxy', count:6, avg:40.9 }],
+        accommodation: [{ opTitle:'Wynn', count:3, avg:64.0 }, { opTitle:'Melco', count:2, avg:59.1 }, { opTitle:'MGM', count:3, avg:54.8 }, { opTitle:'Sands', count:2, avg:40.7 }],
+        experience:    [{ opTitle:'Melco', count:2, avg:63.7 }, { opTitle:'MGM', count:3, avg:53.9 }, { opTitle:'Wynn', count:3, avg:49.6 }, { opTitle:'Sands', count:2, avg:49.5 }],
+        exhibition:    [{ opTitle:'Melco', count:3, avg:69.8 }, { opTitle:'Sands', count:2, avg:41.1 }, { opTitle:'MGM', count:1, avg:43.9 }],
+        shopping:      [{ opTitle:'Galaxy', count:3, avg:62.9 }, { opTitle:'Wynn', count:2, avg:56.4 }, { opTitle:'Sands', count:2, avg:42.8 }],
+        sport:         [{ opTitle:'Melco', count:3, avg:83.3 }, { opTitle:'Sands', count:2, avg:71.8 }, { opTitle:'Galaxy', count:2, avg:63.1 }],
+        crossover:     [{ opTitle:'Melco', count:3, avg:68.3 }, { opTitle:'Wynn', count:1, avg:53.9 }, { opTitle:'Sands', count:3, avg:45.4 }],
+      };
+
+      const list = getPromptListEl();
+
+      // ── DEMO MODE: show demo cards without calling API ──────────────────────
+      if (!_hasAppliedFilters) {
+        function buildDemoHeatHtml(catKey) {
+          const rows = (DEMO_HEAT[catKey] || []).filter(r => r.count > 0).sort((a,b) => b.avg - a.avg);
+          if (!rows.length) return '';
+          const rowsHtml = rows.map((r, i) => {
+            const isWynn = r.opTitle === 'Wynn';
+            const color = OP_COLORS[r.opTitle] || '#6B7280';
+            const rankBg = isWynn ? 'rgba(234,179,8,0.15)' : 'rgba(15,23,42,0.06)';
+            const rankColor = isWynn ? '#92400E' : 'rgba(15,23,42,0.45)';
+            const rowBg = isWynn ? 'rgba(234,179,8,0.08)' : 'transparent';
+            const rowBorder = isWynn ? '1px solid rgba(234,179,8,0.22)' : '1px solid transparent';
+            return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:10px;background:${rowBg};border:${rowBorder};">
+              <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${rankBg};font-size:11px;font-weight:800;color:${rankColor};flex:0 0 auto;">${i+1}</span>
+              <span style="font-size:13px;font-weight:700;color:${color};">${r.opTitle}</span>
+              <span style="font-size:12px;font-weight:500;color:rgba(15,23,42,0.5);">: ${r.count}</span>
+              <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;background:rgba(249,115,22,0.10);border:1px solid rgba(249,115,22,0.22);font-size:12px;font-weight:700;color:#C2410C;">🔥 avg ${r.avg.toFixed(1)}</span>
+            </div>`;
+          }).join('');
+          return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(15,23,42,0.07);">
+            <div style="font-size:10px;font-weight:700;color:rgba(15,23,42,0.35);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;">Heat Ranking · ${CAT_LABELS_ZH[catKey] || catKey}</div>
+            <div style="display:flex;flex-direction:column;gap:4px;">${rowsHtml}</div>
+          </div>`;
+        }
+
+        const demoCards = DEMO_RECOMMENDATIONS.map(rec => {
+          const cfg = TYPE_CONFIG[rec.type] || TYPE_CONFIG.improve;
+          const catIcon = CAT_ICONS[rec.catKey] || '📍';
+          const catLabel = CAT_LABELS_ZH[rec.catKey] || rec.catKey;
+          const formattedText = formatAiRecommendationText(rec.text, []);
+          const heatHtml = buildDemoHeatHtml(rec.catKey);
+          return `<div style="display:flex;gap:12px;align-items:flex-start;padding:16px 18px;border-radius:18px;
+              background:${cfg.bg};border:1px solid ${cfg.border};margin-bottom:12px;">
+            <div style="flex:0 0 auto;width:36px;height:36px;border-radius:12px;
+              background:${cfg.color}18;border:1px solid ${cfg.color}30;
+              display:flex;align-items:center;justify-content:center;font-size:18px;margin-top:1px;">
+              ${cfg.icon}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+                <span style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
+                  color:${cfg.color};background:${cfg.color}14;border:1px solid ${cfg.color}28;
+                  border-radius:999px;padding:2px 8px;">${cfg.icon} ${cfg.label}</span>
+                <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;
+                  background:rgba(109,40,217,0.10);color:#6D28D9;border:1px solid rgba(109,40,217,0.22);
+                  display:inline-flex;align-items:center;gap:4px;">${catIcon} ${catLabel}</span>
+              </div>
+              <div style="font-size:13.5px;line-height:1.7;color:rgba(15,23,42,0.82);">${formattedText}</div>
+              ${heatHtml}
+            </div>
+          </div>`;
+        }).join('');
+
+        if (list) {
+          list.innerHTML = `<li class="prompt-item" style="display:block;padding:0;background:transparent;box-shadow:none;">
+            <div style="padding:4px 2px;">${demoCards}</div>
+          </li>`;
+        }
+        if (status) status.textContent = 'Demo mode · Apply filters to generate live recommendations';
+        return;
+      }
+
+      // ── LIVE MODE ────────────────────────────────────────────────────────────
+      // Show loading state
+      if (list) {
+        list.innerHTML = `<li class="prompt-item" style="display:block;padding:14px 16px;">
+          <div style="display:flex;align-items:center;gap:10px;color:rgba(37,99,235,0.75);font-size:13px;font-weight:600;">
+            <span style="font-size:18px;">⏳</span>Generating strategic recommendations…
+          </div>
+        </li>`;
+      }
       if (status) status.textContent = 'Analysing recommendations for Wynn…';
 
-      // Show loading indicator at bottom of each section
-      const loadingHtml = '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;color:rgba(37,99,235,0.75);font-size:13px;font-weight:600;"><span style="font-size:18px;">⏳</span>Analysing recommendations for Wynn…</div>';
-      const listElLoading = getPromptListEl();
-      if (listElLoading) {
-        listElLoading.querySelectorAll('.prompt-item').forEach(el => {
-          const body = el.querySelector('.prompt-item-body');
-          if (body) body.insertAdjacentHTML('beforeend', `<div class="wynn-rec-loading">${loadingHtml}</div>`);
-        });
+      const { comparisons, selectedOps, events, summary } = state;
+      if (!events || !events.length || !comparisons || !comparisons.length) {
+        if (list) list.innerHTML = `<li class="prompt-item"><div class="prompt-item-body" style="color:rgba(15,23,42,0.4);font-size:13px;">Apply filters to generate recommendations.</div></li>`;
+        return;
       }
 
       const aiRecommendations = await fetchAiWynnRecommendations(comparisons, selectedOps, events, summary);
       if (reqSeq !== _strategyPromptReqSeq) return;
 
-      const aiMap = new Map(
-        (aiRecommendations || [])
-          .map(item => [String(item.catKey || "").toLowerCase(), String(item.text || "").trim()])
-          .filter(([, text]) => text)
-      );
+      function buildHeatRankingHtml(catKey) {
+        const comp = comparisons.find(c => c.catKey === catKey);
+        if (!comp) return '';
+        const all = [
+          { opTitle: 'Wynn', count: comp.wynn?.count || 0, avg: comp.wynn?.avg || 0 },
+          ...(comp.opponents || [])
+        ].filter(r => r.count > 0).sort((a, b) => (b.avg || 0) - (a.avg || 0));
+        if (!all.length) return '';
 
-      // Helper: build rec HTML for a comparison item
-      function recHtmlForItem(item) {
-        const raw = aiMap.get(item.catKey);
-        if (!raw) return null;
-        const allEvents = (item.wynn?.events || []).concat(item.opponents.flatMap(op => op.events || []));
-        return formatAiRecommendationText(
-          buildRecommendationDisplayText(item, raw),
-          allEvents
-        );
+        const rows = all.map((r, i) => {
+          const isWynn = r.opTitle === 'Wynn';
+          const color = OP_COLORS[r.opTitle] || '#6B7280';
+          const rankBg = isWynn ? 'rgba(234,179,8,0.15)' : 'rgba(15,23,42,0.06)';
+          const rankColor = isWynn ? '#92400E' : 'rgba(15,23,42,0.45)';
+          const rowBg = isWynn ? 'rgba(234,179,8,0.08)' : 'transparent';
+          const rowBorder = isWynn ? '1px solid rgba(234,179,8,0.22)' : '1px solid transparent';
+          return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:10px;background:${rowBg};border:${rowBorder};">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${rankBg};font-size:11px;font-weight:800;color:${rankColor};flex:0 0 auto;">${i+1}</span>
+            <span style="font-size:13px;font-weight:700;color:${color};">${r.opTitle}</span>
+            <span style="font-size:12px;font-weight:500;color:rgba(15,23,42,0.5);">: ${r.count}</span>
+            <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;background:rgba(249,115,22,0.10);border:1px solid rgba(249,115,22,0.22);font-size:12px;font-weight:700;color:#C2410C;">🔥 avg ${fmtNum(r.avg)}</span>
+          </div>`;
+        }).join('');
+
+        const catLabel = CAT_LABELS_ZH[catKey] || catKey;
+        return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(15,23,42,0.07);">
+          <div style="font-size:10px;font-weight:700;color:rgba(15,23,42,0.35);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;">Heat Ranking · ${catLabel}</div>
+          <div style="display:flex;flex-direction:column;gap:4px;">${rows}</div>
+        </div>`;
       }
 
-      // Rebuild section[0]: Competitive Advantage with inline recs
-      const strengthItems = window._wynnStrengthItems || summary.leaders || [];
-      const strengthsBody = strengthItems.length
-        ? strengthItems.map(item => {
-            const compItem = comparisons.find(c => c.catKey === item.catKey) || item;
-            return buildStrengthBlock(item, recHtmlForItem(compItem));
-          }).join("")
-        : (state.points[0]?.body || "");
+      const OP_COLOR_MAP = { Wynn:'#B45309', Sands:'#1D4ED8', Galaxy:'#047857', MGM:'#991B1B', Melco:'#6D28D9', SJM:'#0E7490', Government:'#374151' };
+      function colorizeOps(text) {
+        // Add 🔥 before heat/熱度 numbers
+        let t = text
+          .replace(/(?:heat|熱度達|熱度為|熱度)\s*([0-9]+(?:\.[0-9]+)?)/g, '🔥$1')
+          .replace(/平均\s*([0-9]+(?:\.[0-9]+)?)/g, '🔥$1');
+        // Bold event names in 《》or 「」brackets
+        t = t.replace(/《([^》]+)》/g, '<strong>《$1》</strong>');
+        t = t.replace(/「([^」]+)」/g, '<strong>「$1」</strong>');
+        // Colorize bare operator names
+        return t.replace(/\b(Wynn|Sands|Galaxy|MGM|Melco|SJM|Government)\b/g, (match) => {
+          const color = OP_COLOR_MAP[match] || '#0F172A';
+          return `<span style="font-weight:700;color:${color};">${match}</span>`;
+        });
+      }
 
-      // Rebuild section[1]: Potential Improvements with inline recs
-      const gapItemsList = window._wynnGapItems || [];
-      const gapsBody = gapItemsList.length
-        ? gapItemsList.map(item => {
-            const compItem = comparisons.find(c => c.catKey === item.catKey) || item;
-            return buildGapBlock(item, recHtmlForItem(compItem));
-          }).join("")
-        : (state.points[1]?.body || "");
+      const n_recs = Math.min(comparisons.length, 3);
+      const cards = (aiRecommendations || []).slice(0, n_recs).map(rec => {
+        const catKey   = String(rec.catKey || '').toLowerCase();
+        const type     = String(rec.type || 'improve').toLowerCase();
+        const rawText  = String(rec.text || '');
+        const cfg      = TYPE_CONFIG[type] || TYPE_CONFIG.improve;
+        const catIcon  = CAT_ICONS[catKey] || '📍';
+        const catLabel = CAT_LABELS_ZH[catKey] || catKey;
+        const formattedText = colorizeOps(rawText);
+        const heatHtml = buildHeatRankingHtml(catKey);
 
-      const list = getPromptListEl();
+        return `<div style="display:flex;gap:12px;align-items:flex-start;padding:16px 18px;border-radius:18px;
+            background:${cfg.bg};border:1px solid ${cfg.border};margin-bottom:12px;">
+          <div style="flex:0 0 auto;width:36px;height:36px;border-radius:12px;
+            background:${cfg.color}18;border:1px solid ${cfg.color}30;
+            display:flex;align-items:center;justify-content:center;font-size:18px;margin-top:1px;">
+            ${cfg.icon}
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+              <span style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
+                color:${cfg.color};background:${cfg.color}14;border:1px solid ${cfg.color}28;
+                border-radius:999px;padding:2px 8px;">${cfg.icon} ${cfg.label}</span>
+              <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;
+                background:rgba(109,40,217,0.10);color:#6D28D9;border:1px solid rgba(109,40,217,0.22);
+                display:inline-flex;align-items:center;gap:4px;">${catIcon} ${catLabel}</span>
+            </div>
+            <div style="font-size:13.5px;line-height:1.7;color:rgba(15,23,42,0.82);">${formattedText}</div>
+            ${heatHtml}
+          </div>
+        </div>`;
+      }).join('');
+
       if (list) {
-        const items = list.querySelectorAll(".prompt-item");
-        if (items[0]) items[0].querySelector(".prompt-item-body").innerHTML = strengthsBody;
-        if (items[1]) items[1].querySelector(".prompt-item-body").innerHTML = gapsBody;
+        list.innerHTML = `<li class="prompt-item" style="display:block;padding:0;background:transparent;box-shadow:none;">
+          <div style="padding:4px 2px;">${cards || '<span style="color:rgba(15,23,42,0.4);font-size:13px;">No recommendations available.</span>'}</div>
+        </li>`;
       }
-      if (status) status.textContent = `Qwen3.5-plus recommendations ready from ${events.length} filtered event(s) across ${selectedOps.length || 0} organiser(s).`;
+      if (status) status.textContent = `Strategic recommendations ready · ${events.length} events · ${selectedOps.length} operators`;
+
+      // Save into report cache so Preview Report can use them instantly
+      if (_reportCache && aiRecommendations && aiRecommendations.length) {
+        _reportCache.aiRecommendations = aiRecommendations;
+        _reportCache.comparisons = comparisons.map(item => ({
+          catKey: item.catKey, label: item.label,
+          wynn: { count: item.wynn?.count ?? 0, avgHeat: item.wynn?.avg ?? 0, topEventName: item.wynn?.topEvent?.name || '' },
+          opponents: (item.opponents || []).map(opp => ({
+            organiser: opp.opTitle,
+            count: opp.count ?? 0,
+            avgHeat: opp.avg ?? 0,
+            topEventName: opp.topEvent?.name || ''
+          })),
+          topOpponent: item.topOpponent ? {
+            organiser: item.topOpponent.opTitle, count: item.topOpponent.count,
+            avgHeat: item.topOpponent.avg, topEventName: item.topOpponent.topEvent?.name || ''
+          } : null,
+          wynnLeads: (item.wynn?.count ?? 0) > 0 && (!item.topOpponent || (item.wynn?.avg ?? 0) > (item.topOpponent?.avg ?? 0))
+        }));
+        _persistFullReportInsightsIfReady();
+      }
     }
 
 // ── Activity Heatmap ─────────────────────────────────────────────────────────
@@ -4298,6 +4749,15 @@ function _chartDataSource() {
   }
 
   window._rebuildHeatmap = buildHeatmap;
+
+  // Expose clear for the master "Clear Filter" button
+  // The heatmap has no internal filter state — clearing means hiding its banner
+  // (the events re-render is handled by clearAllChartFilters → clearChartFilter)
+  window._clearHeatmapFilter = function() {
+    const hmBanner = document.getElementById('hmFilterBanner');
+    if (hmBanner) hmBanner.style.display = 'none';
+  };
+
   document.querySelectorAll('input[name="operator"], input[name="category"]').forEach(cb => cb.addEventListener('change', buildHeatmap));
   setTimeout(buildHeatmap, 0);
 })();
@@ -4310,61 +4770,89 @@ if (typeof window._initPage === 'function') window._initPage();
 
 <script>
 // ── Collect Report Data & open download_report.html ──────────────────────────
+const REPORT_ALL_OPERATORS = ['wynn','sands','galaxy','mgm','melco','sjm','government'];
+const REPORT_ALL_CATEGORIES = ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping','gaming'];
+const REPORT_SELECTABLE_CATEGORIES = ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping'];
+
+function _normaliseReportCatData(rawSummaries) {
+  const catData = {};
+  if (!rawSummaries) return catData;
+  const src = rawSummaries.category_summaries || rawSummaries.operator_summaries || rawSummaries || {};
+  for (const [catKey, acts] of Object.entries(src)) {
+    if (!Array.isArray(acts) || !acts.length) continue;
+    catData[catKey] = acts.map(act => ({ ...act, operator: (act.operator || '').toLowerCase() }));
+  }
+  return catData;
+}
+
 async function collectReportData() {
- 
-  // 1. Filters
-  const filters = {
-    operators:  (_appliedFilterState.operators  || []).slice(),
-    categories: (_appliedFilterState.categories || []).slice()
-  };
- 
-  // 2. Period — panel uses resolveDateRange() which writes to hidden #fromDate / #toDate inputs
-  //    Read those hidden inputs directly.
+  if (!_hasAppliedFilters || !_reportCache?.rawSummaries) {
+    alert('Please apply filters in the operation panel!');
+    return;
+  }
+  if (!Array.isArray(_reportCache?.hotThemes) || !_reportCache.hotThemes.length ||
+      !Array.isArray(_reportCache?.aiRecommendations) || !_reportCache.aiRecommendations.length) {
+    alert('Please wait until all the hot themes and recommendations are generated!');
+    return;
+  }
+  resolveDateRange();
   const period = {
-    start: (document.getElementById('fromDate') || {}).value || '',
-    end:   (document.getElementById('toDate')   || {}).value || ''
+    start: ($("fromDate") || {}).value || '',
+    end: ($("toDate") || {}).value || ''
   };
- 
-  // 3. KPIs from _chartCatData
-  const catData = _chartCatData || {};
-  const totalEvents = Object.values(catData).reduce((s,a) => s+a.length, 0);
-  const opCounts={}, catCounts={};
+  const keyword = _currentKeywordString();
+  const summaries = _reportCache.rawSummaries;
+
+  // ── Build normalised catData ─────────────────────────────────────────────────
+  const catData = _normaliseReportCatData(summaries);
+
+  const filters  = {
+    operators: [...(_appliedFilterState?.operators || [])],
+    categories: [...(_appliedFilterState?.categories || [])]
+  };
+  const keywords = keyword.split(',').map(s => s.trim()).filter(Boolean);
+  const activeOpKeys = filters.operators.length ? filters.operators : [...REPORT_ALL_OPERATORS];
+  const activeCatKeys = filters.categories.length ? filters.categories : [...REPORT_ALL_CATEGORIES];
+
+  // ── KPIs ────────────────────────────────────────────────────────────────────
+  const totalEvents = Object.values(catData).reduce((s, a) => s + a.length, 0);
+  const opCounts = {}, catCounts = {};
   for (const [catKey, acts] of Object.entries(catData)) {
     catCounts[catKey] = acts.length;
     for (const act of acts) {
-      const op = (act.operator||'unknown').toLowerCase();
-      opCounts[op] = (opCounts[op]||0)+1;
+      const op = (act.operator || 'unknown').toLowerCase();
+      opCounts[op] = (opCounts[op] || 0) + 1;
     }
   }
-  const sortedOps  = Object.entries(opCounts).sort((a,b)=>b[1]-a[1]);
-  const sortedCats = Object.entries(catCounts).filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1]);
+  const sortedOps  = Object.entries(opCounts).sort((a, b) => b[1] - a[1]);
+  const sortedCats = Object.entries(catCounts).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
   const topOp  = sortedOps[0]?.[0]  ?? null;
   const topCat = sortedCats[0]?.[0] ?? null;
- 
-  const _OP_L  = {wynn:'Wynn',sands:'Sands',galaxy:'Galaxy',mgm:'MGM',melco:'Melco',sjm:'SJM',government:'Government'};
-  const _CAT_L = {concert:'Concert',sport:'Sport',crossover:'Crossover',exhibition:'Exhibition',experience:'Experience',food:'Food',accommodation:'Hotel',shopping:'Shopping',gaming:'Gaming'};
- 
+  const _OP_L  = { wynn:'Wynn', sands:'Sands', galaxy:'Galaxy', mgm:'MGM', melco:'Melco', sjm:'SJM', government:'Government' };
+  const _CAT_L = { concert:'Concert', sport:'Sport', crossover:'Crossover', exhibition:'Exhibition', experience:'Experience', food:'Food', accommodation:'Hotel', shopping:'Shopping', gaming:'Gaming' };
   const kpis = {
     totalEvents,
+    topOrganiserKey:     topOp,
     topOrganiser:        topOp  ? (_OP_L[topOp]  || topOp)  : '—',
     topOrganiserCount:   sortedOps[0]?.[1]  ?? 0,
+    topCategoryKey:      topCat,
     topCategory:         topCat ? (_CAT_L[topCat] || topCat) : '—',
     topCategoryCount:    sortedCats[0]?.[1] ?? 0,
     activeOrganiserCount: sortedOps.length
   };
- 
-  // 4. Summary paragraph
-  const top3Cats = sortedCats.slice(0,3).map(([k])=>_CAT_L[k]||k).join(', ');
+
+  // ── Summary paragraph ────────────────────────────────────────────────────────
+  const top3Cats = sortedCats.slice(0, 3).map(([k]) => _CAT_L[k] || k).join(', ');
   const summary = {
-    paragraph: `This period covers ${totalEvents} event${totalEvents!==1?'s':''} across ${kpis.activeOrganiserCount} organiser${kpis.activeOrganiserCount!==1?'s':''}. ${kpis.topOrganiser} leads with ${kpis.topOrganiserCount} event${kpis.topOrganiserCount!==1?'s':''}. Top categories: ${top3Cats||'—'}.`
+    paragraph: `This preview report covers the currently applied filter set for the selected period, with ${totalEvents} event${totalEvents !== 1 ? 's' : ''} across ${kpis.activeOrganiserCount} organiser${kpis.activeOrganiserCount !== 1 ? 's' : ''}. ${kpis.topOrganiser} leads with ${kpis.topOrganiserCount} event${kpis.topOrganiserCount !== 1 ? 's' : ''}. Top categories: ${top3Cats || '—'}.`
   };
- 
-  // 5. Events grouped by category (preserve raw date string — may include ranges like 2026-03-12~2026-03-22)
-  const _OP_C = {wynn:'#B45309',sands:'#1D4ED8',galaxy:'#047857',mgm:'#991B1B',melco:'#6D28D9',sjm:'#0E7490',government:'#374151'};
+
+  // ── Events by category ───────────────────────────────────────────────────────
+  const _OP_C = { wynn:'#B45309', sands:'#1D4ED8', galaxy:'#047857', mgm:'#991B1B', melco:'#6D28D9', sjm:'#0E7490', government:'#374151' };
   const events = {};
   for (const [catKey, acts] of Object.entries(catData)) {
     events[catKey] = acts.map(act => {
-      const opKey = (act.operator||'').toLowerCase();
+      const opKey = (act.operator || '').toLowerCase();
       return {
         name:             act.name        || '',
         description:      act.description || act.overview || act.desc || '',
@@ -4372,139 +4860,156 @@ async function collectReportData() {
         organiserKey:     opKey,
         organiserColor:   _OP_C[opKey]    || '#6B7280',
         heat_score:       act.heat_score  ?? null,
-        date:             act.date        || '',   // kept raw — may be "YYYY-MM-DD~YYYY-MM-DD"
+        date:             act.date        || '',
         location:         act.location    || '',
         predictedVisitors: act.predictedVisitors || act.predicted_visitors || ''
       };
     });
   }
- 
-  // 6. Heatmap data
+
+  // ── Heatmap data ─────────────────────────────────────────────────────────────
   const HM_OP_ORDER  = ['Wynn','Sands','Galaxy','MGM','Melco','SJM','Government'];
-  const HM_OP_LC_MAP = {Wynn:'wynn',Sands:'sands',Galaxy:'galaxy',MGM:'mgm',Melco:'melco',SJM:'sjm',Government:'government'};
+  const HM_OP_LC_MAP = { Wynn:'wynn', Sands:'sands', Galaxy:'galaxy', MGM:'mgm', Melco:'melco', SJM:'sjm', Government:'government' };
   const HM_CAT_ORDER = ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping','gaming'];
-  const DEMO_CELLS = {
-    concert:       {wynn:{n:2,h:54.0},sands:{n:3,h:50.2},galaxy:{n:1,h:42.4},mgm:{n:2,h:50.0},melco:{n:3,h:57.7},sjm:{n:2,h:33.7},government:{n:0,h:null}},
-    food:          {wynn:{n:2,h:50.0},sands:{n:3,h:41.5},galaxy:{n:3,h:31.8},mgm:{n:2,h:43.4},melco:{n:2,h:59.6},sjm:{n:2,h:41.6},government:{n:1,h:29.0}},
-    exhibition:    {wynn:{n:2,h:43.6},sands:{n:2,h:50.9},galaxy:{n:3,h:48.2},mgm:{n:1,h:43.9},melco:{n:3,h:69.8},sjm:{n:2,h:52.7},government:{n:1,h:34.0}},
-    experience:    {wynn:{n:3,h:49.6},sands:{n:2,h:49.5},galaxy:{n:2,h:38.6},mgm:{n:3,h:53.9},melco:{n:2,h:63.7},sjm:{n:1,h:28.7},government:{n:2,h:35.0}},
-    crossover:     {wynn:{n:1,h:53.9},sands:{n:3,h:45.4},galaxy:{n:2,h:31.7},mgm:{n:2,h:42.8},melco:{n:3,h:68.3},sjm:{n:1,h:44.3},government:{n:1,h:30.0}},
-    shopping:      {wynn:{n:2,h:56.4},sands:{n:2,h:42.8},galaxy:{n:3,h:62.9},mgm:{n:1,h:18.6},melco:{n:1,h:27.0},sjm:{n:2,h:35.1},government:{n:0,h:null}},
-    accommodation: {wynn:{n:3,h:64.0},sands:{n:2,h:40.7},galaxy:{n:2,h:36.4},mgm:{n:3,h:54.8},melco:{n:2,h:59.1},sjm:{n:1,h:33.9},government:{n:0,h:null}},
-    sport:         {wynn:{n:1,h:44.0},sands:{n:2,h:71.8},galaxy:{n:2,h:63.1},mgm:{n:1,h:39.0},melco:{n:3,h:83.3},sjm:{n:1,h:34.0},government:{n:1,h:37.0}},
-    gaming:        {wynn:{n:3,h:62.0},sands:{n:3,h:55.0},galaxy:{n:1,h:41.0},mgm:{n:1,h:36.0},melco:{n:1,h:33.0},sjm:{n:1,h:31.0},government:{n:0,h:null}}
-  };
-  const hasLiveData = _hasAppliedFilters && Object.values(catData).some(a=>a&&a.length>0);
-  const heatmapData = {};
+  const heatmapData  = {};
   for (const cat of HM_CAT_ORDER) {
     heatmapData[cat] = {};
     for (const op of HM_OP_ORDER) {
       const opLc = HM_OP_LC_MAP[op];
-      if (!hasLiveData) {
-        heatmapData[cat][opLc] = DEMO_CELLS[cat]?.[opLc] || {n:0,h:null};
-      } else {
-        const matching = (catData[cat]||[]).filter(a=>(a.operator||'').toLowerCase()===opLc);
-        const heats = matching.map(a=>parseFloat(a.heat_score)).filter(v=>isFinite(v));
-        heatmapData[cat][opLc] = {n:matching.length, h:heats.length?heats.reduce((s,v)=>s+v,0)/heats.length:null};
-      }
+      const matching = (catData[cat] || []).filter(a => (a.operator || '').toLowerCase() === opLc);
+      const heats = matching.map(a => parseFloat(a.heat_score)).filter(v => isFinite(v));
+      heatmapData[cat][opLc] = { n: matching.length, h: heats.length ? heats.reduce((s, v) => s + v, 0) / heats.length : null };
     }
   }
- 
-  // 7. Chart data
-  const _CAT_C = {concert:'#7C3AED',sport:'#DC2626',crossover:'#D97706',exhibition:'#0891B2',experience:'#059669',food:'#EA580C',accommodation:'#2563EB',shopping:'#7C3AED',gaming:'#BE185D'};
-  const categoryMix = sortedCats.filter(([,n])=>n>0)
-    .map(([k,count])=>({catKey:k, label:_CAT_L[k]||k, color:_CAT_C[k]||'#6B7280', count}));
-  const heatByOrganiser = sortedOps.map(([opKey])=>{
-    const allActs = Object.values(catData).flat().filter(a=>(a.operator||'').toLowerCase()===opKey);
-    const heats = allActs.map(a=>parseFloat(a.heat_score)).filter(v=>isFinite(v));
-    return {organiserKey:opKey, label:_OP_L[opKey]||opKey, color:_OP_C[opKey]||'#6B7280',
-      avgHeat:heats.length?heats.reduce((s,v)=>s+v,0)/heats.length:0};
-  }).filter(o=>o.avgHeat>0);
-  const chartData = {categoryMix, heatByOrganiser};
- 
-  // 8. Leaderboard (async from bridge.py)
+
+  // ── Chart data ───────────────────────────────────────────────────────────────
+  const _CAT_C = { concert:'#7C3AED', sport:'#DC2626', crossover:'#D97706', exhibition:'#0891B2', experience:'#059669', food:'#EA580C', accommodation:'#2563EB', shopping:'#EC4899', gaming:'#BE185D' };
+  const allActs = Object.entries(catData).flatMap(([catKey, acts]) =>
+    (acts || []).map(act => ({ ...act, _catKey: catKey }))
+  );
+  const categoryMix = sortedCats.filter(([, n]) => n > 0)
+    .map(([k, count]) => ({ catKey: k, label: _CAT_L[k] || k, color: _CAT_C[k] || '#6B7280', count }));
+  const heatByOrganiser = sortedOps.map(([opKey]) => {
+    const organiserActs = allActs.filter(a => (a.operator || '').toLowerCase() === opKey);
+    const heats = organiserActs.map(a => parseFloat(a.heat_score)).filter(v => isFinite(v));
+    return { organiserKey: opKey, label: _OP_L[opKey] || opKey, color: _OP_C[opKey] || '#6B7280',
+      avgHeat: heats.length ? heats.reduce((s, v) => s + v, 0) / heats.length : 0 };
+  }).filter(o => o.avgHeat > 0);
+
+  const categoryShareByOrganiser = activeOpKeys.map(opKey => {
+    const organiserActs = allActs.filter(a => (a.operator || '').toLowerCase() === opKey);
+    const counts = activeCatKeys.map(catKey => {
+      const count = organiserActs.filter(a => a._catKey === catKey).length;
+      return { catKey, label: _CAT_L[catKey] || catKey, color: _CAT_C[catKey] || '#6B7280', count };
+    }).filter(item => item.count > 0);
+    return {
+      organiserKey: opKey,
+      label: _OP_L[opKey] || opKey,
+      color: _OP_C[opKey] || '#6B7280',
+      total: organiserActs.length,
+      segments: counts
+    };
+  });
+
+  const eventDistributionByCategory = activeCatKeys.map(catKey => ({
+    catKey,
+    label: _CAT_L[catKey] || catKey,
+    color: _CAT_C[catKey] || '#6B7280',
+    items: activeOpKeys.map(opKey => ({
+      organiserKey: opKey,
+      label: _OP_L[opKey] || opKey,
+      color: _OP_C[opKey] || '#6B7280',
+      value: (catData[catKey] || []).filter(a => (a.operator || '').toLowerCase() === opKey).length
+    }))
+  })).filter(row => row.items.some(item => item.value > 0));
+
+  const avgHeatByCategory = activeCatKeys.map(catKey => ({
+    catKey,
+    label: _CAT_L[catKey] || catKey,
+    color: _CAT_C[catKey] || '#6B7280',
+    items: activeOpKeys.map(opKey => {
+      const organiserActs = (catData[catKey] || []).filter(a => (a.operator || '').toLowerCase() === opKey);
+      const heats = organiserActs.map(a => parseFloat(a.heat_score)).filter(v => isFinite(v));
+      return {
+        organiserKey: opKey,
+        label: _OP_L[opKey] || opKey,
+        color: _OP_C[opKey] || '#6B7280',
+        value: heats.length ? heats.reduce((s, v) => s + v, 0) / heats.length : 0
+      };
+    })
+  })).filter(row => row.items.some(item => item.value > 0));
+
+  const heatTierByOrganiser = activeOpKeys.map(opKey => {
+    const organiserActs = allActs.filter(a => (a.operator || '').toLowerCase() === opKey);
+    const heats = organiserActs.map(a => parseFloat(a.heat_score)).filter(v => isFinite(v));
+    const high = heats.filter(v => v >= 60).length;
+    const mid  = heats.filter(v => v >= 30 && v < 60).length;
+    const low  = heats.filter(v => v < 30).length;
+    return {
+      organiserKey: opKey,
+      label: _OP_L[opKey] || opKey,
+      color: _OP_C[opKey] || '#6B7280',
+      total: organiserActs.length,
+      high, mid, low
+    };
+  });
+
+  const chartData = {
+    categoryMix,
+    heatByOrganiser,
+    categoryShareByOrganiser,
+    eventDistributionByCategory,
+    avgHeatByCategory,
+    heatTierByOrganiser
+  };
+
+  // ── Leaderboard ──────────────────────────────────────────────────────────────
   let leaderboard = [];
   try {
-    const res = await fetch('http://127.0.0.1:9038/api/heat/leaderboard-ai?top=10');
-    const lb  = await res.json();
-    if (lb.success && Array.isArray(lb.top_overall)) {
-      leaderboard = lb.top_overall.map(e=>({
-        rank:e.rank, name:e.name, description:e.description||'',
-        organiserKey:(e.operator||'').toLowerCase(),
-        organiser:_OP_L[(e.operator||'').toLowerCase()]||e.operator||'',
-        category:e.category||'', heat_score:e.heat_score??0,
-        decay_factor:e.decay_factor??1, newest_post:e.newest_post||'',
-        platforms:e.platforms||[], source_count:e.source_count||0
-      }));
-    }
-  } catch(e) { console.warn('Leaderboard fetch failed:',e); }
- 
-  // 9. Hot themes — read from the DOM slot populated by fetchHotThemes()
-  //    Falls back to deriving from catData client-side if DOM slot is empty.
-  let hotThemes = [];
-  try {
-    const slot = document.getElementById('hotThemesSlot');
-    if (slot) {
-      // Each theme chip rendered by the panel has data-theme-label attribute, OR
-      // we can read text from the chip spans. Try to extract meaningful labels.
-      const chips = slot.querySelectorAll('span[data-label]');
-      if (chips.length) {
-        hotThemes = Array.from(chips).map(el => ({
-          label: el.getAttribute('data-label') || el.textContent.trim(),
-          icon:  el.getAttribute('data-icon')  || '🔥'
-        }));
-      } else {
-        // Fallback: derive top categories by event count × avg heat
-        const scores = [];
-        for (const [catKey, acts] of Object.entries(catData)) {
-          if (!acts || acts.length === 0) continue;
-          const _CAT_CONFIG_LOCAL = {
-            concert:{icon:'🎤',label:'Concert'}, sport:{icon:'🏆',label:'Sport'},
-            crossover:{icon:'🎨',label:'Crossover'}, exhibition:{icon:'🖼️',label:'Exhibition'},
-            experience:{icon:'✨',label:'Experience'}, food:{icon:'🍴',label:'Food'},
-            accommodation:{icon:'🏨',label:'Hotel'}, shopping:{icon:'💰',label:'Shopping'},
-            gaming:{icon:'🎰',label:'Gaming'}
-          };
-          const cfg = _CAT_CONFIG_LOCAL[catKey] || {icon:'📍',label:catKey};
-          const heats = acts.map(a=>parseFloat(a.heat_score)).filter(v=>isFinite(v));
-          const avgHeat = heats.length ? heats.reduce((s,v)=>s+v,0)/heats.length : 40;
-          scores.push({label:cfg.label, icon:cfg.icon, score:acts.length*(avgHeat/100)});
-        }
-        hotThemes = scores.sort((a,b)=>b.score-a.score).slice(0,3);
-      }
-    }
-  } catch(e) { console.warn('Hot themes extraction failed:', e); hotThemes=[]; }
- 
-  // 10. AI Strategy
-  let comparisons=[], recommendations='';
-  try {
-    const selectedOps = promptSelectedOpTitles();
-    const allEvents   = getPromptEvents();
-    const rawComps    = buildCategoryComparisons(allEvents, selectedOps);
-    comparisons = rawComps.map(item=>({
-      catKey:item.catKey, label:item.label,
-      wynn:{count:item.wynn.count, avgHeat:item.wynn.avg, topEventName:item.wynn.topEvent?.name||''},
-      topOpponent:item.topOpponent?{organiser:item.topOpponent.opTitle,count:item.topOpponent.count,avgHeat:item.topOpponent.avg,topEventName:item.topOpponent.topEvent?.name||''}:null,
-      wynnLeads:item.wynn.count>0&&(!item.topOpponent||item.wynn.avg>item.topOpponent.avg)
-    }));
-    const promptList = typeof getPromptListEl==='function' ? getPromptListEl() : null;
-    if (promptList) {
-      const items = promptList.querySelectorAll('.prompt-item');
-      if (items[2]) recommendations = items[2].querySelector('.prompt-item-body')?.innerText||'';
-    }
-  } catch(e) { console.warn('AI strategy extraction failed:',e); }
- 
-  const perspective = (typeof DEMO!=='undefined'&&DEMO.perspective) ? DEMO.perspective : {};
-  const aiStrategy = {comparisons, recommendations, perspective};
- 
-  // 11. Assemble & save
+    const rankedActs = allActs
+      .filter(act => act.heat_score != null)
+      .sort((a, b) => (b.heat_score || 0) - (a.heat_score || 0));
+    leaderboard = rankedActs.slice(0, 10).map((act, i) => {
+      const opKey = (act.operator || '').toLowerCase();
+      return { rank: i + 1, name: act.name || '', description: act.description || '',
+        organiserKey: opKey, organiser: _OP_L[opKey] || opKey,
+        category: act.category || act._catKey || '', heat_score: act.heat_score ?? 0,
+        decay_factor: act.decay_factor ?? 1, newest_post: act.newest_post || '',
+        platforms: act.platforms || [], source_count: act.source_count || 0 };
+    });
+  } catch (e) { console.warn('Leaderboard build failed:', e); }
+
+  // ── Hot Themes — from cache (set by buildSummaryBanner after fetchHotThemes) ─
+  const hotThemes = Array.isArray(_reportCache?.hotThemes) ? _reportCache.hotThemes : [];
+
+  // ── AI Strategy — from cache (set by updateStrategyPrompt after API returns) ─
+  const cachedComparisons = Array.isArray(_reportCache?.comparisons) ? _reportCache.comparisons : [];
+  const cachedAiRecs = Array.isArray(_reportCache?.aiRecommendations) ? _reportCache.aiRecommendations : [];
+  const _CAT_L2 = { concert:'Concert', sport:'Sport', crossover:'Crossover', exhibition:'Exhibition', experience:'Experience', food:'Food', accommodation:'Hotel', shopping:'Shopping', gaming:'Gaming' };
+  const recommendations = cachedAiRecs.length
+    ? cachedAiRecs.map(rec => {
+        const catLabel  = _CAT_L2[rec.catKey] || rec.catKey || '';
+        const typeLabel = rec.type === 'keep_up' ? '✅ Keep it Up' : rec.type === 'avoid' ? '🚫 Avoid for Now' : '⚡ Improve';
+        return `[${typeLabel}] ${catLabel}: ${rec.text || ''}`;
+      }).join('\n\n')
+    : '';
+
+  const perspective = (typeof DEMO !== 'undefined' && DEMO.perspective) ? DEMO.perspective : {};
+  const aiStrategy  = { comparisons: cachedComparisons, recommendations, recommendationItems: cachedAiRecs, perspective };
+
+  // ── Assemble & open ──────────────────────────────────────────────────────────
   const reportData = {
     generatedAt: new Date().toISOString(),
+    reportScope: 'filtered',
     period, filters, kpis, summary, events,
     heatmapData, chartData, leaderboard,
-    hotThemes, aiStrategy
+    hotThemes, aiStrategy, keywords,
+    requestedFilters: {
+      operators: typeof getSelectedValues === 'function' ? getSelectedValues('operator') : [],
+      categories: typeof getSelectedValues === 'function' ? getSelectedValues('category') : []
+    }
   };
- 
+
   localStorage.setItem('macauReportData', JSON.stringify(reportData));
   window.open('download_report.html', '_blank');
 }

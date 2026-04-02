@@ -1,7 +1,6 @@
-import os, sys, json, uvicorn, re, hashlib, sqlite3, glob, time, math
-from pathlib import Path
+import os, sys, json, uvicorn, re, hashlib, sqlite3
 import pandas as pd
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 from collections import defaultdict
@@ -103,6 +102,77 @@ def _invalidate_analysis_cache(op_key: str = None):
         conn.close()
     except Exception as e:
         print(f"⚠️ analysis_cache invalidate 失敗: {e}")
+
+def _report_insights_key(from_date: str, to_date: str, keyword: str = "") -> str:
+    kw = ",".join(sorted(k.strip().lower() for k in str(keyword or "").split(",") if k.strip()))
+    return f"{from_date}|{to_date}|{kw}"
+
+def _ensure_report_insights_table():
+    conn = _heat_db_conn()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS report_insights_cache (
+                cache_key TEXT PRIMARY KEY,
+                from_date TEXT NOT NULL,
+                to_date TEXT NOT NULL,
+                keyword TEXT DEFAULT '',
+                hot_themes TEXT DEFAULT '[]',
+                recommendations TEXT DEFAULT '[]',
+                comparisons TEXT DEFAULT '[]',
+                cached_at TEXT DEFAULT (datetime('now','localtime'))
+            )
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+def _get_report_insights(from_date: str, to_date: str, keyword: str = ""):
+    _ensure_report_insights_table()
+    conn = _heat_db_conn()
+    try:
+        row = conn.execute(
+            """SELECT hot_themes, recommendations, comparisons, cached_at
+               FROM report_insights_cache WHERE cache_key=?""",
+            (_report_insights_key(from_date, to_date, keyword),)
+        ).fetchone()
+        if not row:
+            return None
+        return {
+            "hotThemes": json.loads(row["hot_themes"] or "[]"),
+            "aiRecommendations": json.loads(row["recommendations"] or "[]"),
+            "comparisons": json.loads(row["comparisons"] or "[]"),
+            "cachedAt": row["cached_at"] or ""
+        }
+    except Exception as e:
+        print(f"⚠️ report_insights 讀取失敗: {e}")
+        return None
+    finally:
+        conn.close()
+
+def _set_report_insights(from_date: str, to_date: str, keyword: str = "", hot_themes=None, recommendations=None, comparisons=None):
+    _ensure_report_insights_table()
+    conn = _heat_db_conn()
+    try:
+        conn.execute(
+            """INSERT OR REPLACE INTO report_insights_cache
+               (cache_key, from_date, to_date, keyword, hot_themes, recommendations, comparisons, cached_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'))""",
+            (
+                _report_insights_key(from_date, to_date, keyword),
+                from_date,
+                to_date,
+                ",".join(k.strip() for k in str(keyword or "").split(",") if k.strip()),
+                json.dumps(hot_themes or [], ensure_ascii=False),
+                json.dumps(recommendations or [], ensure_ascii=False),
+                json.dumps(comparisons or [], ensure_ascii=False),
+            )
+        )
+        conn.commit()
+    except Exception as e:
+        print(f"⚠️ report_insights 寫入失敗: {e}")
+        raise
+    finally:
+        conn.close()
 backfill_event_dates()
 app = FastAPI()
 
@@ -1383,6 +1453,20 @@ async def wynn_recommendations(payload: dict):
         except Exception:
             return "0.0"
 
+    # Per-category competitor structural insight — injected inline into each block
+    CAT_COMPETITOR_INSIGHT = {
+        "concert":       "🎤 Concert策略：Wynn場地1,200座限制，2028年前無法辦大型演唱會，唔應該投入資源追大型演唱會。但Wynn heat領先（如有）屬小型精品優勢。建議方向：mark低目前市場上高熱度歌手，積極建立關係，2028年新場館落成後優先邀請。Galaxy銀河2024年辦460場，係結構性霸主，無需正面競爭。type應為keep_up（若Wynn heat領先）。",
+        "food":          "✅ 餐飲係Wynn絕對優勢：2025年米芝蓮5粒星（Wing Lei兩星16年連獎、Chef Tam's Seasons澳門唯一兩星、Mizumi一星），Forbes全球最多五星餐廳。最需警惕係Melco（Jade Dragon三星）。若Wynn領先，type=keep_up，深化Fine Dining+會員禮遇。",
+        "accommodation": "✅ 住宿係Wynn絕對優勢：Forbes 63粒星澳門最多，永利皇宮連3年全球最大Forbes五星度假村。type=keep_up，深化個人化禮賓服務差異化。",
+        "experience":    "⚠️ Experience唔係Wynn最強項。MGM有《澳門2049》張藝謀駐場+The Spectacle，Melco有水舞間。Wynn有表演湖+SkyCab但規模較小。若Wynn heat落後，type=avoid，唔需要集中資源喺呢個category。",
+        "exhibition":    "⚠️ Exhibition唔係Wynn強項。MGM有保利藝術博物館，Sands有藝術展覽。若Wynn heat明顯落後或count=0，type=avoid，建議Wynn唔需要focus呢個category，集中資源喺餐飲、住宿等強項。",
+        "sport":         "⚠️ Sport結構性限制：Galaxy有UFC（16,000座），Sands有NBA季前賽（14,000座），Melco heat最高。Wynn場地唔夠，type=avoid，唔需要追大型體育IP。",
+        "crossover":     "Melco跨界最強（heat 68.3），Wynn可走奢侈品+Fine Dining+藝術的高端crossover。若Wynn落後，type=improve。",
+        "shopping":      "✅ Wynn名店街頂級品牌有優勢（heat 56.4）。Galaxy零售規模最大但Wynn走奢侈品精品路線，方向不同。type=keep_up，深化會員專屬購物體驗。",
+        "gaming":        "Wynn gaming定位premium mass+VIP，heat領先。type=keep_up，配合住宿+餐飲禮遇作轉化。",
+        "government":    "政府活動代表城市級文化節慶，熱度往往較高（如澳門美食之都嘉年華、格蘭披治大賽車等）。若Government活動熱度高於Wynn，建議Wynn參考該活動的策展主題或形式，以奢華包裝呼應政府文化方向，爭取成為官方合作博企夥伴。",
+    }
+
     blocks = []
     for idx, cat in enumerate(categories[:12], 1):
         label = str(cat.get("label") or cat.get("catKey") or "").strip()
@@ -1410,9 +1494,11 @@ async def wynn_recommendations(payload: dict):
         event_lines = [line for line in event_lines if line]
         wynn_top = wynn.get("topEvent") or {}
         opp_top = top_opp.get("topEvent") or {}
+        cat_insight = CAT_COMPETITOR_INSIGHT.get(cat_key, "")
 
         blocks.append(
             f"""[{idx}] {label} ({cat_key})
+{f"策略洞察：{cat_insight}" if cat_insight else ""}
 Wynn:
 - count {wynn.get('count', 0)}, avg heat {_fmt_heat(wynn.get('avg'))}
 """ + (
@@ -1428,7 +1514,10 @@ Wynn:
             )
         )
 
-    prompt = f"""當你今日係 Wynn 老闆，就以下 competitor 嘅活動，比幾個可行嘅建議。
+    n_cats = len(categories[:12])
+    n_recs = min(n_cats, 3)  # 1-2 categories → same count; 3+ categories → 3
+
+    prompt = f"""你係 Wynn 嘅策略顧問。根據以下市場數據，從已選 categories 中選出最重要的【{n_recs} 個】，各出一條精準建議。
 
 目前對比 organiser:
 {", ".join(str(op) for op in selected_operators) if selected_operators else "Wynn only"}
@@ -1440,50 +1529,33 @@ Wynn:
 第2點 Wynn 改進空間：
 {json.dumps(improvements, ensure_ascii=False)}
 
-最高 heat score 對照（可用作 watchlist / 代表作參考）：
-{json.dumps(peak_gaps, ensure_ascii=False)}
-
-Wynn 品牌資產（來自官網，僅適用於 Wynn 落後嘅 category，作為建議嘅具體錨點）：
-- 餐飲：永利軒（連續15年米芝蓮星級，廣東菜）、譚卉（米芝蓮兩星、亞洲50最佳餐廳延伸榜）、永利扒房、泓日本料理；Fine Dining 係 Wynn 最強差異化資產
-- 住宿：永利皇宮、永利澳門雙物業，Forbes Travel Guide 五星級，強調貼心禮賓服務、客房浸浴體驗
-- 藝術：永利皇宮設有珍罕藝術收藏展示，具備策展空間與藝術氛圍
-- 水療：永利設有水療中心，係體驗類活動可聯動嘅資源
-- 購物：永利皇宮名店街，雲集全球頂級品牌，定位奢侈品購物
-- 會員計劃：Wynn Insider，提供餐廳折扣、延遲退房、活動門票折扣等禮遇
-- 標誌性體驗：永利皇宮觀光纜車、音樂噴泉，係免費引流嘅著名景點
-
-重要限制：以上品牌資產只可用於 Wynn 落後（improvements）嘅 category 建議中，作為具體可執行嘅聯動方向；對於 Wynn 已領先（strengths）嘅 category，唔需要加呢啲資產，只需延續現有活動方向。
-
-以下係每個 category 嘅對比資料：
+以下係每個 category 嘅對比資料（已附策略洞察）：
 
 {chr(10).join(blocks)}
 
-輸出要求：
-1. 逐個 category 生成一條 Recommendation for Wynn。
-2. 必須站喺 Wynn 角度，用繁體中文寫。
-3. 文字要簡而精，中文 point form 風格，每條寫 1-2 句即可；寧願短，但一定要有具體動作。
-4. 要可行，盡量具體，並結合 heat score、對手活動名、Wynn 現況去講；避免只講抽象方向。
-5. 如果對手有明顯高 heat 代表作，可以點名引用活動名；如提及活動，必須同時寫明係邊個 organiser 主辦，格式盡量寫成「Sands《藝術中環》」、「Wynn《Illuminarium幻影空間》」。
-6. 如果 Wynn 同對手都低 heat，唔好叫 Wynn 參考弱對手；應直接建議 Wynn 點樣主動提升熱度與吸引力。
-7. 避免空泛字眼，例如「提升體驗」「加強宣傳」而冇 context。
-8. 唔好寫長篇分析、唔好分段，只要最終建議句子；但可以壓縮成「動作 + 目的」兩小句。
-9. 句式可直接以「建議 Wynn ...」開頭。
-10. 如提及活動名，請盡量用《活動名》格式；如提及 organiser，請保留英文名，例如 Melco、SJM、MGM。唔好只寫裸活動名，應優先寫成「organiser + 《活動名》」。
-11. 必須先參考第1點同第2點：如果某 category 已被判定為 Wynn 優勢，唔可以再建議 Wynn 去模仿較弱 competitor；建議核心意思必須係 keep it up、延續現有成功方向、繼續做同類型高質活動或把現有模式延伸轉化，但 wording 可以自然啲，唔需要逐字寫 keep it up。
-12. 如果某 category 屬於 Wynn 補足空間，請直接寫實際建議，唔好寫「現時 Wynn X 熱度偏低」或「反映內容吸引力不足」呢類陳述句——系統已另行顯示缺口數據，你只需要提供具體建議動作。
-13. 如果某 category 屬於 Wynn 補足空間，建議要盡量結合 Wynn 自身品牌資產，例如酒店、Fine Dining、購物、水療、會員禮遇、會議活動服務。
-14. 請吸收以下決策邏輯，但唔好照抄用戶原句：強項類別應表達「延續現有成功模式、繼續做同類型高質活動、放大已驗證優勢」；弱項類別應先點出缺口，再提出一個具體可行動作。
-15. 優先寫出具體執行方法，例如「會員預覽」、「購物禮遇」、「限時快閃」、「沉浸式特展」、「heat 目標 45+」，而唔好只講空泛方向。
-16. 對於強項類別，避免亂加唔必要套餐或過度包裝；重點係延續成功活動類型本身。對於弱項類別，如果 Wynn 目前 0 場，應表達為「Wynn 未有舉辦，但市場已有活動」，而唔好寫成「熱度偏低 0.0」。
-17. 請特別參考最高 heat score 的 post / event，而唔只係平均 heat。若對手最高 heat 活動明顯高於 Wynn，應可將該對象視為 watchlist，建議 Wynn mark 低該類高熱度歌手、品牌、IP 或展覽主題，之後主動爭取邀請或延伸合作活動。
-18. 上述「mark 低高 heat 對象，再請佢哋來澳／做相關活動」係一個可跨多個 category 應用的通用策略；請按當前 panel 結果自動判斷對應對象，唔好硬寫固定名字。
-19. 對於 Concert 強項，建議只需一句：「延續現有高質演唱會選角方向，持續鎖定高 heat 歌手。」唔好提及任何具體對手活動名、唔好寫參考方向、唔好加任何 watchlist 句。
-20. 絕對唔好在任何 category 嘅建議中出現以下任何內容：「並將/同時將 X《event》列為目標/名單」、「參考 X《event》嘅選角/策劃方向」、「可留意/關注 X《event》」、「mark 低」——呢啲邏輯全部由系統另行處理，你只需寫核心建議動作。
+選擇原則（必須遵守）：
+- 只可從以上已列出的 categories 中選，絕對不可加入未列出的 category
+- 優先選 Wynn 有真實優勢嘅 category（food、accommodation、shopping 等），type=keep_up
+- Concert 若 Wynn heat 領先：type=keep_up，建議積極與市場上單場熱度達60分以上的藝人建立長線合作關係，並列舉數個來自 Relevant events 中熱度達60+ 的具體活動名作例子（格式：如「張天賦永利音樂會」🔥70.6），待2028年新場館落成後優先邀請
+- Exhibition 或 Experience 若對手熱度明顯高於 Wynn（差距 ≥ 10分）：type=avoid，建議 Wynn 將資源投放至自身強項（F&B、住宿、購物），而非「避免集中資源」——措辭應積極，例如「建議將資源集中於永利的核心優勢」
+- 若 Wynn 與對手熱度相近（差距 < 10分），不應用 avoid，改用 improve 並給出具體提升方向
+- Government 的活動必須納入對比：若某 category 中 Government 的活動熱度高於 Wynn，應在建議中提及可參考政府活動的主題或形式
+- 選出【剛好 {n_recs} 個】最具策略價值嘅 category
 
-請只返回 JSON array，例如：
+輸出要求：
+1. 只返回【剛好 {n_recs} 個】建議，不多不少
+2. 每條建議1-2句，書面繁體中文，有具體行動
+3. 建議內容只講 Wynn 應該做咩；Concert 類別可引用 Relevant events 中的 Wynn 活動名作例子；其他對手活動禁止點名，但可提及熱度數字
+4. type 字段：keep_up / improve / avoid
+5. avoid 類別的措辭必須前後一致，格式為「永利毋須大力投入 [該類別]，但可輕量參考 [具體方向]，以奢華包裝試行，將資源重心保持在 [核心強項]」；禁止在同一句先說「避免集中資源」再說「作輕量嘗試」——兩者矛盾
+6. 絕對禁止出現「count=0」、「heat 0」、「熱度偏低 0.0」等技術性表達
+7. 若 Wynn 在某 category 沒有活動，用自然書面語：「永利目前並未舉辦任何 Exhibition 活動」
+8. 描述領先關係時，用「進一步拉開與對手的差距」或「持續擴大優勢」，禁止使用「鞏固對 X 的領先地位」
+
+請只返回 JSON array（{n_recs} 項）：
 [
-  {{"catKey":"concert","text":"建議 Wynn 延續現有高 heat 演唱會方向，持續鎖定高熱度歌手，並留意市場上更高 heat 的演出作後續邀請目標。"}},
-  {{"catKey":"exhibition","text":"建議 Wynn 以高端收藏策劃沉浸式特展，配合會員預覽及購物回贈，盡快建立 Exhibition 代表作。"}}
+  {{"catKey":"food","type":"keep_up","text":"建議永利延續米芝蓮Fine Dining優勢，推出Chef Tam's Seasons主廚晚宴配合Wynn Insider會員專屬預覽禮遇。"}},
+  {{"catKey":"concert","type":"keep_up","text":"建議永利延續精品演唱會路線，同時積極與市場上單場熱度達60分以上的藝人建立長線合作關係，待2028年新場館落成後優先邀請。"}}
 ]
 唔需要任何解釋。"""
 
@@ -1508,21 +1580,50 @@ Wynn 品牌資產（來自官網，僅適用於 Wynn 落後嘅 category，作為
             recs = []
         try:
             from trad_simp import to_trad as _to_trad
+            selected_cat_keys = {str(c.get("catKey") or "").strip().lower() for c in categories}
             normalized = []
             for item in recs:
                 if not isinstance(item, dict):
                     continue
                 cat_key = str(item.get("catKey") or "").strip().lower()
+                if cat_key not in selected_cat_keys:
+                    continue
                 text = _to_trad(str(item.get("text") or "").strip())
+                rec_type = str(item.get("type") or "improve").strip().lower()
                 if cat_key and text:
-                    normalized.append({"catKey": cat_key, "text": text})
-            recs = normalized
+                    normalized.append({"catKey": cat_key, "type": rec_type, "text": text})
+            recs = normalized[:n_recs]
         except Exception:
-            recs = [item for item in recs if isinstance(item, dict)]
+            recs = [item for item in recs if isinstance(item, dict)][:n_recs]
         return {"recommendations": recs}
     except Exception as e:
         print(f"⚠️ wynn_recommendations 出錯: {e}")
         return {"recommendations": []}
+
+@app.get("/api/report-insights")
+async def get_report_insights(from_date: str = "", to_date: str = "", keyword: str = ""):
+    if not from_date or not to_date:
+        return {"status": "error", "message": "from_date and to_date are required"}
+    data = _get_report_insights(from_date, to_date, keyword)
+    if not data:
+        return {"status": "not_found", "hotThemes": [], "aiRecommendations": [], "comparisons": []}
+    return {"status": "success", **data}
+
+@app.post("/api/report-insights")
+async def save_report_insights(payload: dict):
+    from_date = str(payload.get("from_date") or "").strip()
+    to_date = str(payload.get("to_date") or "").strip()
+    keyword = str(payload.get("keyword") or "").strip()
+    if not from_date or not to_date:
+        return {"status": "error", "message": "from_date and to_date are required"}
+    hot_themes = payload.get("hotThemes") or []
+    recommendations = payload.get("aiRecommendations") or []
+    comparisons = payload.get("comparisons") or []
+    try:
+        _set_report_insights(from_date, to_date, keyword, hot_themes, recommendations, comparisons)
+        return {"status": "success"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
