@@ -3,8 +3,11 @@ import json
 import pandas as pd
 import os
 import datetime
+from pathlib import Path
 
-DB_PATH = "C:/Users/user/MediaCrawler/macau_analytics.db"
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+DB_PATH = os.getenv("MACAU_ANALYTICS_DB_PATH", str(PROJECT_ROOT / "macau_analytics.db"))
 
 CRAWL_EXPIRY_DAYS = 7  # operator+category 超過幾日先重新爬
 
