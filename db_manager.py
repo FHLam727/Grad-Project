@@ -5,10 +5,15 @@ import os
 import datetime
 import threading as _threading
 from post_normalizer import auto_normalize_new_post, init_post_tables
+import os
+from dotenv import load_dotenv
+
+# 呢行好重要！佢會將 .env 入面嘅嘢倒晒入去系統環境變數度
+load_dotenv() 
 
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# 宜家呢行就百分之百讀到你份 .env 入面寫嘅 DB_PATH 喇
 DB_PATH = os.environ.get("DB_PATH", os.path.join(_BASE_DIR, "macau_analytics.db"))
-
 
 CRAWL_EXPIRY_DAYS = 7  # operator+category 超過幾日先重新爬
 
@@ -160,10 +165,10 @@ def ingest_government_data(file_path):
         if cursor.rowcount > 0:
             count += 1
             auto_normalize_new_post(
-                conn, platform, post,
+                conn, 'government', row,
                 operator=op,
                 event_date=event_date,
-                category=category_str,
+                category=types_str,
             )
 
     conn.commit()
@@ -752,18 +757,97 @@ def ingest_crawler_data(json_file, platform, keyword, operator=None,
 
     # ── 自動觸發後處理（OCR + 去重），唔阻塞主流程 ──
     if new_post_ids:
-        _trigger_post_ingest_pipeline(new_post_ids)
+        _trigger_post_ingest_pipeline(new_post_ids, operator=op)
 
 
 # ── 入庫後自動後處理 ───────────────────────────────────────
 
-def _post_ingest_pipeline(new_post_ids: list):
-    """
-    入庫後依序執行：
-      1. 圖片 OCR（只處理今次新入嘅帖文）
-      2. 全量去重 → 更新 events_deduped table
-    全程喺 background thread，唔阻塞主流程。
-    """
+import datetime as _dt
+
+# 記錄上次爬蟲月份用嘅 key
+_LAST_CRAWL_MONTH_KEY = "last_crawl_month"
+
+def _promote_last_month_archive():
+    """跨月先做：強制重跑上個月 cache → promote 做 archive"""
+    today = _dt.date.today()
+    
+    # 讀上次爬蟲月份
+    try:
+        conn = get_connection()
+        conn.execute("CREATE TABLE IF NOT EXISTS kv_store (key TEXT PRIMARY KEY, value TEXT)")
+        conn.commit()
+        row = conn.execute(
+            "SELECT value FROM kv_store WHERE key=?", (_LAST_CRAWL_MONTH_KEY,)
+        ).fetchone()
+        last_month_num = int(row[0]) if row else None
+        conn.close()
+    except Exception:
+        last_month_num = None
+
+    # 同月，唔做
+    if last_month_num == today.month:
+        return
+
+    print(f"📅 [Archive] 跨月偵測，開始 promote 上個月做 archive...")
+
+    # 計算上個月日期範圍
+    first_of_this_month = today.replace(day=1)
+    last_month_end = first_of_this_month - _dt.timedelta(days=1)
+    last_month_start = last_month_end.replace(day=1)
+    from_str = last_month_start.strftime("%Y-%m-%d")
+    to_str = last_month_end.strftime("%Y-%m-%d")
+
+    # 強制刪上個月舊 cache（唔理 is_complete，確保數據係最新）
+    try:
+        import urllib.request as _ur
+        # 先刪
+        conn = get_connection()
+        conn.execute(
+            "DELETE FROM analysis_cache WHERE cache_key LIKE ?",
+            (f"%|{from_str}|{to_str}",)
+        )
+        conn.commit()
+        conn.close()
+
+        # 重跑上個月全部 operator
+        ALL_OPERATORS = ['wynn','sands','galaxy','mgm','melco','sjm','government']
+        for op in ALL_OPERATORS:
+            try:
+                _ur.urlopen(
+                    f"http://127.0.0.1:9038/api/analyze?"
+                    f"operators={op}&from_date={from_str}&to_date={to_str}",
+                    timeout=300  # AI 分析需要時間
+                )
+                print(f"✅ [Archive] {op} 上個月分析完成")
+            except Exception as e:
+                print(f"⚠️  [Archive] {op} 分析失敗: {e}")
+
+        # Promote 做 archive
+        conn = get_connection()
+        conn.execute(
+            "UPDATE analysis_cache SET is_complete=1 WHERE cache_key LIKE ?",
+            (f"%|{from_str}|{to_str}",)
+        )
+        conn.commit()
+        conn.close()
+        print(f"✅ [Archive] {from_str} ~ {to_str} promoted 做 archive")
+
+    except Exception as e:
+        print(f"⚠️  [Archive] promote 失敗: {e}")
+
+    # 更新上次爬蟲月份
+    try:
+        conn = get_connection()
+        conn.execute("CREATE TABLE IF NOT EXISTS kv_store (key TEXT PRIMARY KEY, value TEXT)")
+        conn.execute(
+            "INSERT OR REPLACE INTO kv_store (key, value) VALUES (?,?)",
+            (_LAST_CRAWL_MONTH_KEY, str(today.month))
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"⚠️  [Archive] 更新 last_crawl_month 失敗: {e}")
+def _post_ingest_pipeline(new_post_ids: list, operator: str = ""):
     db_path = os.getenv("DB_PATH", "macau_analytics.db")
     print(f"⚙️  [後處理] 開始處理 {len(new_post_ids)} 條新帖...")
 
@@ -783,18 +867,33 @@ def _post_ingest_pipeline(new_post_ids: list):
 
     print(f"✅ [後處理] 完成")
 
-    # Step 3: Invalidate analysis cache
+    # Step 3: 跨月檢查 → promote 上個月做 archive
+    try:
+        _promote_last_month_archive()
+    except Exception as e:
+        print(f"⚠️  [後處理] Archive promote 失敗: {e}")
+
+    # Step 4: Invalidate 當月 cache（is_complete=0 先刪）
     try:
         import urllib.request as _ur
-        op = ""  # 清全部；如果你知道係邊個 operator 可以傳入
         req = _ur.Request(
-            f"http://127.0.0.1:9038/api/analysis-cache/invalidate?operator={op}",
+            f"http://127.0.0.1:9038/api/analysis-cache/invalidate?operator={operator}",
             method="POST"
         )
         _ur.urlopen(req, timeout=10)
-        print(f"✅ [後處理] Analysis cache invalidated")
+        print(f"✅ [後處理] Analysis cache invalidated for operator: {operator or 'all'}")
     except Exception as e:
         print(f"⚠️  [後處理] Cache invalidate 失敗（bridge.py 係咪跑緊？）: {e}")
+
+
+def _post_ingest_pipeline_with_lock(new_post_ids: list, operator: str = ""):
+    if not _pipeline_lock.acquire(blocking=False):
+        print(f"⏭️  [後處理] Pipeline 已跑緊，跳過（全量去重會覆蓋）")
+        return
+    try:
+        _post_ingest_pipeline(new_post_ids, operator)
+    finally:
+        _pipeline_lock.release()
 
 
 _pipeline_lock = _threading.Lock()
@@ -810,13 +909,12 @@ def _post_ingest_pipeline_with_lock(new_post_ids: list):
         _pipeline_lock.release()
 
 
-def _trigger_post_ingest_pipeline(new_post_ids: list):
-    """另開 background thread 觸發後處理，唔阻塞入庫主流程。"""
+def _trigger_post_ingest_pipeline(new_post_ids: list, operator: str = ""):
     if not new_post_ids:
         return
     t = _threading.Thread(
         target=_post_ingest_pipeline_with_lock,
-        args=(new_post_ids,),
+        args=(new_post_ids, operator),
         daemon=True,
         name="post-ingest-pipeline",
     )
@@ -1305,7 +1403,6 @@ def backfill_event_dates():
     conn.close()
     print(f"🔧 backfill 完成：新增 {updated} 條 | 修正即日起至 {fixed_jiri} 條 | "
           f"修正年份 {fixed_year} 條 | 修正多日期 {fixed_multi} 條 | 修正整月範圍 {fixed_wide} 條")
-
 # ── 負面監測專表──────────────
 
 def init_xhs_negative_monitor_table(conn):

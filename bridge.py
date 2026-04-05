@@ -52,6 +52,12 @@ def _get_analysis_cache(op_key, from_date, to_date, keyword=""):
         if not row:
             return None
         
+        from datetime import date
+        try:
+            if row[1] == 0 and date.today() > date.fromisoformat(to_date):
+                return None
+        except Exception:
+            pass
         all_acts = json.loads(row[0])
         
         if not keyword.strip():
@@ -83,20 +89,36 @@ def _get_analysis_cache(op_key, from_date, to_date, keyword=""):
 def _set_analysis_cache(op_key: str, from_date: str, to_date: str, activities: list, keyword: str = ""):
     """寫入 cache"""
     if keyword.strip():
-        return  
+        return
     try:
         conn = _heat_db_conn()
         conn.execute("""
             CREATE TABLE IF NOT EXISTS analysis_cache (
-                cache_key  TEXT PRIMARY KEY,
-                activities TEXT,
-                cached_at  TEXT DEFAULT (datetime('now','localtime'))
+                cache_key   TEXT PRIMARY KEY,
+                activities  TEXT,
+                cached_at   TEXT DEFAULT (datetime('now','localtime')),
+                is_complete INTEGER DEFAULT 0
             )
         """)
+        try:
+            conn.execute("ALTER TABLE analysis_cache ADD COLUMN is_complete INTEGER DEFAULT 0")
+            conn.commit()
+        except Exception:
+            pass  # column 已存在就跳過
         key = _analysis_cache_key(op_key, from_date, to_date, keyword)
+
+        # 判斷個月係咪已經完結
+        from datetime import date
+        today = date.today()
+        try:
+            end = date.fromisoformat(to_date)
+            is_complete = 1 if today > end else 0
+        except Exception:
+            is_complete = 0
+
         conn.execute(
-            "INSERT OR REPLACE INTO analysis_cache (cache_key, activities, cached_at) VALUES (?,?,datetime('now','localtime'))",
-            (key, json.dumps(activities, ensure_ascii=False))
+            "INSERT OR REPLACE INTO analysis_cache (cache_key, activities, cached_at, is_complete) VALUES (?,?,datetime('now','localtime'),?)",
+            (key, json.dumps(activities, ensure_ascii=False), is_complete)
         )
         conn.commit()
         conn.close()
@@ -116,6 +138,79 @@ def _invalidate_analysis_cache(op_key: str = None):
         conn.close()
     except Exception as e:
         print(f"⚠️ analysis_cache invalidate 失敗: {e}")
+
+# ── Period Cache (hot_themes / recommendations / leaderboard) ─────────────────
+def _period_cache_key(from_date: str, to_date: str) -> str:
+    return f"{from_date}|{to_date}"
+
+def _get_period_cache(from_date: str, to_date: str) -> dict | None:
+    try:
+        conn = _heat_db_conn()
+        # 嘗試讀新 columns，fallback 到舊 3-column schema
+        try:
+            row = conn.execute(
+                "SELECT hot_themes, recommendations, leaderboard, events, heatmap_data FROM period_cache WHERE cache_key=?",
+                (_period_cache_key(from_date, to_date),)
+            ).fetchone()
+        except Exception:
+            row = conn.execute(
+                "SELECT hot_themes, recommendations, leaderboard FROM period_cache WHERE cache_key=?",
+                (_period_cache_key(from_date, to_date),)
+            ).fetchone()
+        conn.close()
+        if not row:
+            return None
+        result = {
+            "hot_themes":      json.loads(row[0]) if row[0] else [],
+            "recommendations": json.loads(row[1]) if row[1] else [],
+            "leaderboard":     json.loads(row[2]) if row[2] else [],
+        }
+        if len(row) >= 5:
+            result["events"]       = json.loads(row[3]) if row[3] else {}
+            result["heatmap_data"] = json.loads(row[4]) if row[4] else {}
+        return result
+    except Exception as e:
+        print(f"⚠️ period_cache 讀取失敗: {e}")
+        return None
+
+def _set_period_cache(from_date: str, to_date: str, hot_themes: list, recommendations: list, leaderboard: list, events: dict = None, heatmap_data: dict = None):
+    try:
+        conn = _heat_db_conn()
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS period_cache (
+                cache_key       TEXT PRIMARY KEY,
+                hot_themes      TEXT,
+                recommendations TEXT,
+                leaderboard     TEXT,
+                events          TEXT,
+                heatmap_data    TEXT,
+                cached_at       TEXT DEFAULT (datetime('now','localtime')),
+                is_complete     INTEGER DEFAULT 0
+            )
+        """)
+        # 兼容舊 DB：嘗試加新 column（已存在就跳過）
+        for col in ["events", "heatmap_data"]:
+            try:
+                conn.execute(f"ALTER TABLE period_cache ADD COLUMN {col} TEXT")
+            except Exception:
+                pass
+        key = _period_cache_key(from_date, to_date)
+        conn.execute(
+            """INSERT OR REPLACE INTO period_cache 
+               (cache_key, hot_themes, recommendations, leaderboard, events, heatmap_data, cached_at)
+               VALUES (?,?,?,?,?,?,datetime('now','localtime'))""",
+            (key,
+             json.dumps(hot_themes,       ensure_ascii=False),
+             json.dumps(recommendations,  ensure_ascii=False),
+             json.dumps(leaderboard,      ensure_ascii=False),
+             json.dumps(events      or {}, ensure_ascii=False),
+             json.dumps(heatmap_data or {}, ensure_ascii=False))
+        )
+        conn.commit()
+        conn.close()
+        print(f"✅ period_cache saved: {from_date}→{to_date} | events cats={len(events or {})} | heatmap cats={len(heatmap_data or {})}")
+    except Exception as e:
+        print(f"⚠️ period_cache 寫入失敗: {e}")
 
 def _report_insights_key(from_date: str, to_date: str, keyword: str = "") -> str:
     kw = ",".join(sorted(k.strip().lower() for k in str(keyword or "").split(",") if k.strip()))
@@ -253,9 +348,9 @@ async def bridge_admin_page_html():
 async def bridge_heat_leaderboard_html():
     return _bridge_html_file("heat_leaderboard_v2.html")
 
-@app.get("/archived.html")
+@app.get("/archived_report.html")
 async def bridge_archived_html():
-    return _bridge_html_file("archived.html")
+    return _bridge_html_file("archived_report.html")
 
 @app.get("/download_report.html")
 async def bridge_download_report_html():
@@ -283,6 +378,7 @@ DEEPSEEK_REASON_MODEL = "deepseek-reasoner"
 QWEN_RECOMMENDATION_CLIENT = OpenAI(
     api_key="sk-995dbed7e46548a6992a8e5153628165",
     base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+    timeout=240,
 )
 QWEN_RECOMMENDATION_MODEL = "qwen3.5-plus"
 
@@ -1478,6 +1574,33 @@ async def analyze(keyword: str, operators: str = "", category: str = "", from_da
                         src_ids = json.loads(p.get("source_post_ids") or "[]")
                     except Exception:
                         src_ids = [pid] if pid else []
+                        
+                    # ✏️ 新增：跳過純 roundup row
+                    # 判斷：src_ids 只得自己一條，同埋 event_id 唔係 __act 衍生
+                    # 即係呢個 deduped row 係直接以一條 roundup post 為代表，唔係拆分出嚟嘅活動
+                    if (pid
+                            and "__act" not in str(pid)
+                            and len(src_ids) == 1
+                            and src_ids[0] == pid
+                            and p.get("source_count", 1) == 1):
+                        # 再檢查佢係咪 roundup（extracted_events > 1 個活動）
+                        _is_r = False
+                        try:
+                            _plat = pid.split("_")[0]
+                            _conn_r = __import__('sqlite3').connect(
+                                __import__('os').getenv("DB_PATH", "macau_analytics.db"))
+                            _row_r = _conn_r.execute(
+                                f"SELECT extracted_events FROM posts_{_plat} WHERE post_id=?",
+                                (pid,)
+                            ).fetchone()
+                            _conn_r.close()
+                            if _row_r and _row_r[0]:
+                                _evts = __import__('json').loads(_row_r[0])
+                                _is_r = isinstance(_evts, list) and len(_evts) > 1
+                        except Exception:
+                            pass
+                        if _is_r:
+                            continue  # 跳過呢個 roundup row，唔喂 DeepSeek
                     groups.append({
                         "event_ids": [pid] if pid else [],
                         "post_ids": src_ids if src_ids else ([pid] if pid else []),
@@ -1547,8 +1670,6 @@ async def analyze(keyword: str, operators: str = "", category: str = "", from_da
                 for i, pid in enumerate(group_pids):
                     p = post_obj.get(pid)
                     if p is None:
-                        # source_post_ids 可能包含唔喺呢個 operator 嘅帖文，skip
-                        group_post_ids.append(pid)  # 仍然記錄 ID 供 source_posts 用
                         continue
                     title = (p.get("title") or "").strip()
                     desc  = (p.get("description") or "").strip()
@@ -1755,7 +1876,29 @@ Category 判斷規則：
                                 existing.setdefault("source_event_ids", []).append(geid)
                         print(f"🔀 跨 operator 重複，merge: {item_name}")
                         continue
+                    # 用 source_indices 反查實際相關嘅 post IDs
+                    raw_indices = item.get("source_indices") or []
+                    if raw_indices:
+                        # source_indices 係 1-based，對應 snippets 入面嘅帖文順序
+                        # group_post_ids 係跟 snippets 同一順序 append 落去嘅
+                        relevant_post_ids = []
+                        for idx in raw_indices:
+                            actual_idx = int(idx) - 1  # 轉 0-based
+                            if 0 <= actual_idx < len(group_post_ids):
+                                relevant_post_ids.append(group_post_ids[actual_idx])
+                        # fallback：如果 indices 解析唔到，用全部
+                        if not relevant_post_ids:
+                            relevant_post_ids = group_post_ids
+                    else:
+                        relevant_post_ids = group_post_ids
 
+                    # 用 relevant_post_ids 過濾 source_event_ids
+                    relevant_event_ids = [
+                        eid for eid in group_event_ids
+                        if any(eid == pid or eid.startswith(pid + "__act") for pid in relevant_post_ids)
+                    ]
+                    if not relevant_event_ids:
+                        relevant_event_ids = group_event_ids
                     new_act = {
                         "name":             item_name,
                         "description":      item_desc or "暫無描述",
@@ -1763,8 +1906,8 @@ Category 判斷規則：
                         "location":         item.get("location") or "",
                         "category":         cat_out,
                         "sub_type":         sub,
-                        "source_post_ids":  group_post_ids,
-                        "source_event_ids": list(dict.fromkeys(group_event_ids)),
+                        "source_post_ids":  relevant_post_ids,
+                        "source_event_ids": list(dict.fromkeys(relevant_event_ids)),
                     }
                     activities.append(new_act)
                     if item_name:
@@ -1836,30 +1979,44 @@ Category 判斷規則：
                     placeholders = ",".join("?" * len(all_ids_list))
                     _cur.execute(f"""
                         SELECT post_id, published_at, post_url,
-                               substr(content, 1, 500) AS title_preview
+                               substr(content, 1, 500) AS title_preview,
+                               extracted_events
                         FROM {table}
                         WHERE post_id IN ({placeholders})
                     """, all_ids_list)
-                    for pid, pub_at, post_url, title_preview in _cur.fetchall():
+                    for pid, pub_at, post_url, title_preview, extracted_events_raw in _cur.fetchall():
+                        # 判斷係咪 roundup post（提及多於一個活動）
+                        is_roundup = False
+                        try:
+                            evts = json.loads(extracted_events_raw or "[]")
+                            is_roundup = isinstance(evts, list) and len(evts) > 1
+                        except Exception:
+                            pass
                         post_details[pid] = {
                             "post_id":      pid,
                             "platform":     platform_name,
                             "url":          post_url or "",
                             "title":        title_preview or "",
                             "published_at": str(pub_at or "")[:10],
+                            "is_roundup":   is_roundup,
                         }
                 except _sq2.OperationalError:
                     pass
             _conn.close()
             print(f"  📎 source_posts: {len(all_ids_list)} ids queried → {len(post_details)} found")
+            print(f"  🔍 post_details keys sample: {list(post_details.keys())[:5]}")
+            print(f"  🔍 ig_3841758428616911734 in post_details: {'ig_3841758428616911734' in post_details}")
         except Exception as e:
             print(f"⚠️ source_posts 補充失敗（唔影響主結果）: {e}")
 
     for acts in cat_summaries.values():
         for act in acts:
             ids = act.get("source_post_ids") or []
-            act["source_posts"] = [post_details[i] for i in ids if i in post_details]
-            print(f"  📎 '{act.get('name','')}': {len(ids)} source_ids → {len(act['source_posts'])} matched posts")
+            # 過濾掉 roundup posts（提及多個活動），只顯示專屬呢個 event 嘅 posts
+            dedicated = [post_details[i] for i in ids if i in post_details and not post_details[i].get("is_roundup")]
+            # 如果全部都係 roundup（即冇專屬 posts），fallback 顯示全部
+            act["source_posts"] = dedicated if dedicated else [post_details[i] for i in ids if i in post_details]
+            print(f"  📎 '{act.get('name','')}': {len(ids)} source_ids → {len(act['source_posts'])} matched posts ({len(ids)-len(dedicated)} roundup filtered)")
 
     # ── Attach heat_score to every AI activity (aggregate from events_deduped) ─
     # source_event_ids stores events_deduped.event_id values (one deduped group = one row).
@@ -2001,7 +2158,7 @@ async def hot_themes(payload: dict):
         resp = client.chat.completions.create(
             model=DEEPSEEK_JSON_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=200,
+            max_tokens=800,
         )
         raw = (resp.choices[0].message.content or "").strip()
         raw = re.sub(r'^```[a-z]*\n?', '', raw).rstrip('`').strip()
@@ -2222,13 +2379,156 @@ async def save_report_insights(payload: dict):
         return {"status": "success"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+    
+@app.post("/api/analysis-cache/invalidate")
+async def invalidate_analysis_cache(operator: str = ""):
+    """db_manager 入庫後 call 呢個清 cache"""
+    _invalidate_analysis_cache(operator or None)
+    return {"success": True, "operator": operator or "all"}
+
+@app.get("/api/archive/months")
+async def get_archive_months():
+    """返回所有 is_complete=1 嘅月份列表，供 Archive Report 用"""
+    try:
+        conn = _heat_db_conn()
+        rows = conn.execute(
+            "SELECT DISTINCT cache_key FROM analysis_cache WHERE is_complete = 1"
+        ).fetchall()
+        conn.close()
+        months = set()
+        for (key,) in rows:
+            parts = key.split("|")
+            if len(parts) >= 3:
+                months.add(parts[1][:7])  # 抽出 "2025-02"
+        return {"months": sorted(months, reverse=True)}
+    except Exception as e:
+        return {"months": [], "error": str(e)}
+
+@app.get("/api/archive/report")
+async def get_archive_report(month: str = "", from_date: str = "", to_date: str = "", operators: str = ""):
+    """
+    month = '2025-02'
+    operators = 'wynn,sands' （唔傳就返全部）
+    優先讀 period_cache（Panel Apply 後存落嘅完整數據），
+    冇 cache 先 fallback 去 events_deduped / analysis_cache
+    """
+    try:
+        from datetime import date, timedelta
+        from calendar import monthrange
+        if from_date and to_date:
+            from_str = from_date
+            to_str = to_date
+            if not month:
+                month = from_date[:7]
+        else:
+            year, mon = int(month[:4]), int(month[5:7])
+            from_str = f"{year}-{mon:02d}-01"
+            last_day = monthrange(year, mon)[1]
+            to_str = f"{year}-{mon:02d}-{last_day:02d}"
+
+        target_ops = [o.strip() for o in operators.split(",") if o.strip()] or ['wynn','sands','galaxy','mgm','melco','sjm','government']
+
+        # ── 優先讀 period_cache（Panel Apply 後存落嘅完整數據）──────────────
+        period_data = _get_period_cache(from_str, to_str)
+        cached_events   = (period_data or {}).get("events",       {})
+        cached_heatmap  = (period_data or {}).get("heatmap_data", {})
+
+        if cached_events:
+            # cached_events 係 by-category 格式 {catKey: [{name, organiserKey, ...}]}
+            # archived_report.html 期望 by-operator 格式 {opKey: [{name, category, ...}]}
+            # 需要轉換
+            by_op = {}
+            for cat_key, acts in cached_events.items():
+                for act in (acts or []):
+                    op_key = (act.get("organiserKey") or act.get("operator") or "").lower()
+                    if not op_key:
+                        continue
+                    if op_key not in by_op:
+                        by_op[op_key] = []
+                    # 確保 category field 存在
+                    act_copy = dict(act)
+                    if not act_copy.get("category"):
+                        act_copy["category"] = cat_key
+                    by_op[op_key].append(act_copy)
+
+            print(f"✅ archive/report: 用 period_cache 數據 ({from_str}~{to_str}), ops={list(by_op.keys())}")
+            return {
+                "status":  "success",
+                "data":    by_op,
+                "period":  period_data,
+                "start":   from_str,
+                "end":     to_str,
+                "heatmap": cached_heatmap,
+                "month":   month,
+                "source":  "period_cache"
+            }
+
+        # ── Fallback：period_cache 冇數據，舊方式讀 analysis_cache + events_deduped ──
+        print(f"⚠️ archive/report: period_cache 冇數據，fallback 去 analysis_cache ({from_str}~{to_str})")
+        results = {}
+        missing = []
+        for op in target_ops:
+            conn = _heat_db_conn()
+            row = conn.execute(
+                "SELECT activities FROM analysis_cache WHERE cache_key=? AND is_complete=1",
+                (f"{op}|{from_str}|{to_str}",)
+            ).fetchone()
+            conn.close()
+            if row:
+                results[op] = json.loads(row[0])
+            else:
+                missing.append(op)
+        # 喺 results 計完之後，讀 period_cache
+        period_data = _get_period_cache(from_str, to_str)
+
+        # ── 從 events_deduped 查真實 heatmap（heat_score + event count）──────
+        heatmap = {}
+        try:
+            conn = _heat_db_conn()
+            ent_subs = {"concert", "sport", "crossover"}
+            rows = conn.execute("""
+                SELECT operator, category, sub_type,
+                       COUNT(*) as n,
+                       AVG(CASE WHEN heat_score IS NOT NULL THEN heat_score END) as avg_heat
+                FROM events_deduped
+                WHERE published_at >= ? AND published_at <= ?
+                  AND operator IN ({})
+                GROUP BY operator, category, sub_type
+            """.format(",".join(["?"] * len(target_ops))),
+                [from_str + " 00:00:00", to_str + " 23:59:59"] + target_ops
+            ).fetchall()
+            conn.close()
+            for row in rows:
+                op, cat, sub, n, avg_h = row
+                # entertainment → use sub_type as key
+                cat_key = sub if (cat == "entertainment" and sub in ent_subs) else cat
+                if not cat_key:
+                    continue
+                if cat_key not in heatmap:
+                    heatmap[cat_key] = {}
+                if op not in heatmap[cat_key]:
+                    heatmap[cat_key][op] = {"n": 0, "h": 0}
+                heatmap[cat_key][op]["n"] += n
+                heatmap[cat_key][op]["h"] = round(avg_h, 1) if avg_h else 0
+        except Exception as he:
+            print(f"⚠️ archive heatmap query failed: {he}")
+
+        if missing:
+            return {
+                "status": "incomplete",
+                "message": f"以下 operator 冇 archive 數據：{', '.join(missing)}。請喺 Panel 開曬所有 filter Apply 一次先。",
+                "data": results,
+                "period": period_data,
+                "heatmap": heatmap,
+                "month": month
+            }
+
+        return {"status": "success", "data": results, "period": period_data, "heatmap": heatmap, "month": month}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# AUTH & USER MANAGEMENT ROUTES  (merged from server.py)
-# All user data is stored in the users table inside macau_analytics.db
-# ══════════════════════════════════════════════════════════════════════════════
-
+# ── Auth Helpers ────────────────────────────────────────────────────────────
 def _hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -2284,11 +2584,6 @@ def _require_admin(data: dict):
     finally:
         conn.close()
 
-@app.post("/api/analysis-cache/invalidate")
-async def invalidate_analysis_cache(operator: str = ""):
-    """db_manager 入庫後 call 呢個清 cache"""
-    _invalidate_analysis_cache(operator or None)
-    return {"success": True, "operator": operator or "all"}
 
 @app.post("/register")
 async def auth_register(request: Request):
@@ -2865,6 +3160,30 @@ async def heat_leaderboard_ai_refresh(
     finally:
         conn.close()
 
+@app.post("/api/period-cache/save")
+async def save_period_cache(payload: dict):
+    """前端生成完所有數據後 call 呢個儲存"""
+    from_date       = payload.get("from_date", "")
+    to_date         = payload.get("to_date", "")
+    hot_themes      = payload.get("hot_themes", [])
+    recommendations = payload.get("recommendations", [])
+    leaderboard     = payload.get("leaderboard", [])
+    events          = payload.get("events", {})
+    heatmap_data    = payload.get("heatmap_data", {})
+    if not from_date or not to_date:
+        return {"success": False, "message": "from_date / to_date 必填"}
+    _set_period_cache(from_date, to_date, hot_themes, recommendations, leaderboard, events, heatmap_data)
+    return {"success": True}
+
+@app.get("/api/period-cache/get")
+async def get_period_cache(from_date: str = "", to_date: str = ""):
+    """Archive report 讀取 period-level cache"""
+    if not from_date or not to_date:
+        return {"success": False, "message": "from_date / to_date 必填"}
+    data = _get_period_cache(from_date, to_date)
+    if not data:
+        return {"success": False, "message": "冇 cache"}
+    return {"success": True, **data}
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 負面監測（XHS / 微博 / IG / FB 關鍵字專表 + 兩階段 AI；IG·FB 經 Apify）
@@ -3442,3 +3761,8 @@ if __name__ == "__main__":
     if not _access_log:
         print("ℹ️  HTTP access log 已關閉（BRIDGE_ACCESS_LOG=0），終端唔再逐條打印 GET/POST")
     uvicorn.run(app, host=_host, port=_port, access_log=_access_log)
+
+# ══════════════════════════════════════════════════════════════════════════════
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="127.0.0.1", port=9038)

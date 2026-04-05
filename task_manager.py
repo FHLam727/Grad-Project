@@ -1,17 +1,15 @@
 import os, sys, json, subprocess, glob, datetime, time, random, tempfile, requests
 from db_manager import (
     ingest_crawler_data,
-    ingest_fb_negative_monitor_json,
-    ingest_ig_negative_monitor_json,
-    ingest_weibo_negative_monitor_json,
-    ingest_xhs_negative_monitor_json,
     mark_as_crawled,
+    ingest_xhs_negative_monitor_json,
+    ingest_weibo_negative_monitor_json,
+    ingest_ig_negative_monitor_json,
+    ingest_fb_negative_monitor_json,
 )
 from dotenv import load_dotenv
-
 _TASK_MANAGER_ROOT = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(_TASK_MANAGER_ROOT, ".env"))
-
 # ── Apify 設定 ─────────────────────────────────────────────
 APIFY_TOKEN   = api_token = os.getenv("APIFY_TOKEN")
 IG_ACTOR_ID   = "apify~instagram-scraper"
@@ -429,7 +427,7 @@ def run_task_master(keyword, operators="", category=""):
         _crawl_apify_platform("fb", selected_ops, category)
 
     print(f"\n✅ 全部完成: {selected_ops}")
-
+    
 def run_xhs_negative_monitor_crawl(
     max_comments_per_note: int = 40,
     headless: str = "0",

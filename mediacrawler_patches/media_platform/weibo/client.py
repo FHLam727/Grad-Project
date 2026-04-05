@@ -46,10 +46,9 @@ from .field import SearchType
 
 _WEIBO_OK_ZERO_EMPTY_RESULT_MSGS = frozenset(
     {
-        "这里还没有内容",
+        "No Results Yet...",
     }
 )
-
 class WeiboClient(ProxyRefreshMixin):
 
     def __init__(

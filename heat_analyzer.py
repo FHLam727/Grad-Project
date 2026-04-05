@@ -185,9 +185,22 @@ def time_decay(dt, half_life):
 def compute_event_scores(conn, platform_info, all_posts, half_life):
     cur = conn.cursor()
     cur.execute("SELECT event_id, source_post_ids FROM events_deduped")
+    all_events = cur.fetchall()
+
+    # 建立 post → 屬於幾多個 event 嘅 mapping
+    # 例如 roundup post 屬於 4 個 event，佢嘅熱度就除以 4
+    from collections import defaultdict
+    post_event_count = defaultdict(int)
+    for event_id, sids_json in all_events:
+        try:
+            source_ids = json.loads(sids_json or "[]")
+        except:
+            source_ids = [event_id]
+        for pid in source_ids:
+            post_event_count[pid] += 1
 
     results = []
-    for event_id, sids_json in cur.fetchall():
+    for event_id, sids_json in all_events:
         try:
             source_ids = json.loads(sids_json or "[]")
         except:
@@ -201,7 +214,11 @@ def compute_event_scores(conn, platform_info, all_posts, half_life):
             post = all_posts.get(pid)
             if not post:
                 continue
-            post_scores.append(post_score(post, platform_info))
+            # ← 核心改動：熱度按所屬 event 數公平分攤
+            # roundup post 講 4 個活動，每個活動只攞 1/4 嘅熱度
+            n_events = post_event_count.get(pid, 1)
+            score    = post_score(post, platform_info) / n_events
+            post_scores.append(score)
             platforms.add(post["platform"])
             dt = parse_dt(post.get("published_at"))
             if dt:
@@ -209,9 +226,12 @@ def compute_event_scores(conn, platform_info, all_posts, half_life):
 
         n         = len(post_scores)
         avg_score = sum(post_scores) / n if n > 0 else 0.0
-        raw_score = avg_score * math.log1p(n)   # average × log(post數量+1)
+        raw_score = avg_score * math.log1p(n)
         newest_dt    = max(post_dts) if post_dts else None
         decay_factor = time_decay(newest_dt, half_life)
+
+        # 記錄哪些係 roundup posts（屬於多個 event）供 leaderboard 顯示層過濾
+        roundup_pids = [pid for pid in source_ids if post_event_count.get(pid, 1) > 1]
 
         results.append({
             "event_id":       event_id,
@@ -222,6 +242,7 @@ def compute_event_scores(conn, platform_info, all_posts, half_life):
             "source_count":   len(source_ids),
             "newest_dt":      newest_dt,
             "decay_factor":   decay_factor,
+            "roundup_post_ids": roundup_pids,
         })
 
     return results
@@ -252,12 +273,13 @@ def write_scores(conn, results):
     cur = conn.cursor()
     for e in results:
         meta = {
-            "platforms":      e["platforms"],
-            "platform_count": e["platform_count"],
-            "source_count":   e["source_count"],
-            "raw_score":      round(e["raw_score"], 4),
-            "decay_factor":   round(e["decay_factor"], 4),
-            "newest_post":    e["newest_dt"].strftime("%Y-%m-%d") if e["newest_dt"] else None,
+            "platforms":        e["platforms"],
+            "platform_count":   e["platform_count"],
+            "source_count":     e["source_count"],
+            "raw_score":        round(e["raw_score"], 4),
+            "decay_factor":     round(e["decay_factor"], 4),
+            "newest_post":      e["newest_dt"].strftime("%Y-%m-%d") if e["newest_dt"] else None,
+            "roundup_post_ids": e.get("roundup_post_ids", []),
         }
         cur.execute(
             "UPDATE events_deduped SET heat_score=?, heat_meta=? WHERE event_id=?",

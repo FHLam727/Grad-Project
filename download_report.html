@@ -804,10 +804,12 @@ function renderStrategy(data) {
       </div>`;
   html += `<div class="strategy-list">` + recItems.map(rec => {
       const catKey = String(rec.catKey || '').toLowerCase();
-      const type = String(rec.type || 'improve').toLowerCase();
+      const comp = comps.find(item => item.catKey === catKey);
+      // If Wynn has no events in this category, cannot be "keep_up" — force to "improve"
+      const wynnHasEvents = (comp?.wynn?.count || 0) > 0;
+      const type = (!wynnHasEvents && String(rec.type || '').toLowerCase() === 'keep_up') ? 'improve' : String(rec.type || 'improve').toLowerCase();
       const cfg = TYPE_CONFIG[type] || TYPE_CONFIG.improve;
       const catCfg = CAT_CONFIG[catKey] || { icon:'📌', label:catKey, color:'#6B7280' };
-      const comp = comps.find(item => item.catKey === catKey);
       const rankingRows = buildStrategyRankingHtml(comp);
       return `<div class="strategy-card ${type}" style="background:${cfg.bg};border-color:${cfg.border};">
         <div class="strategy-card-head">
@@ -838,35 +840,31 @@ function renderStrategy(data) {
 
 function buildStrategyRankingHtml(comp) {
   if (!comp) return '';
-  const rows = [
-    { opTitle:'Wynn', count:comp.wynn?.count || 0, avg:comp.wynn?.avgHeat || 0 },
-    ...(comp.topOpponent ? [{
-      opTitle: comp.topOpponent.organiser,
-      count: comp.topOpponent.count || 0,
-      avg: comp.topOpponent.avgHeat || 0
-    }] : [])
-  ].filter(row => row.count > 0 || row.avg > 0);
+  // Always include Wynn even when count=0 — show Wynn's position (or absence) in ranking
+  const wynnRow = { opTitle:'Wynn', count:comp.wynn?.count || 0, avg:comp.wynn?.avgHeat || 0 };
+  const opponents = [
+    ...(comp.topOpponent ? [{ opTitle:comp.topOpponent.organiser, count:comp.topOpponent.count || 0, avg:comp.topOpponent.avgHeat || 0 }] : []),
+    ...(Array.isArray(comp.opponents) ? comp.opponents.map(opp => ({ opTitle:opp.organiser, count:opp.count || 0, avg:opp.avgHeat || opp.avg || 0 })) : [])
+  ].filter(row => row.count > 0);
 
-  if (!rows.length) return '';
+  // Deduplicate competitors, then combine with Wynn
+  const seen = new Set(['Wynn']);
+  const uniqueOpponents = opponents.filter(row => { if (seen.has(row.opTitle)) return false; seen.add(row.opTitle); return true; });
+  const rows = [wynnRow, ...uniqueOpponents].sort((a, b) => (b.avg || 0) - (a.avg || 0));
 
-  const moreRows = Array.isArray(comp.opponents) ? comp.opponents : [];
-  moreRows.forEach(opp => {
-    if (!opp || !opp.organiser) return;
-    if (rows.some(row => row.opTitle === opp.organiser)) return;
-    rows.push({ opTitle: opp.organiser, count: opp.count || 0, avg: opp.avgHeat || opp.avg || 0 });
-  });
-
-  rows.sort((a, b) => (b.avg || 0) - (a.avg || 0));
   const html = rows.map((row, i) => {
     const isWynn = row.opTitle === 'Wynn';
     const color = {
       Wynn:'#B45309', Sands:'#1D4ED8', Galaxy:'#047857', MGM:'#991B1B', Melco:'#6D28D9', SJM:'#0E7490', Government:'#374151'
     }[row.opTitle] || '#6B7280';
+    const heatLabel = row.count === 0
+      ? `<span class="strategy-rank-heat" style="color:#9CA3AF;font-style:italic;">no events</span>`
+      : `<span class="strategy-rank-heat">🔥 avg ${Number(row.avg || 0).toFixed(1)}</span>`;
     return `<div class="strategy-rank-row ${isWynn ? 'wynn-focus' : ''}">
       <span class="strategy-rank-badge">${i + 1}</span>
       <span class="strategy-rank-name" style="color:${color};">${esc(row.opTitle)}</span>
       <span class="strategy-rank-count">: ${row.count}</span>
-      <span class="strategy-rank-heat">🔥 avg ${Number(row.avg || 0).toFixed(1)}</span>
+      ${heatLabel}
     </div>`;
   }).join('');
   const label = CAT_CONFIG[comp.catKey]?.label || comp.label || comp.catKey || '';

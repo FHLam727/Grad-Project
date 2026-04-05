@@ -475,7 +475,6 @@
       margin:0;
       line-height:1.2;
     }
-
     /* Clear Filter Button */
     .clear-filter-btn {
       display: inline-flex;
@@ -503,7 +502,6 @@
     .clear-filter-btn:active {
       transform: translateY(0);
     }
-
     /* Updated Button Container Styles */
     .button-container {
       display: flex;
@@ -962,7 +960,7 @@
         onmouseout="this.style.background='rgba(234,88,12,0.09)'">
         🔥 Heat Leaderboard
       </a>
-      <a id="negativeMonitorLink" href="/negative-monitor" style="
+            <a id="negativeMonitorLink" href="./negative_monitor.html" style="
         display:inline-flex;align-items:center;gap:5px;
         padding:6px 14px;border-radius:16px;
         background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.22);
@@ -972,7 +970,7 @@
         onmouseout="this.style.background='rgba(220,38,38,0.08)'">
         🛡️ Negative Monitor
       </a>
-      <a id="archiveNavLink" href="./archived.html" style="
+      <a id="archiveNavLink" href="./archived_report.html" target="_blank" style="
         display:inline-flex;align-items:center;gap:5px;
         padding:6px 14px;border-radius:16px;
         background:rgba(37,99,235,0.07);border:1px solid rgba(37,99,235,0.18);
@@ -1046,7 +1044,7 @@
             <label class="check"><input type="checkbox" name="category" value="crossover"> Crossover</label>
             <label class="check"><input type="checkbox" name="category" value="accommodation"> Hotel</label>
             <label class="check"><input type="checkbox" name="category" value="food"> Food</label>
-            <label class="check"><input type="checkbox" name="category" value="shopping"> Shopping</label>
+            <label class="check"><input type="checkbox" name="category" value="shopping"> Shopping</label>     
           </div>
         </div>
 
@@ -1309,17 +1307,15 @@
               </div>
               <div class="pill ai">✦ AI-Generated</div>
             </div>
-
-              <ul id="strategyPromptList" class="prompt-list">
-                <li class="prompt-item">
-                  <div class="prompt-item-body">Apply filters to generate recommendations.</div>
-                </li>
-              </ul>
-              <div class="prompt-foot">
-                <div id="strategyPromptStatus" class="prompt-status" style="display:none;"></div>
-              </div>
+            <ul id="strategyPromptList" class="prompt-list">
+              <li class="prompt-item">
+                <div class="prompt-item-body">Apply filters to generate recommendations.</div>
+              </li>
+            </ul>
+            <div class="prompt-foot">
+              <div id="strategyPromptStatus" class="prompt-status" style="display:none;"></div>
+            </div>
           </section>
-
           <!-- Block #5: Posts -->
           <section class="block">
             <div class="block-head">
@@ -1380,43 +1376,17 @@
       const lbLink = document.getElementById('heatLbLink');
       if (lbLink) lbLink.href = './heat_leaderboard_v2.html' + q;
       const archLink = document.getElementById('archiveNavLink');
-      if (archLink) archLink.href = './archived.html' + q;
+      if (archLink) archLink.href = './archived_report.html' + q;
       const nmLink = document.getElementById('negativeMonitorLink');
-      if (nmLink) nmLink.href = '/negative-monitor' + q;
+      if (nmLink) nmLink.href = './negative_monitor.html' + q;
     })();
 
     const DEMO = {
       lastUpdatedISO: new Date().toISOString(),
 
       gamingByOperator: {
-        Wynn: [
-          {
-            name:"Private Gaming Masters Series",
-            overview:"Invitation-based premium table-games weekend designed for high-value guests.",
-            predictedVisitors:"800 – 1,200",
-            location:"Premium Gaming Salon",
-            highlights:"VIP hosting, premium lounge access, and late-night traffic expected.",
-            category:"gaming"
-          },
-          {
-            name:"Elite Table Privileges Weekend",
-            overview:"Members-only premium gaming activation with layered loyalty rewards.",
-            predictedVisitors:"500 – 900",
-            location:"Signature Table Zone",
-            highlights:"Focus on repeat visitation, service quality, and premium spend capture.",
-            category:"gaming"
-          }
-        ],
-        Sands: [
-          {
-            name:"Jackpot Weekend Series",
-            overview:"Mass-premium gaming weekend with prize mechanics and broad participation.",
-            predictedVisitors:"1,200 – 1,800",
-            location:"Main Gaming Floor",
-            highlights:"High public visibility and strong footfall concentration across prime hours.",
-            category:"gaming"
-          }
-        ],
+        Wynn: [],
+        Sands: [],
         Galaxy: [],
         MGM: [],
         Melco: [],
@@ -1607,7 +1577,8 @@
     }
 
     function updateArchivedLink(){
-      $("archivedLink").href = "./archived.html";  // 直接指向您的 archived.html
+      const el = $("archivedLink");
+      if (el) el.href = "./archived_report.html" + window.location.search;
     }
 
     function filterBySelectedOperators(byOperator){
@@ -1761,7 +1732,7 @@
           // 用每個 event 嘅真實 category 欄位，而唔係硬編碼
           const convertedData = {};
           OPERATOR_ORDER.forEach(op => {
-              const events = [...(data.gamingByOperator[op] || []), ...(data.nonGamingByOperator[op] || [])];
+              const events = [...(data.nonGamingByOperator[op] || [])];
               for (const e of events) {
                   const cat = e.category || 'experience';
                   if (!convertedData[cat]) convertedData[cat] = [];
@@ -1797,8 +1768,7 @@
         experience:    { icon: '✨', label: 'EXPERIENCE',     color: '#059669' },
         food:          { icon: '🍴', label: 'FOOD',           color: '#EA580C' },
         accommodation: { icon: '🏨', label: 'HOTEL',          color: '#2563EB' },
-        shopping:      { icon: '💰', label: 'SHOPPING',       color: '#EC4899' },
-        gaming:        { icon: '🎰', label: 'GAMING',         color: '#BE185D' },
+        shopping:      { icon: '💰', label: 'SHOPPING',       color: '#7C3AED' }, 
     };
 
     const OP_LABELS = {
@@ -1919,9 +1889,9 @@
             <div class="summary-top-row">
                 <div class="summary-title">📊 Results Summary</div>
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                  ${dateRangeHtml}
-                  <button id="summaryBannerClearBtn" class="clear-filter-btn" onclick="clearAllChartFilters()" title="Clear all chart & heatmap filters">✕ Clear Filter</button>
-                </div>
+                ${dateRangeHtml}
+                <button id="summaryBannerClearBtn" class="clear-filter-btn" onclick="clearAllChartFilters()" title="Clear all chart & heatmap filters">✕ Clear Filter</button>
+              </div>
             </div>
             <div class="summary-stats-row">
                 <div class="summary-stat">
@@ -1957,15 +1927,20 @@
         fetchHotThemes(catData).then(themes => {
             // Use document.getElementById so we always get the live DOM node,
             // even if the banner was re-rendered since the fetch started.
-            const slot = document.getElementById('hotThemesSlot');
+            const slot = banner.querySelector('#hotThemesSlot');
             if (!slot) return;
             const hotColors = ['#DC2626','#D97706','#7C3AED'];
-            // If API returns empty (backend unavailable), show a clean message — do NOT fallback to category names
+            // Client-side fallback: derive themes from category/event data if API returns empty
             if (!themes.length) {
-                slot.innerHTML = `<span style="color:rgba(15,23,42,0.4);font-size:12px;font-style:italic;">Unable to analyse themes — backend unavailable</span>`;
-                _cachedHotThemesHTML = slot.innerHTML;
-                return;
-            }
+                const fallbackThemes = _deriveFallbackHotThemes(catData);
+	                if (fallbackThemes.length) {
+	                    themes = fallbackThemes;
+	                } else {
+	                    slot.innerHTML = `<span style="color:rgba(15,23,42,0.4);font-size:12px;font-style:italic;">Not enough data</span>`;
+	                    _markReportAnalysisReady('hotThemesReady');
+	                    return;
+	                }
+	            }
             // Build flat event list for index-based filtering (1-based)
             const allActs = Object.values(catData).flat();
 
@@ -1976,7 +1951,7 @@
             };
             const OP_CHIP_LABELS = {
                 wynn:'Wynn', sands:'Sands', galaxy:'Galaxy',
-                mgm:'MGM', melco:'Melco', sjm:'SJM', government:'Government'
+                mgm:'MGM', melco:'Melco', sjm:'SJM', government:'Gov'
             };
 
             // Pre-compute avgHeat + operators for each theme, then sort by avgHeat desc
@@ -2009,7 +1984,6 @@
 
             slot.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:6px;width:100%;';
             // Cache the rendered HTML so Clear Filter can restore it
-            const _isBaseRender = !_chartFilter.operator && !_chartFilter.catKey;
             slot.innerHTML = themesMeta.map(({ t, label, indices, avgHeat, opSet }, i) => {
                 const color   = hotColors[i % hotColors.length];
                 const hasFilter = indices.length > 0;
@@ -2034,17 +2008,19 @@
             }).join('');
 
             // Cache the initial (non-filtered) hot themes HTML for restore on Clear Filter
-            if (_isBaseRender) {
-                _cachedHotThemesHTML = slot.innerHTML;
-                _cachedHotThemesStyle = slot.style.cssText;
-                // Also store structured data for Preview Report (no DOM scraping needed)
-                if (_reportCache) {
-                    _reportCache.hotThemes = themesMeta.map(({ label, avgHeat, opSet }) => ({
-                        label, icon: '🔥', avgHeat: avgHeat ?? null, operators: [...opSet]
-                    }));
-                    _persistFullReportInsightsIfReady();
-                }
-            }
+            const _isBaseRender = !_chartFilter.operator && !_chartFilter.catKey;
+	            if (_isBaseRender) {
+	                _cachedHotThemesHTML = slot.innerHTML;
+	                _cachedHotThemesStyle = slot.style.cssText;
+                   // Also store structured data for Preview Report (no DOM scraping needed)
+	                if (_reportCache) {
+	                    _reportCache.hotThemes = themesMeta.map(({ label, avgHeat, opSet }) => ({
+	                        label, icon: '🔥', avgHeat: avgHeat ?? null, operators: [...opSet]
+	                    }));
+	                    _persistFullReportInsightsIfReady();
+	                }
+	                _markReportAnalysisReady('hotThemesReady');
+	            }
 
             // Click-to-filter by theme indices
             slot.querySelectorAll('.hot-theme-card[data-theme-idx]').forEach(chip => {
@@ -2142,6 +2118,8 @@
         if (summaryHost) {
             summaryHost.innerHTML = '';
             summaryHost.appendChild(await buildSummaryBanner(catData, filterParams));
+        } else {
+            container.appendChild(await buildSummaryBanner(catData, filterParams));
         }
 
         // 按 CAT_CONFIG 定義嘅順序渲染
@@ -2342,6 +2320,7 @@
     }
 
     function _startAnalysis(url, cats, ops) {
+        _resetReportAnalysisState();
         _ss.set(_SK.active, '1');
         _ss.set(_SK.url,    url);
         _ss.set(_SK.cats,   JSON.stringify(cats));
@@ -2359,6 +2338,7 @@
         _ss.set(_SK.kws, JSON.stringify(_tags));
         _ss.del(_SK.result);
         _ss.del(_SK.pill);
+        sessionStorage.removeItem('_cachedReportInsights');
         // Sync date range to leaderboard
         const _from = $('fromDate') ? $('fromDate').value : '';
         const _to   = $('toDate')   ? $('toDate').value   : '';
@@ -2380,8 +2360,9 @@
 
     function _clearAll() {
         _ss.delAll(Object.values(_SK));
+        _resetReportAnalysisState();
     }
-
+    
     function _restoreFilters() {
         try {
             const cats = JSON.parse(_ss.get(_SK.cats) || 'null');
@@ -2389,10 +2370,12 @@
             if (Array.isArray(cats)) {
                 document.querySelectorAll('input[name="category"]').forEach(x => x.checked = cats.includes(x.value));
                 if (typeof _syncSelectAllBtn === 'function') _syncSelectAllBtn('category');
+                _appliedFilterState.categories = cats; 
             }
             if (Array.isArray(ops)) {
                 document.querySelectorAll('input[name="operator"]').forEach(x => x.checked = ops.includes(x.value));
                 if (typeof _syncSelectAllBtn === 'function') _syncSelectAllBtn('operator');
+                _appliedFilterState.operators = ops;
             }
             // Restore date mode/range
             const dateState = JSON.parse(_ss.get(_SK.date) || 'null');
@@ -2402,16 +2385,63 @@
                 if (dateState.monthSelect && $('monthSelect')) $('monthSelect').value = dateState.monthSelect;
                 if (dateState.quarterYear && $('quarterYear')) $('quarterYear').value = dateState.quarterYear;
                 if (dateState.quarterSelect && $('quarterSelect')) $('quarterSelect').value = dateState.quarterSelect;
+                resolveDateRange(); 
             }
             // Restore keywords
             const savedKws = JSON.parse(_ss.get(_SK.kws) || 'null');
             if (Array.isArray(savedKws)) {
                 _tags = savedKws;
                 _renderTags();
-            }
+            }_hasAppliedFilters = true;
+            _analysesComplete = true;
+            _updateReportButtons(); 
         } catch(e) {}
     }
-
+    function _updateReportButtons() {
+    const previewBtn = document.querySelector('button[onclick="collectReportData()"]');
+    const archiveLink = document.getElementById('archiveNavLink');
+    
+    if (!_hasAppliedFilters) {
+        // Apply 前：Preview blocked，Archive 開放
+        if (previewBtn) {
+            previewBtn.disabled = true;
+            previewBtn.title = 'Apply filters first';
+            previewBtn.style.opacity = '0.4';
+            previewBtn.style.cursor = 'not-allowed';
+        }
+        if (archiveLink) {
+            archiveLink.style.opacity = '';
+            archiveLink.style.pointerEvents = '';
+            archiveLink.removeAttribute('title');
+        }
+    } else if (!_analysesComplete) {
+        // Apply 後 generate 緊：兩個都 blocked
+        if (previewBtn) {
+            previewBtn.disabled = true;
+            previewBtn.title = 'Please wait until all analyses are generated';
+            previewBtn.style.opacity = '0.4';
+            previewBtn.style.cursor = 'not-allowed';
+        }
+        if (archiveLink) {
+            archiveLink.style.opacity = '0.4';
+            archiveLink.style.pointerEvents = 'none';
+            archiveLink.title = 'Please wait until all analyses are generated';
+        }
+    } else {
+        // 全部完成：兩個都解鎖
+        if (previewBtn) {
+            previewBtn.disabled = false;
+            previewBtn.title = '';
+            previewBtn.style.opacity = '';
+            previewBtn.style.cursor = '';
+        }
+        if (archiveLink) {
+            archiveLink.style.opacity = '';
+            archiveLink.style.pointerEvents = '';
+            archiveLink.removeAttribute('title');
+        }
+    }
+}
     async function fetchAndRender(url, isAutoPoll = false) {
         const container = $("analyticsContent");
         try {
@@ -2433,6 +2463,29 @@
                     $("totalEventsPill").textContent = pill;
                     stopPoll();
                     _finishAnalysis(result, pill);
+                    // 只有開曬所有 operators + categories 先自動存檔
+                    setTimeout(async () => {
+                      try {
+                        const ALL_OPS  = ['wynn','sands','galaxy','mgm','melco','sjm','government'];
+                        const ALL_CATS = ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping'];
+                        const curOps  = _appliedFilterState.operators  || [];
+                        const curCats = _appliedFilterState.categories || [];
+                        const isFullRun = ALL_OPS.every(o => curOps.includes(o)) && ALL_CATS.every(c => curCats.includes(c));
+                        if (!isFullRun) {
+                          console.log('[AutoSave] 唔係全部 filter，跳過存檔');
+                          return;
+                        }
+                        await collectReportData(false);
+                        const p = $("totalEventsPill");
+                        if (p) {
+                          const orig = p.textContent;
+                          p.textContent = '✅ 已存檔';
+                          p.style.background = 'rgba(22,163,74,0.12)';
+                          p.style.color = '#15803D';
+                          setTimeout(() => { p.textContent = orig; p.style.background = ''; p.style.color = ''; }, 3000);
+                        }
+                      } catch(e) { console.warn('[AutoSave] failed:', e); }
+                    }, 500);
                 }
             } else if (result.status === "loading") {
                 if (!isAutoPoll) {
@@ -2522,9 +2575,11 @@
         const toDate       = $("toDate").value;
         const selectedCats = getSelectedValues("category");
         const selectedOps  = getSelectedValues("operator");
-        if (selectedOps.filter(op => op !== "wynn").length === 0) return alert("請至少選擇一個其他組織者作比較");
+        if (selectedOps.filter(op => op !== "wynn").length === 0) return alert("Please select at least two organisers for comparison.");
         // Update analytics state for heatmap + Wynn positioning
         _hasAppliedFilters = true;
+        _analysesComplete = false; 
+        _updateReportButtons();     
         _appliedFilterState = { operators: selectedOps, categories: selectedCats };
         stopPoll();
         const url = `http://127.0.0.1:9038/api/v2/analyze?` +
@@ -2558,9 +2613,11 @@
       _hasAppliedFilters = false;
       _appliedFilterState = {
         operators: ['wynn','sands','galaxy','mgm','melco','sjm','government'],
-        categories: ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping','gaming']
+        categories: ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping']
       };
       _comparisonCatData = {};
+      const _summaryHostReset = document.getElementById('resultsSummaryHost');
+      if (_summaryHostReset) _summaryHostReset.innerHTML = '<div class="empty-state" style="padding:28px 24px;"><h4>Results Summary</h4><p>Apply filters to generate the latest summary before reviewing analytics charts.</p></div>';
       fillResults(DEMO);
     });
 
@@ -2571,6 +2628,7 @@
         const active = _ss.get(_SK.active);
         const url    = _ss.get(_SK.url);
         const saved  = _ss.get(_SK.result);
+        _updateReportButtons();
 
         // Case 1: Had a completed result — restore it WITHOUT re-fetching
         if (saved) {
@@ -2578,10 +2636,33 @@
                 const r = JSON.parse(saved);
                 const _d = r.category_summaries || r.operator_summaries || {};
                 const _t = Object.values(_d).reduce((s,a) => s + (Array.isArray(a) ? a.length : 0), 0);
-                if (_t > 0) {
+                const _tNested = Object.values(_d).reduce((s,a) => {
+                  if (Array.isArray(a)) return s + a.length;
+                  if (a && typeof a === 'object') return s + Object.values(a).reduce((ss,aa) => ss + (Array.isArray(aa) ? aa.length : 0), 0);
+                  return s;
+                }, 0);
+                if (_t > 0 || _tNested > 0) {
                     _restoreFilters();
                     const stillCrawling = active === '1';
-                    renderGroupedResults(r, stillCrawling);
+                    renderGroupedResults(r, stillCrawling).then(() => {
+                      // Restore insights: first try sessionStorage, fallback to backend
+                      try {
+                        const _saved = JSON.parse(sessionStorage.getItem('_cachedReportInsights') || 'null');
+	                        if (_saved) {
+	                          if (_reportCache) {
+	                            _reportCache.hotThemes         = _saved.hotThemes         || [];
+	                            _reportCache.aiRecommendations = _saved.aiRecommendations || [];
+	                            _reportCache.comparisons       = _saved.comparisons       || [];
+	                            _reportInsightsPersistedKey    = _saved.key;
+	                          }
+	                          _reportAnalysisState = { hotThemesReady: true, recommendationsReady: true };
+	                          _renderCachedInsightsToDOM(_saved);
+                          console.log('[Restore] insights rendered from sessionStorage');
+                          if (typeof updateStrategyPrompt === 'function') setTimeout(() => updateStrategyPrompt(), 0);
+                          return;
+                        }
+                      } catch(e) {}
+                    });
                     if (stillCrawling) {
                         $("totalEventsPill").textContent = '⏳ 採集中...';
                         _lastFetchUrl = url;
@@ -2635,7 +2716,6 @@ const CHART_CAT_CONFIG = {
   food:          { label:'Food',        color:'#F97316' },
   accommodation: { label:'Hotel',       color:'#3B82F6' },
   shopping:      { label:'Shopping',    color:'#A855F7' },
-  gaming:        { label:'Gaming',      color:'#EC4899' },
 };
 
 const CHART_OP_COLORS = {
@@ -2654,6 +2734,229 @@ let _barChart       = null;
 
 // Active drill-down filter: { operator: string|null, catKey: string|null }
 let _chartFilter = { operator: null, catKey: null };
+// ── Hot Themes cache (base = after Apply Filter; restored on Clear Filter) ───
+let _cachedHotThemesHTML  = null;
+let _cachedHotThemesStyle = null;
+
+// ── Report cache — built incrementally after Apply Filter ─────────────────────
+// hotThemes filled by buildSummaryBanner; aiRecommendations+comparisons by updateStrategyPrompt
+let _reportCache = null;
+let _reportInsightsPersistedKey = null;
+let _reportAnalysisState = { hotThemesReady: false, recommendationsReady: false };
+const REPORT_ALL_OPERATORS = ['wynn','sands','galaxy','mgm','melco','sjm','government'];
+const REPORT_SELECTABLE_CATEGORIES = ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping'];
+const REPORT_ALL_CATEGORIES = ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping'];
+
+function _currentKeywordString() {
+  return ((document.getElementById('keywords') || {}).value || '').trim();
+}
+
+function _isFullReportSelection(ops, cats) {
+  const opSet = new Set((ops  || []).map(v => String(v).toLowerCase()));
+  const catSet = new Set((cats || []).map(v => String(v).toLowerCase()));
+  return REPORT_ALL_OPERATORS.every(op => opSet.has(op))
+    && REPORT_SELECTABLE_CATEGORIES.every(cat => catSet.has(cat))
+    && opSet.size === REPORT_ALL_OPERATORS.length
+    && catSet.size === REPORT_SELECTABLE_CATEGORIES.length;
+}
+
+function _reportInsightCacheKey(period, keyword) {
+  const start = period?.start || '';
+  const end = period?.end || '';
+  const kw = String(keyword || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean).sort().join(',');
+  return `${start}|${end}|${kw}`;
+}
+
+function _resetReportAnalysisState() {
+  _reportAnalysisState = { hotThemesReady: false, recommendationsReady: false };
+}
+
+function _markReportAnalysisReady(key) {
+  if (!key) return;
+  _reportAnalysisState[key] = true;
+}
+
+function _isReportAnalysisReady() {
+  return !!(_reportAnalysisState.hotThemesReady && _reportAnalysisState.recommendationsReady);
+}
+
+async function _persistFullReportInsightsIfReady() {
+  if (!_reportCache) return;
+  const filters = _reportCache.filters || {};
+  if (!_isFullReportSelection(filters.operators || [], filters.categories || [])) return;
+  if (!_reportCache.period?.start || !_reportCache.period?.end) return;
+  if (!Array.isArray(_reportCache.hotThemes)         || !_reportCache.hotThemes.length)         return;
+  if (!Array.isArray(_reportCache.aiRecommendations) || !_reportCache.aiRecommendations.length) return;
+  if (!Array.isArray(_reportCache.comparisons)       || !_reportCache.comparisons.length)       return;
+
+  const cacheKey = _reportInsightCacheKey(_reportCache.period, _reportCache.keyword || '');
+  if (_reportInsightsPersistedKey === cacheKey) return;
+
+  try {
+    console.log('[Persist] Saving report insights to backend…');
+    const resp = await fetch('http://127.0.0.1:9038/api/report-insights', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from_date:         _reportCache.period.start,
+        to_date:           _reportCache.period.end,
+        keyword:           _reportCache.keyword || '',
+        hotThemes:         _reportCache.hotThemes         || [],
+        aiRecommendations: _reportCache.aiRecommendations || [],
+        comparisons:       _reportCache.comparisons       || []
+      })
+    });
+    const data = await resp.json();
+    _reportInsightsPersistedKey = cacheKey;
+    console.log('[Persist] report-insights saved ✓');
+    try {
+      sessionStorage.setItem('_cachedReportInsights', JSON.stringify({
+        key: cacheKey,
+        period: _reportCache.period,
+        filters: _reportCache.filters,
+        hotThemes: _reportCache.hotThemes,
+        aiRecommendations: _reportCache.aiRecommendations,
+        comparisons: _reportCache.comparisons
+      }));
+    } catch(e) {}
+  } catch (err) {
+    console.warn('report insights persist failed:', err);
+  }
+}
+// ── Render cached insights directly to DOM (used on page restore) ─────────────
+function _renderCachedInsightsToDOM(insights) {
+  if (!insights) return;
+
+  // 1. Hot themes → fill #hotThemesSlot
+  const hotThemes = insights.hotThemes || [];
+  if (hotThemes.length) {
+    const slot = document.getElementById('hotThemesSlot');
+    if (slot) {
+      const hotColors = ['#DC2626','#D97706','#7C3AED','#059669','#0891B2'];
+      const OP_CHIP_COLORS = { wynn:'#B45309', sands:'#1D4ED8', galaxy:'#15803D', mgm:'#7C3AED', melco:'#DB2777', sjm:'#0369A1', government:'#374151' };
+      const OP_CHIP_LABELS = { wynn:'Wynn', sands:'Sands', galaxy:'Galaxy', mgm:'MGM', melco:'Melco', sjm:'SJM', government:'Gov' };
+      slot.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:6px;width:100%;';
+      slot.innerHTML = hotThemes.map((t, i) => {
+        const color = hotColors[i % hotColors.length];
+        const heatBadge = t.avgHeat != null
+          ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;background:rgba(234,88,12,0.10);color:#C2410C;border:1px solid rgba(234,88,12,0.20);border-radius:999px;padding:2px 6px;">🔥${Number(t.avgHeat).toFixed(1)}</span>` : '';
+        const opTags = (t.operators||[]).map(op => {
+          const c = OP_CHIP_COLORS[op]||'#6B7280';
+          const lbl = OP_CHIP_LABELS[op]||(op[0].toUpperCase()+op.slice(1));
+          return `<span style="display:inline-flex;align-items:center;font-size:10px;font-weight:600;background:${c}14;color:${c};border:1px solid ${c}30;border-radius:999px;padding:2px 7px;">${lbl}</span>`;
+        }).join('');
+        return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:${color}0d;border:1px solid ${color}28;border-radius:12px;padding:6px 12px;">
+          <span style="font-size:11px;font-weight:700;color:${color};flex:0 0 auto;">🔥 ${t.label||''}</span>
+          ${heatBadge}${opTags}
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // 2. AI recommendations → fill .prompt-item-body elements
+  const recs = insights.aiRecommendations || [];
+  if (recs.length) {
+    const TYPE_CONFIG = {
+      keep_up: { icon:'🚀', label:'Keep it Up',   color:'#15803D', bg:'rgba(22,163,74,0.08)',  border:'rgba(22,163,74,0.22)' },
+      improve: { icon:'⚡', label:'Improve',       color:'#B45309', bg:'rgba(245,158,11,0.08)', border:'rgba(245,158,11,0.22)' },
+      avoid:   { icon:'🚫', label:'Avoid for Now', color:'#B91C1C', bg:'rgba(220,38,38,0.06)',  border:'rgba(220,38,38,0.18)' }
+    };
+    const CAT_ICONS = { concert:'🎤', exhibition:'🖼️', experience:'✨', sport:'🏆', crossover:'🎨', accommodation:'🏨', food:'🍴', shopping:'💰' };
+    const CAT_LABELS = { concert:'Concert', exhibition:'Exhibition', experience:'Experience', sport:'Sport', crossover:'Crossover', accommodation:'Hotel', food:'Food', shopping:'Shopping' };
+    const list = document.querySelector('.prompt-list, #promptList, [class*="prompt-list"]');
+    const items = document.querySelectorAll('.prompt-item-body');
+    if (items.length >= 2) {
+      // strengths item (index 0) = keep_up recs, gaps item (index 1) = improve/avoid recs
+      const keepUpRecs  = recs.filter(r => r.type === 'keep_up');
+      const improveRecs = recs.filter(r => r.type !== 'keep_up');
+      const renderRec = rec => {
+        const cfg = TYPE_CONFIG[rec.type||'improve'] || TYPE_CONFIG.improve;
+        const catKey = String(rec.catKey||'').toLowerCase();
+        const catIcon = CAT_ICONS[catKey]||'📌';
+        const catLabel = CAT_LABELS[catKey]||catKey;
+        return `<div class="rec-line" style="margin-bottom:10px;padding:10px 12px;border-radius:12px;border:1px solid ${cfg.border};background:${cfg.bg};">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+            <span style="font-size:11px;font-weight:800;color:${cfg.color};">${cfg.icon} ${cfg.label}</span>
+            <span style="font-size:11px;font-weight:700;background:rgba(109,40,217,0.10);color:#6D28D9;border-radius:999px;padding:1px 7px;">${catIcon} ${catLabel}</span>
+          </div>
+          <div style="font-size:13px;line-height:1.6;color:rgba(15,23,42,0.82);">${rec.text||''}</div>
+        </div>`;
+      };
+      if (keepUpRecs.length)  items[0].innerHTML = keepUpRecs.map(renderRec).join('');
+      if (improveRecs.length) items[1].innerHTML = improveRecs.map(renderRec).join('');
+      const status = document.getElementById('strategyPromptStatus');
+      if (status) { status.textContent = '✓ Restored from cache'; status.style.display = 'block'; }
+    }
+  }
+}
+async function _fetchStoredReportInsights(period, keyword) {
+  if (!period?.start || !period?.end) return null;
+  try {
+    const params = new URLSearchParams({
+      from_date: period.start,
+      to_date: period.end,
+      keyword: keyword || ''
+    });
+    const resp = await fetch(`http://127.0.0.1:9038/api/report-insights?${params.toString()}`);
+    const data = await resp.json();
+    if (data.status !== 'success') return null;
+    return {
+      hotThemes: Array.isArray(data.hotThemes) ? data.hotThemes : [],
+      aiRecommendations: Array.isArray(data.aiRecommendations) ? data.aiRecommendations : [],
+      comparisons: Array.isArray(data.comparisons) ? data.comparisons : []
+    };
+  } catch (err) {
+    console.warn('report insights fetch failed:', err);
+    return null;
+  }
+}
+
+// Re-fetch hot themes for a filtered subset and inject into the live slot
+async function _refreshHotThemesForFilter(filteredCatData) {
+  const slot = document.getElementById('hotThemesSlot');
+  if (!slot) return;
+  slot.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;';
+  slot.innerHTML = '<span style="color:rgba(15,23,42,0.35);font-size:12px;font-style:italic;">Analysing themes…</span>';
+  const themes = await fetchHotThemes(filteredCatData);
+  const liveSlot = document.getElementById('hotThemesSlot');
+  if (!liveSlot) return;
+  if (!themes.length) {
+    liveSlot.innerHTML = '<span style="color:rgba(15,23,42,0.4);font-size:12px;font-style:italic;">No themes found for this filter</span>';
+    return;
+  }
+  const hotColors = ['#DC2626','#D97706','#7C3AED'];
+  const OP_CHIP_COLORS = { wynn:'#B45309', sands:'#1D4ED8', galaxy:'#15803D', mgm:'#7C3AED', melco:'#DB2777', sjm:'#0369A1', government:'#374151' };
+  const OP_CHIP_LABELS = { wynn:'Wynn', sands:'Sands', galaxy:'Galaxy', mgm:'MGM', melco:'Melco', sjm:'SJM', government:'Government' };
+  const allActs = Object.values(filteredCatData).flat();
+  const themesMeta = themes.map(t => {
+    const label = typeof t === 'string' ? t : (t.theme || '');
+    const indices = (typeof t === 'object' && Array.isArray(t.indices)) ? t.indices : [];
+    let avgHeat = null;
+    const opSet = new Set();
+    if (indices.length) {
+      const heats = [];
+      indices.forEach(n => {
+        const act = allActs[n - 1]; if (!act) return;
+        const h = parseFloat(act.heat_score); if (isFinite(h)) heats.push(h);
+        const op = (act.operator || '').toLowerCase(); if (op) opSet.add(op);
+      });
+      if (heats.length) avgHeat = heats.reduce((s,v)=>s+v,0)/heats.length;
+    }
+    return { label, indices, avgHeat, opSet };
+  }).sort((a,b) => {
+    if (a.avgHeat==null && b.avgHeat==null) return 0;
+    if (a.avgHeat==null) return 1; if (b.avgHeat==null) return -1;
+    return b.avgHeat - a.avgHeat;
+  });
+  liveSlot.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:6px;width:100%;';
+  liveSlot.innerHTML = themesMeta.map(({ label, indices, avgHeat, opSet }, i) => {
+    const color = hotColors[i % hotColors.length];
+    const heatBadge = avgHeat != null ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;background:rgba(234,88,12,0.10);color:#C2410C;border:1px solid rgba(234,88,12,0.20);border-radius:999px;padding:2px 6px;">🔥${avgHeat.toFixed(1)}</span>` : '';
+    const opTags = [...opSet].map(op => { const c=OP_CHIP_COLORS[op]||'#6B7280'; const lbl=OP_CHIP_LABELS[op]||(op[0].toUpperCase()+op.slice(1)); return `<span style="display:inline-flex;align-items:center;font-size:10px;font-weight:600;background:${c}14;color:${c};border:1px solid ${c}30;border-radius:999px;padding:2px 7px;">${lbl}</span>`; }).join('');
+    return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:${color}0d;border:1px solid ${color}28;border-radius:12px;padding:6px 12px;"><span style="font-size:11px;font-weight:700;color:${color};flex:0 0 auto;">🔥 ${label}</span>${heatBadge}${opTags}</div>`;
+  }).join('');
+}
+
 
 // ── Build catData ────────────────────────────────────────
 function _extractCatData(rawSummaries) {
@@ -2731,134 +3034,6 @@ function applyChartFilter(operatorName, catKey) {
   _refreshHotThemesForFilter(filtered);
 }
 
-// ── Hot Themes cache (base = after Apply Filter; restored on Clear Filter) ───
-let _cachedHotThemesHTML  = null;
-let _cachedHotThemesStyle = null;
-
-// ── Report cache — built incrementally after Apply Filter ─────────────────────
-// hotThemes filled by buildSummaryBanner; aiRecommendations+comparisons by updateStrategyPrompt
-let _reportCache = null;
-let _reportInsightsPersistedKey = null;
-
-function _currentKeywordString() {
-  return (($("keywords") || {}).value || '').trim();
-}
-
-function _isFullReportSelection(ops, cats) {
-  const opSet = new Set((ops || []).map(v => String(v).toLowerCase()));
-  const catSet = new Set((cats || []).map(v => String(v).toLowerCase()));
-  return REPORT_ALL_OPERATORS.every(op => opSet.has(op))
-    && REPORT_SELECTABLE_CATEGORIES.every(cat => catSet.has(cat))
-    && opSet.size === REPORT_ALL_OPERATORS.length
-    && catSet.size === REPORT_SELECTABLE_CATEGORIES.length;
-}
-
-function _reportInsightCacheKey(period, keyword) {
-  const start = period?.start || '';
-  const end = period?.end || '';
-  const kw = String(keyword || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean).sort().join(',');
-  return `${start}|${end}|${kw}`;
-}
-
-async function _persistFullReportInsightsIfReady() {
-  if (!_reportCache) return;
-  const filters = _reportCache.filters || {};
-  if (!_isFullReportSelection(filters.operators || [], filters.categories || [])) return;
-  if (!_reportCache.period?.start || !_reportCache.period?.end) return;
-  if (!Array.isArray(_reportCache.hotThemes) || !_reportCache.hotThemes.length) return;
-  if (!Array.isArray(_reportCache.aiRecommendations) || !_reportCache.aiRecommendations.length) return;
-  if (!Array.isArray(_reportCache.comparisons) || !_reportCache.comparisons.length) return;
-
-  const cacheKey = _reportInsightCacheKey(_reportCache.period, _reportCache.keyword || '');
-  if (_reportInsightsPersistedKey === cacheKey) return;
-
-  try {
-    const resp = await fetch('http://127.0.0.1:9038/api/report-insights', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from_date: _reportCache.period.start,
-        to_date: _reportCache.period.end,
-        keyword: _reportCache.keyword || '',
-        hotThemes: _reportCache.hotThemes || [],
-        aiRecommendations: _reportCache.aiRecommendations || [],
-        comparisons: _reportCache.comparisons || []
-      })
-    });
-    const data = await resp.json();
-    if (data.status === 'success') _reportInsightsPersistedKey = cacheKey;
-  } catch (err) {
-    console.warn('report insights persist failed:', err);
-  }
-}
-
-async function _fetchStoredReportInsights(period, keyword) {
-  if (!period?.start || !period?.end) return null;
-  try {
-    const params = new URLSearchParams({
-      from_date: period.start,
-      to_date: period.end,
-      keyword: keyword || ''
-    });
-    const resp = await fetch(`http://127.0.0.1:9038/api/report-insights?${params.toString()}`);
-    const data = await resp.json();
-    if (data.status !== 'success') return null;
-    return {
-      hotThemes: Array.isArray(data.hotThemes) ? data.hotThemes : [],
-      aiRecommendations: Array.isArray(data.aiRecommendations) ? data.aiRecommendations : [],
-      comparisons: Array.isArray(data.comparisons) ? data.comparisons : []
-    };
-  } catch (err) {
-    console.warn('report insights fetch failed:', err);
-    return null;
-  }
-}
-
-// Re-fetch hot themes for a filtered subset and inject into the live slot
-async function _refreshHotThemesForFilter(filteredCatData) {
-  const slot = document.getElementById('hotThemesSlot');
-  if (!slot) return;
-  slot.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;';
-  slot.innerHTML = '<span style="color:rgba(15,23,42,0.35);font-size:12px;font-style:italic;">Analysing themes…</span>';
-  const themes = await fetchHotThemes(filteredCatData);
-  const liveSlot = document.getElementById('hotThemesSlot');
-  if (!liveSlot) return;
-  if (!themes.length) {
-    liveSlot.innerHTML = '<span style="color:rgba(15,23,42,0.4);font-size:12px;font-style:italic;">No themes found for this filter</span>';
-    return;
-  }
-  const hotColors = ['#DC2626','#D97706','#7C3AED'];
-  const OP_CHIP_COLORS = { wynn:'#B45309', sands:'#1D4ED8', galaxy:'#15803D', mgm:'#7C3AED', melco:'#DB2777', sjm:'#0369A1', government:'#374151' };
-  const OP_CHIP_LABELS = { wynn:'Wynn', sands:'Sands', galaxy:'Galaxy', mgm:'MGM', melco:'Melco', sjm:'SJM', government:'Government' };
-  const allActs = Object.values(filteredCatData).flat();
-  const themesMeta = themes.map(t => {
-    const label = typeof t === 'string' ? t : (t.theme || '');
-    const indices = (typeof t === 'object' && Array.isArray(t.indices)) ? t.indices : [];
-    let avgHeat = null;
-    const opSet = new Set();
-    if (indices.length) {
-      const heats = [];
-      indices.forEach(n => {
-        const act = allActs[n - 1]; if (!act) return;
-        const h = parseFloat(act.heat_score); if (isFinite(h)) heats.push(h);
-        const op = (act.operator || '').toLowerCase(); if (op) opSet.add(op);
-      });
-      if (heats.length) avgHeat = heats.reduce((s,v)=>s+v,0)/heats.length;
-    }
-    return { label, indices, avgHeat, opSet };
-  }).sort((a,b) => {
-    if (a.avgHeat==null && b.avgHeat==null) return 0;
-    if (a.avgHeat==null) return 1; if (b.avgHeat==null) return -1;
-    return b.avgHeat - a.avgHeat;
-  });
-  liveSlot.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:6px;width:100%;';
-  liveSlot.innerHTML = themesMeta.map(({ label, indices, avgHeat, opSet }, i) => {
-    const color = hotColors[i % hotColors.length];
-    const heatBadge = avgHeat != null ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;background:rgba(234,88,12,0.10);color:#C2410C;border:1px solid rgba(234,88,12,0.20);border-radius:999px;padding:2px 6px;">🔥${avgHeat.toFixed(1)}</span>` : '';
-    const opTags = [...opSet].map(op => { const c=OP_CHIP_COLORS[op]||'#6B7280'; const lbl=OP_CHIP_LABELS[op]||(op[0].toUpperCase()+op.slice(1)); return `<span style="display:inline-flex;align-items:center;font-size:10px;font-weight:600;background:${c}14;color:${c};border:1px solid ${c}30;border-radius:999px;padding:2px 7px;">${lbl}</span>`; }).join('');
-    return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:${color}0d;border:1px solid ${color}28;border-radius:12px;padding:6px 12px;"><span style="font-size:11px;font-weight:700;color:${color};flex:0 0 auto;">🔥 ${label}</span>${heatBadge}${opTags}</div>`;
-  }).join('');
-}
 
 function clearChartFilter() {
   _chartFilter = { operator: null, catKey: null };
@@ -2876,7 +3051,6 @@ function clearChartFilter() {
   renderBarChart();
   if (typeof window.refreshHabChart === 'function') window.refreshHabChart();
 }
-
 // ── Master "Clear Filter" — resets ALL chart/heatmap drill-down filters ──────
 // Does NOT touch: nav bar, organiser checkboxes, category checkboxes
 let _suppressClearRerender = false;
@@ -3230,7 +3404,7 @@ function refreshAnalyticsCharts(rawSummaries) {
   const _cats = typeof getSelectedValues === 'function' ? getSelectedValues('category') : [];
   _appliedFilterState = {
     operators:  _ops.length  ? _ops  : ['wynn','sands','galaxy','mgm','melco','sjm','government'],
-    categories: _cats.length ? _cats : ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping','gaming']
+    categories: _cats.length ? _cats : ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping']
   };
   _chartFilter  = { operator: null, catKey: null };
   const banner  = document.getElementById('chartFilterBanner');
@@ -3297,23 +3471,24 @@ window.renderGroupedResults = async function(summaries, isCrawling) {
   if (typeof window._rebuildHeatmap === 'function') window._rebuildHeatmap();
   if (typeof window._rebuildHeatAvgChart === 'function') window._rebuildHeatAvgChart();
 
-  // Initialise report cache whenever a live Apply Filter completes (not crawling, not demo)
-  if (_hasAppliedFilters && !isCrawling) {
-    const _fromDate = (document.getElementById('fromDate') || {}).value || '';
-    const _toDate   = (document.getElementById('toDate')   || {}).value || '';
-    _reportCache = {
-      rawSummaries:      summaries,
-      filters:           { operators: [..._appliedFilterState.operators], categories: [..._appliedFilterState.categories] },
-      period:            { start: _fromDate, end: _toDate },
-      keyword:           _currentKeywordString(),
-      hotThemes:         [],   // filled async by buildSummaryBanner → fetchHotThemes
-      aiRecommendations: [],   // filled async by updateStrategyPrompt → fetchAiWynnRecommendations
-      comparisons:       []    // filled async by updateStrategyPrompt
-    };
-    _reportInsightsPersistedKey = null;
+  // Initialise report cache whenever a live Apply Filter completes
+  if (!isCrawling) {
+      const _fromDate = (document.getElementById('fromDate') || {}).value || '';
+      const _toDate   = (document.getElementById('toDate')   || {}).value || '';
+      _reportCache = {
+        rawSummaries:      summaries,
+        filters:           { operators: [..._appliedFilterState.operators], categories: [..._appliedFilterState.categories] },
+        period:            { start: _fromDate, end: _toDate },
+        keyword:           _currentKeywordString(),
+        hotThemes:         _reportCache?.hotThemes?.length         ? _reportCache.hotThemes         : [],
+        aiRecommendations: _reportCache?.aiRecommendations?.length ? _reportCache.aiRecommendations : [],
+        comparisons:       _reportCache?.comparisons?.length       ? _reportCache.comparisons       : [],
+      };
+      _reportInsightsPersistedKey = null;
+      console.log('[ReportCache] initialised for', _fromDate, '→', _toDate);
+      if (typeof updateStrategyPrompt === 'function') setTimeout(() => updateStrategyPrompt(), 0);
   }
 
-  if (typeof updateStrategyPrompt === 'function') updateStrategyPrompt();
 };
 
 // ── Patch fillResults (DEMO mode) ────────────────────────
@@ -3366,9 +3541,10 @@ function _checkedCats() { return typeof getSelectedValues==='function' ? getSele
 
 // ── Analytics state globals (used by Wynn positioning + heatmap) ─────────────
 let _hasAppliedFilters = false;
+let _analysesComplete = false; 
 let _appliedFilterState = {
   operators: ['wynn','sands','galaxy','mgm','melco','sjm','government'],
-  categories: ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping','gaming']
+  categories: ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping']
 };
 function _analyticsOps()  { return _appliedFilterState.operators  || []; }
 function _analyticsCats() { return _appliedFilterState.categories || []; }
@@ -3388,7 +3564,6 @@ const DEMO_THEME_HEAT = {
   shopping:      { galaxy:62.9, wynn:56.4, sands:42.8,  sjm:35.1,  mgm:18.6, melco:27.0,  government:0 },
   accommodation: { wynn:64.0,  melco:59.1, mgm:54.8,   sands:40.7, galaxy:36.4, sjm:33.9, government:0 },
   sport:         { melco:83.3, sands:71.8, galaxy:63.1, wynn:44.0, mgm:39.0,  sjm:34.0,  government:37.0 },
-  gaming:        { wynn:62.0,  sands:55.0, galaxy:41.0, mgm:36.0,  melco:33.0, sjm:31.0,  government:0 }
 };
 
 // DEMO event counts per category per operator (used by bar chart in DEMO mode)
@@ -3397,7 +3572,6 @@ const DEMO_EVT_COUNTS = {
   exhibition:    { sands:2, wynn:1, galaxy:0, mgm:1, melco:0, sjm:0, government:0 },
   experience:    { government:1, wynn:0, sands:3, galaxy:0, mgm:2, melco:0, sjm:0 },
   food:          { galaxy:1, wynn:3, sands:1, mgm:0, melco:0, sjm:0, government:0 },
-  gaming:        { wynn:2, sands:1, mgm:1, sjm:1, galaxy:0, melco:0, government:0 },
   accommodation: { wynn:1, sands:1, galaxy:1, melco:1, mgm:0, sjm:2, government:0 },
   shopping:      { sands:1, galaxy:1, sjm:1, wynn:0, mgm:0, melco:0, government:0 },
   crossover:     { galaxy:1, mgm:1, melco:1, wynn:0, sands:0, sjm:0, government:2 },
@@ -3640,7 +3814,7 @@ function _chartDataSource() {
 
   // Expose so external refreshes (after crawl) can rebuild
   window._rebuildTierChart = buildTierChart;
-
+  
   // Expose clear function for the master "Clear Filter" button
   window._clearTierFilter = function() {
     if (_tf.op || _tf.tier) {
@@ -3683,7 +3857,7 @@ function _chartDataSource() {
   let heatAvgChart = null;
   let _activeHabOp = null;
 
-  // Build a {opLc: avgHeat} map from live _chartDataSource() for a given category
+ // Build a {opLc: avgHeat} map from live _chartDataSource() for a given category
   function _liveHeatMapForCat(cat) {
     if (!_hasAppliedFilters) return null;
     const liveData = (typeof _chartDataSource === 'function') ? _chartDataSource() : {};
@@ -3789,19 +3963,34 @@ function _chartDataSource() {
         const {ctx,scales:{x}} = chart;
         const ff=getComputedStyle(document.body).fontFamily||'sans-serif';
         const meta=chart.getDatasetMeta(0);
-        meta.data.forEach((bar,i) => {
-          const val=values[i], op=ops[i], isMax=val===maxVal;
-          const bRight=x.getPixelForValue(val), bLeft=x.getPixelForValue(0);
-          const bw=bRight-bLeft, by=bar.y;
-          ctx.save();
-          ctx.font='700 12px '+ff; ctx.fillStyle='rgba(0,0,0,0.82)';
-          ctx.textBaseline='middle';
-          if (bw>40) {
-            ctx.textAlign='right'; ctx.fillText(val.toFixed(1), bRight-8, by);
-          } else {
-            ctx.textAlign='left'; ctx.fillText(val.toFixed(1), bRight+5, by);
-          }
-          ctx.restore();
+	        meta.data.forEach((bar,i) => {
+	          const val=values[i], op=ops[i], isMax=val===maxVal;
+	          const bRight=x.getPixelForValue(val), bLeft=x.getPixelForValue(0);
+	          const bw=bRight-bLeft, by=bar.y;
+	          const valueText = val.toFixed(1);
+	          ctx.save();
+            ctx.font='700 12px '+ff; ctx.fillStyle='rgba(0,0,0,0.82)';
+	          ctx.textBaseline='middle';
+	          ctx.fillStyle='rgba(0,0,0,0.82)';
+	          let fittedFontSize = 12;
+	          let fittedInside = false;
+	          for (let size = 12; size >= 8; size -= 1) {
+	            ctx.font = '700 ' + size + 'px ' + ff;
+	            if (ctx.measureText(valueText).width <= bw - 10) {
+	              fittedFontSize = size;
+	              fittedInside = true;
+	              break;
+	            }
+	          }
+	          ctx.font = '700 ' + fittedFontSize + 'px ' + ff;
+	          if (fittedInside && bw > 18) {
+	            ctx.textAlign='center';
+	            ctx.fillText(valueText, bLeft + bw / 2, by);
+	          } else {
+	            ctx.textAlign='left';
+	            ctx.fillText(valueText, bRight+5, by);
+	          }
+	          ctx.restore();
           if (isMax) {
             const isWynn=op==='wynn';
             const badge = isWynn ? '\u2605 Wynn leads' : (_OP_LABEL[op]||op)+' leads';
@@ -3892,7 +4081,7 @@ function _chartDataSource() {
     buildPills();
     renderHeatAvgChart();
   };
-
+  
   // Expose clear for the master "Clear Filter" button
   window._clearHabFilter = function() {
     if (_activeHabOp) {
@@ -4421,17 +4610,17 @@ function _chartDataSource() {
       {
         catKey: "food",
         type: "keep_up",
-        text: "永利在澳門餐飲類別具有絕對領先地位（Wing Lei連續16年米芝蓮星級，Chef Tam's Seasons為澳門唯一兩星餐廳），建議持續以Fine Dining為核心差異化資產，推出主廚私宴系列，並配合Wynn Insider會員專屬預覽禮遇，將餐飲優勢轉化為住宿及零售消費的帶動力。"
+        text: "建議永利延續米芝蓮 Fine Dining 優勢，推出主庋私宴系列，配合 Wynn Insider 會員專屬預覽礼遇，將餐飲優勢轉化為住宿及零售消費的帶動力。"
       },
       {
         catKey: "concert",
         type: "keep_up",
-        text: "永利現時場地規模（約1,200座）無法與Galaxy銀河綜藝館（16,000座）在大型演唱會市場正面競爭，惟現有演唱會的平均熱度（70.6）已領先市場。建議專注精品演出路線，同時積極與熱度逾60的頭部藝人建立長線合作關係，待2028年新場館落成後優先邀請，屆時方可全面部署大型演唱會策略。"
+        text: "建議永利專注精品演出路線，構建與高熱度歌手的長線合作關係，待 2028 年新場館落成後優先邀請。"
       },
       {
         catKey: "accommodation",
         type: "keep_up",
-        text: "永利皇宮為全球規模最大的Forbes五星度假村（2026年Forbes合共63粒星，澳門之冠），建議深化住宿、Fine Dining與水療三位一體的奢華套餐體驗，以個人化禮賓服務作核心差異化，持續鞏固頂端賓客黏性，無需追求客房規模擴張。"
+        text: "深化住宿、Fine Dining 與水療三位一體的奊華套餐體驗，以個人化禄賓服務作核心差異化，持續巩固頂端賓客黏性。"
       }
     ];
 
@@ -4537,11 +4726,12 @@ function _chartDataSource() {
       }
       if (status) status.textContent = 'Analysing recommendations for Wynn…';
 
-      const { comparisons, selectedOps, events, summary } = state;
-      if (!events || !events.length || !comparisons || !comparisons.length) {
-        if (list) list.innerHTML = `<li class="prompt-item"><div class="prompt-item-body" style="color:rgba(15,23,42,0.4);font-size:13px;">Apply filters to generate recommendations.</div></li>`;
-        return;
-      }
+	      const { comparisons, selectedOps, events, summary } = state;
+	      if (!events || !events.length || !comparisons || !comparisons.length) {
+	        if (list) list.innerHTML = `<li class="prompt-item"><div class="prompt-item-body" style="color:rgba(15,23,42,0.4);font-size:13px;">Apply filters to generate recommendations.</div></li>`;
+	        _markReportAnalysisReady('recommendationsReady');
+	        return;
+	      }
 
       const aiRecommendations = await fetchAiWynnRecommendations(comparisons, selectedOps, events, summary);
       if (reqSeq !== _strategyPromptReqSeq) return;
@@ -4549,12 +4739,11 @@ function _chartDataSource() {
       function buildHeatRankingHtml(catKey) {
         const comp = comparisons.find(c => c.catKey === catKey);
         if (!comp) return '';
-        const all = [
-          { opTitle: 'Wynn', count: comp.wynn?.count || 0, avg: comp.wynn?.avg || 0 },
-          ...(comp.opponents || [])
-        ].filter(r => r.count > 0).sort((a, b) => (b.avg || 0) - (a.avg || 0));
-        if (!all.length) return '';
-
+        // Always include Wynn even if count=0 — so users can see Wynn's position (or absence)
+        const wynnRow = { opTitle: 'Wynn', count: comp.wynn?.count || 0, avg: comp.wynn?.avg || 0 };
+        const opponents = (comp.opponents || []).filter(r => r.count > 0);
+        const all = [wynnRow, ...opponents].sort((a, b) => (b.avg || 0) - (a.avg || 0));
+        // Always render — Wynn always present even with count=0
         const rows = all.map((r, i) => {
           const isWynn = r.opTitle === 'Wynn';
           const color = OP_COLORS[r.opTitle] || '#6B7280';
@@ -4562,21 +4751,22 @@ function _chartDataSource() {
           const rankColor = isWynn ? '#92400E' : 'rgba(15,23,42,0.45)';
           const rowBg = isWynn ? 'rgba(234,179,8,0.08)' : 'transparent';
           const rowBorder = isWynn ? '1px solid rgba(234,179,8,0.22)' : '1px solid transparent';
+          const heatBadge = r.count === 0
+            ? `<span style="font-size:12px;font-weight:600;color:#9CA3AF;font-style:italic;">no events</span>`
+            : `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;background:rgba(249,115,22,0.10);border:1px solid rgba(249,115,22,0.22);font-size:12px;font-weight:700;color:#C2410C;">🔥 avg ${fmtNum(r.avg)}</span>`;
           return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:10px;background:${rowBg};border:${rowBorder};">
             <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${rankBg};font-size:11px;font-weight:800;color:${rankColor};flex:0 0 auto;">${i+1}</span>
             <span style="font-size:13px;font-weight:700;color:${color};">${r.opTitle}</span>
             <span style="font-size:12px;font-weight:500;color:rgba(15,23,42,0.5);">: ${r.count}</span>
-            <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;background:rgba(249,115,22,0.10);border:1px solid rgba(249,115,22,0.22);font-size:12px;font-weight:700;color:#C2410C;">🔥 avg ${fmtNum(r.avg)}</span>
+            ${heatBadge}
           </div>`;
         }).join('');
-
         const catLabel = CAT_LABELS_ZH[catKey] || catKey;
         return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(15,23,42,0.07);">
           <div style="font-size:10px;font-weight:700;color:rgba(15,23,42,0.35);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;">Heat Ranking · ${catLabel}</div>
           <div style="display:flex;flex-direction:column;gap:4px;">${rows}</div>
         </div>`;
       }
-
       const OP_COLOR_MAP = { Wynn:'#B45309', Sands:'#1D4ED8', Galaxy:'#047857', MGM:'#991B1B', Melco:'#6D28D9', SJM:'#0E7490', Government:'#374151' };
       function colorizeOps(text) {
         // Add 🔥 before heat/熱度 numbers
@@ -4596,14 +4786,16 @@ function _chartDataSource() {
       const n_recs = Math.min(comparisons.length, 3);
       const cards = (aiRecommendations || []).slice(0, n_recs).map(rec => {
         const catKey   = String(rec.catKey || '').toLowerCase();
-        const type     = String(rec.type || 'improve').toLowerCase();
+        // If Wynn has no events in this category, it cannot be "keep_up" — force to "improve"
+        const comp4type = comparisons.find(c => c.catKey === catKey);
+        const wynnHasEvents = (comp4type?.wynn?.count || 0) > 0;
+        const type     = (!wynnHasEvents && String(rec.type || '').toLowerCase() === 'keep_up') ? 'improve' : String(rec.type || 'improve').toLowerCase();
         const rawText  = String(rec.text || '');
         const cfg      = TYPE_CONFIG[type] || TYPE_CONFIG.improve;
         const catIcon  = CAT_ICONS[catKey] || '📍';
         const catLabel = CAT_LABELS_ZH[catKey] || catKey;
         const formattedText = colorizeOps(rawText);
         const heatHtml = buildHeatRankingHtml(catKey);
-
         return `<div style="display:flex;gap:12px;align-items:flex-start;padding:16px 18px;border-radius:18px;
             background:${cfg.bg};border:1px solid ${cfg.border};margin-bottom:12px;">
           <div style="flex:0 0 auto;width:36px;height:36px;border-radius:12px;
@@ -4631,19 +4823,17 @@ function _chartDataSource() {
           <div style="padding:4px 2px;">${cards || '<span style="color:rgba(15,23,42,0.4);font-size:13px;">No recommendations available.</span>'}</div>
         </li>`;
       }
-      if (status) status.textContent = `Strategic recommendations ready · ${events.length} events · ${selectedOps.length} operators`;
-
-      // Save into report cache so Preview Report can use them instantly
-      if (_reportCache && aiRecommendations && aiRecommendations.length) {
-        _reportCache.aiRecommendations = aiRecommendations;
-        _reportCache.comparisons = comparisons.map(item => ({
+	      if (status) status.textContent = `Strategic recommendations ready · ${events.length} events · ${selectedOps.length} operators`;
+	      _markReportAnalysisReady('recommendationsReady');
+        // Save into report cache so Preview Report can use them instantly
+	      if (_reportCache && aiRecommendations && aiRecommendations.length) {
+	        _reportCache.aiRecommendations = aiRecommendations;
+          _reportCache.comparisons = comparisons.map(item => ({
           catKey: item.catKey, label: item.label,
           wynn: { count: item.wynn?.count ?? 0, avgHeat: item.wynn?.avg ?? 0, topEventName: item.wynn?.topEvent?.name || '' },
           opponents: (item.opponents || []).map(opp => ({
-            organiser: opp.opTitle,
-            count: opp.count ?? 0,
-            avgHeat: opp.avg ?? 0,
-            topEventName: opp.topEvent?.name || ''
+            organiser: opp.opTitle, count: opp.count ?? 0,
+            avgHeat: opp.avg ?? 0, topEventName: opp.topEvent?.name || ''
           })),
           topOpponent: item.topOpponent ? {
             organiser: item.topOpponent.opTitle, count: item.topOpponent.count,
@@ -4652,16 +4842,17 @@ function _chartDataSource() {
           wynnLeads: (item.wynn?.count ?? 0) > 0 && (!item.topOpponent || (item.wynn?.avg ?? 0) > (item.topOpponent?.avg ?? 0))
         }));
         _persistFullReportInsightsIfReady();
+        _analysesComplete = true;   
+        _updateReportButtons();    
       }
     }
-
 // ── Activity Heatmap ─────────────────────────────────────────────────────────
 (function() {
   const HM_OP_ORDER = ['Wynn', 'Sands', 'Galaxy', 'MGM', 'Melco', 'SJM', 'Government'];
   const HM_OP_LC_MAP = { Wynn:'wynn', Sands:'sands', Galaxy:'galaxy', MGM:'mgm', Melco:'melco', SJM:'sjm', Government:'government' };
-  const HM_CAT_ORDER = ['concert', 'exhibition', 'experience', 'sport', 'crossover', 'accommodation', 'food', 'shopping', 'gaming'];
-  const HM_CAT_LABELS = { concert:'Concert', exhibition:'Exhibition', experience:'Experience', sport:'Sport', crossover:'Crossover', accommodation:'Hotel', food:'Food', shopping:'Shopping', gaming:'Gaming' };
-  const HM_CAT_ICONS  = { concert:'🎤', exhibition:'🖼️', experience:'✨', sport:'🏅', crossover:'🤝', accommodation:'🏨', food:'🍽️', shopping:'🛍️', gaming:'🎰' };
+  const HM_CAT_ORDER = ['concert', 'exhibition', 'experience', 'sport', 'crossover', 'accommodation', 'food', 'shopping'];
+  const HM_CAT_LABELS = { concert:'Concert', exhibition:'Exhibition', experience:'Experience', sport:'Sport', crossover:'Crossover', accommodation:'Hotel', food:'Food', shopping:'Shopping' };
+  const HM_CAT_ICONS  = { concert:'🎤', exhibition:'🖼️', experience:'✨', sport:'🏅', crossover:'🤝', accommodation:'🏨', food:'🍽️', shopping:'🛍️' };
   const DEMO_CELLS = {
     concert:       { wynn:{n:2,h:54.0}, sands:{n:3,h:50.2}, galaxy:{n:1,h:42.4}, mgm:{n:2,h:50.0}, melco:{n:3,h:57.7}, sjm:{n:2,h:33.7}, government:{n:0,h:null} },
     food:          { wynn:{n:2,h:50.0}, sands:{n:3,h:41.5}, galaxy:{n:3,h:31.8}, mgm:{n:2,h:43.4}, melco:{n:2,h:59.6}, sjm:{n:2,h:41.6}, government:{n:1,h:29.0} },
@@ -4671,7 +4862,7 @@ function _chartDataSource() {
     shopping:      { wynn:{n:2,h:56.4}, sands:{n:2,h:42.8}, galaxy:{n:3,h:62.9}, mgm:{n:1,h:18.6}, melco:{n:1,h:27.0}, sjm:{n:2,h:35.1}, government:{n:0,h:null} },
     accommodation: { wynn:{n:3,h:64.0}, sands:{n:2,h:40.7}, galaxy:{n:2,h:36.4}, mgm:{n:3,h:54.8}, melco:{n:2,h:59.1}, sjm:{n:1,h:33.9}, government:{n:0,h:null} },
     sport:         { wynn:{n:1,h:44.0}, sands:{n:2,h:71.8}, galaxy:{n:2,h:63.1}, mgm:{n:1,h:39.0}, melco:{n:3,h:83.3}, sjm:{n:1,h:34.0}, government:{n:1,h:37.0} },
-    gaming:        { wynn:{n:3,h:62.0}, sands:{n:3,h:55.0}, galaxy:{n:1,h:41.0}, mgm:{n:1,h:36.0}, melco:{n:1,h:33.0}, sjm:{n:1,h:31.0}, government:{n:0,h:null} },
+    
   };
 
   function hmColour(value) {
@@ -4763,7 +4954,7 @@ function _chartDataSource() {
   }
 
   window._rebuildHeatmap = buildHeatmap;
-
+  
   // Expose clear for the master "Clear Filter" button
   // The heatmap has no internal filter state — clearing means hiding its banner
   // (the events re-render is handled by clearAllChartFilters → clearChartFilter)
@@ -4784,9 +4975,8 @@ if (typeof window._initPage === 'function') window._initPage();
 
 <script>
 // ── Collect Report Data & open download_report.html ──────────────────────────
-const REPORT_ALL_OPERATORS = ['wynn','sands','galaxy','mgm','melco','sjm','government'];
-const REPORT_ALL_CATEGORIES = ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping','gaming'];
-const REPORT_SELECTABLE_CATEGORIES = ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping'];
+
+
 
 function _normaliseReportCatData(rawSummaries) {
   const catData = {};
@@ -4799,7 +4989,7 @@ function _normaliseReportCatData(rawSummaries) {
   return catData;
 }
 
-async function collectReportData() {
+async function collectReportData(openReport = true) {
   if (!_hasAppliedFilters || !_reportCache?.rawSummaries) {
     alert('Please apply filters in the operation panel!');
     return;
@@ -4834,16 +5024,18 @@ async function collectReportData() {
   for (const [catKey, acts] of Object.entries(catData)) {
     catCounts[catKey] = acts.length;
     for (const act of acts) {
-      const op = (act.operator || 'unknown').toLowerCase();
-      opCounts[op] = (opCounts[op] || 0) + 1;
+      const op = (act.operator||'unknown').toLowerCase();
+      opCounts[op] = (opCounts[op]||0)+1;
     }
   }
   const sortedOps  = Object.entries(opCounts).sort((a, b) => b[1] - a[1]);
   const sortedCats = Object.entries(catCounts).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
   const topOp  = sortedOps[0]?.[0]  ?? null;
   const topCat = sortedCats[0]?.[0] ?? null;
-  const _OP_L  = { wynn:'Wynn', sands:'Sands', galaxy:'Galaxy', mgm:'MGM', melco:'Melco', sjm:'SJM', government:'Government' };
-  const _CAT_L = { concert:'Concert', sport:'Sport', crossover:'Crossover', exhibition:'Exhibition', experience:'Experience', food:'Food', accommodation:'Hotel', shopping:'Shopping', gaming:'Gaming' };
+ 
+  const _OP_L  = {wynn:'Wynn',sands:'Sands',galaxy:'Galaxy',mgm:'MGM',melco:'Melco',sjm:'SJM',government:'Government'};
+  const _CAT_L = {concert:'Concert',sport:'Sport',crossover:'Crossover',exhibition:'Exhibition',experience:'Experience',food:'Food',accommodation:'Hotel',shopping:'Shopping'};
+ 
   const kpis = {
     totalEvents,
     topOrganiserKey:     topOp,
@@ -4854,19 +5046,19 @@ async function collectReportData() {
     topCategoryCount:    sortedCats[0]?.[1] ?? 0,
     activeOrganiserCount: sortedOps.length
   };
-
-  // ── Summary paragraph ────────────────────────────────────────────────────────
-  const top3Cats = sortedCats.slice(0, 3).map(([k]) => _CAT_L[k] || k).join(', ');
+ 
+  // 4. Summary paragraph
+  const top3Cats = sortedCats.slice(0,3).map(([k])=>_CAT_L[k]||k).join(', ');
   const summary = {
-    paragraph: `This preview report covers the currently applied filter set for the selected period, with ${totalEvents} event${totalEvents !== 1 ? 's' : ''} across ${kpis.activeOrganiserCount} organiser${kpis.activeOrganiserCount !== 1 ? 's' : ''}. ${kpis.topOrganiser} leads with ${kpis.topOrganiserCount} event${kpis.topOrganiserCount !== 1 ? 's' : ''}. Top categories: ${top3Cats || '—'}.`
+    paragraph: `This period covers ${totalEvents} event${totalEvents!==1?'s':''} across ${kpis.activeOrganiserCount} organiser${kpis.activeOrganiserCount!==1?'s':''}. ${kpis.topOrganiser} leads with ${kpis.topOrganiserCount} event${kpis.topOrganiserCount!==1?'s':''}. Top categories: ${top3Cats||'—'}.`
   };
-
-  // ── Events by category ───────────────────────────────────────────────────────
-  const _OP_C = { wynn:'#B45309', sands:'#1D4ED8', galaxy:'#047857', mgm:'#991B1B', melco:'#6D28D9', sjm:'#0E7490', government:'#374151' };
+ 
+  // 5. Events grouped by category (preserve raw date string — may include ranges like 2026-03-12~2026-03-22)
+  const _OP_C = {wynn:'#B45309',sands:'#1D4ED8',galaxy:'#047857',mgm:'#991B1B',melco:'#6D28D9',sjm:'#0E7490',government:'#374151'};
   const events = {};
   for (const [catKey, acts] of Object.entries(catData)) {
     events[catKey] = acts.map(act => {
-      const opKey = (act.operator || '').toLowerCase();
+      const opKey = (act.operator||'').toLowerCase();
       return {
         name:             act.name        || '',
         description:      act.description || act.overview || act.desc || '',
@@ -4874,30 +5066,46 @@ async function collectReportData() {
         organiserKey:     opKey,
         organiserColor:   _OP_C[opKey]    || '#6B7280',
         heat_score:       act.heat_score  ?? null,
-        date:             act.date        || '',
+        date:             act.date        || '',   // kept raw — may be "YYYY-MM-DD~YYYY-MM-DD"
         location:         act.location    || '',
         predictedVisitors: act.predictedVisitors || act.predicted_visitors || ''
       };
     });
   }
-
-  // ── Heatmap data ─────────────────────────────────────────────────────────────
+ 
+  // 6. Heatmap data
   const HM_OP_ORDER  = ['Wynn','Sands','Galaxy','MGM','Melco','SJM','Government'];
-  const HM_OP_LC_MAP = { Wynn:'wynn', Sands:'sands', Galaxy:'galaxy', MGM:'mgm', Melco:'melco', SJM:'sjm', Government:'government' };
-  const HM_CAT_ORDER = ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping','gaming'];
-  const heatmapData  = {};
+  const HM_OP_LC_MAP = {Wynn:'wynn',Sands:'sands',Galaxy:'galaxy',MGM:'mgm',Melco:'melco',SJM:'sjm',Government:'government'};
+  const HM_CAT_ORDER = ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping'];
+  const DEMO_CELLS = {
+    concert:       {wynn:{n:2,h:54.0},sands:{n:3,h:50.2},galaxy:{n:1,h:42.4},mgm:{n:2,h:50.0},melco:{n:3,h:57.7},sjm:{n:2,h:33.7},government:{n:0,h:null}},
+    food:          {wynn:{n:2,h:50.0},sands:{n:3,h:41.5},galaxy:{n:3,h:31.8},mgm:{n:2,h:43.4},melco:{n:2,h:59.6},sjm:{n:2,h:41.6},government:{n:1,h:29.0}},
+    exhibition:    {wynn:{n:2,h:43.6},sands:{n:2,h:50.9},galaxy:{n:3,h:48.2},mgm:{n:1,h:43.9},melco:{n:3,h:69.8},sjm:{n:2,h:52.7},government:{n:1,h:34.0}},
+    experience:    {wynn:{n:3,h:49.6},sands:{n:2,h:49.5},galaxy:{n:2,h:38.6},mgm:{n:3,h:53.9},melco:{n:2,h:63.7},sjm:{n:1,h:28.7},government:{n:2,h:35.0}},
+    crossover:     {wynn:{n:1,h:53.9},sands:{n:3,h:45.4},galaxy:{n:2,h:31.7},mgm:{n:2,h:42.8},melco:{n:3,h:68.3},sjm:{n:1,h:44.3},government:{n:1,h:30.0}},
+    shopping:      {wynn:{n:2,h:56.4},sands:{n:2,h:42.8},galaxy:{n:3,h:62.9},mgm:{n:1,h:18.6},melco:{n:1,h:27.0},sjm:{n:2,h:35.1},government:{n:0,h:null}},
+    accommodation: {wynn:{n:3,h:64.0},sands:{n:2,h:40.7},galaxy:{n:2,h:36.4},mgm:{n:3,h:54.8},melco:{n:2,h:59.1},sjm:{n:1,h:33.9},government:{n:0,h:null}},
+    sport:         {wynn:{n:1,h:44.0},sands:{n:2,h:71.8},galaxy:{n:2,h:63.1},mgm:{n:1,h:39.0},melco:{n:3,h:83.3},sjm:{n:1,h:34.0},government:{n:1,h:37.0}},
+    
+  };
+  const hasLiveData = _hasAppliedFilters && Object.values(catData).some(a=>a&&a.length>0);
+  const heatmapData = {};
   for (const cat of HM_CAT_ORDER) {
     heatmapData[cat] = {};
     for (const op of HM_OP_ORDER) {
       const opLc = HM_OP_LC_MAP[op];
-      const matching = (catData[cat] || []).filter(a => (a.operator || '').toLowerCase() === opLc);
-      const heats = matching.map(a => parseFloat(a.heat_score)).filter(v => isFinite(v));
-      heatmapData[cat][opLc] = { n: matching.length, h: heats.length ? heats.reduce((s, v) => s + v, 0) / heats.length : null };
+      if (!hasLiveData) {
+        heatmapData[cat][opLc] = DEMO_CELLS[cat]?.[opLc] || {n:0,h:null};
+      } else {
+        const matching = (catData[cat]||[]).filter(a=>(a.operator||'').toLowerCase()===opLc);
+        const heats = matching.map(a=>parseFloat(a.heat_score)).filter(v=>isFinite(v));
+        heatmapData[cat][opLc] = {n:matching.length, h:heats.length?heats.reduce((s,v)=>s+v,0)/heats.length:null};
+      }
     }
   }
-
+ 
   // ── Chart data ───────────────────────────────────────────────────────────────
-  const _CAT_C = { concert:'#7C3AED', sport:'#DC2626', crossover:'#D97706', exhibition:'#0891B2', experience:'#059669', food:'#EA580C', accommodation:'#2563EB', shopping:'#EC4899', gaming:'#BE185D' };
+  const _CAT_C = { concert:'#7C3AED', sport:'#DC2626', crossover:'#D97706', exhibition:'#0891B2', experience:'#059669', food:'#EA580C', accommodation:'#2563EB', shopping:'#EC4899'};
   const allActs = Object.entries(catData).flatMap(([catKey, acts]) =>
     (acts || []).map(act => ({ ...act, _catKey: catKey }))
   );
@@ -4927,34 +5135,34 @@ async function collectReportData() {
 
   const eventDistributionByCategory = activeCatKeys.map(catKey => ({
     catKey,
-    label: _CAT_L[catKey] || catKey,
-    color: _CAT_C[catKey] || '#6B7280',
+    label: _CAT_L[catKey]||catKey,
+    color: _CAT_C[catKey]||'#6B7280',
     items: activeOpKeys.map(opKey => ({
       organiserKey: opKey,
-      label: _OP_L[opKey] || opKey,
-      color: _OP_C[opKey] || '#6B7280',
-      value: (catData[catKey] || []).filter(a => (a.operator || '').toLowerCase() === opKey).length
+      label: _OP_L[opKey]||opKey,
+      color: _OP_C[opKey]||'#6B7280',
+      value: (catData[catKey]||[]).filter(a => (a.operator||'').toLowerCase() === opKey).length
     }))
   })).filter(row => row.items.some(item => item.value > 0));
 
   const avgHeatByCategory = activeCatKeys.map(catKey => ({
     catKey,
-    label: _CAT_L[catKey] || catKey,
-    color: _CAT_C[catKey] || '#6B7280',
+    label: _CAT_L[catKey]||catKey,
+    color: _CAT_C[catKey]||'#6B7280',
     items: activeOpKeys.map(opKey => {
-      const organiserActs = (catData[catKey] || []).filter(a => (a.operator || '').toLowerCase() === opKey);
+      const organiserActs = (catData[catKey]||[]).filter(a => (a.operator||'').toLowerCase() === opKey);
       const heats = organiserActs.map(a => parseFloat(a.heat_score)).filter(v => isFinite(v));
       return {
         organiserKey: opKey,
-        label: _OP_L[opKey] || opKey,
-        color: _OP_C[opKey] || '#6B7280',
-        value: heats.length ? heats.reduce((s, v) => s + v, 0) / heats.length : 0
+        label: _OP_L[opKey]||opKey,
+        color: _OP_C[opKey]||'#6B7280',
+        value: heats.length ? heats.reduce((s,v) => s+v, 0)/heats.length : 0
       };
     })
   })).filter(row => row.items.some(item => item.value > 0));
 
   const heatTierByOrganiser = activeOpKeys.map(opKey => {
-    const organiserActs = allActs.filter(a => (a.operator || '').toLowerCase() === opKey);
+    const organiserActs = allActs.filter(a => (a.operator||'').toLowerCase() === opKey);
     const heats = organiserActs.map(a => parseFloat(a.heat_score)).filter(v => isFinite(v));
     const high = heats.filter(v => v >= 60).length;
     const mid  = heats.filter(v => v >= 30 && v < 60).length;
@@ -4969,64 +5177,150 @@ async function collectReportData() {
   });
 
   const chartData = {
-    categoryMix,
+    categoryMix, 
     heatByOrganiser,
     categoryShareByOrganiser,
     eventDistributionByCategory,
     avgHeatByCategory,
     heatTierByOrganiser
   };
-
-  // ── Leaderboard ──────────────────────────────────────────────────────────────
+ 
+  // 8. Leaderboard (async from bridge.py)
   let leaderboard = [];
   try {
-    const rankedActs = allActs
-      .filter(act => act.heat_score != null)
-      .sort((a, b) => (b.heat_score || 0) - (a.heat_score || 0));
-    leaderboard = rankedActs.slice(0, 10).map((act, i) => {
-      const opKey = (act.operator || '').toLowerCase();
-      return { rank: i + 1, name: act.name || '', description: act.description || '',
-        organiserKey: opKey, organiser: _OP_L[opKey] || opKey,
-        category: act.category || act._catKey || '', heat_score: act.heat_score ?? 0,
-        decay_factor: act.decay_factor ?? 1, newest_post: act.newest_post || '',
-        platforms: act.platforms || [], source_count: act.source_count || 0 };
-    });
-  } catch (e) { console.warn('Leaderboard build failed:', e); }
-
-  // ── Hot Themes — from cache (set by buildSummaryBanner after fetchHotThemes) ─
-  const hotThemes = Array.isArray(_reportCache?.hotThemes) ? _reportCache.hotThemes : [];
-
-  // ── AI Strategy — from cache (set by updateStrategyPrompt after API returns) ─
-  const cachedComparisons = Array.isArray(_reportCache?.comparisons) ? _reportCache.comparisons : [];
+    const _from = (document.getElementById('fromDate')||{}).value||'';
+    const _to   = (document.getElementById('toDate')||{}).value||'';
+    const res = await fetch(
+      `http://127.0.0.1:9038/api/heat/leaderboard-ai?top=10&from_date=${_from}&to_date=${_to}`
+    );
+    const lb  = await res.json();
+    if (lb.success && Array.isArray(lb.top_overall)) {
+      leaderboard = lb.top_overall.map(e=>({
+        rank:e.rank, name:e.name, description:e.description||'',
+        organiserKey:(e.operator||'').toLowerCase(),
+        organiser:_OP_L[(e.operator||'').toLowerCase()]||e.operator||'',
+        category:e.category||'', heat_score:e.heat_score??0,
+        decay_factor:e.decay_factor??1, newest_post:e.newest_post||'',
+        platforms:e.platforms||[], source_count:e.source_count||0
+      }));
+    }
+  } catch(e) { console.warn('Leaderboard fetch failed:',e); }
+ 
+  // 9. Hot themes — read from the DOM slot populated by fetchHotThemes()
+  //    Falls back to deriving from catData client-side if DOM slot is empty.
+  let hotThemes = [];
+  try {
+    const slot = document.getElementById('hotThemesSlot');
+    if (slot) {
+      // Each theme chip rendered by the panel has data-theme-label attribute, OR
+      // we can read text from the chip spans. Try to extract meaningful labels.
+      const chips = slot.querySelectorAll('span[data-label]');
+      if (chips.length) {
+        hotThemes = Array.from(chips).map(el => ({
+          label: el.getAttribute('data-label') || el.textContent.trim(),
+          icon:  el.getAttribute('data-icon')  || '🔥'
+        }));
+      } else {
+        // Fallback: derive top categories by event count × avg heat
+        const scores = [];
+        for (const [catKey, acts] of Object.entries(catData)) {
+          if (!acts || acts.length === 0) continue;
+          const _CAT_CONFIG_LOCAL = {
+            concert:{icon:'🎤',label:'Concert'}, sport:{icon:'🏆',label:'Sport'},
+            crossover:{icon:'🎨',label:'Crossover'}, exhibition:{icon:'🖼️',label:'Exhibition'},
+            experience:{icon:'✨',label:'Experience'}, food:{icon:'🍴',label:'Food'},
+            accommodation:{icon:'🏨',label:'Hotel'}, shopping:{icon:'💰',label:'Shopping'},
+            
+          };
+          const cfg = _CAT_CONFIG_LOCAL[catKey] || {icon:'📍',label:catKey};
+          const heats = acts.map(a=>parseFloat(a.heat_score)).filter(v=>isFinite(v));
+          const avgHeat = heats.length ? heats.reduce((s,v)=>s+v,0)/heats.length : 40;
+          scores.push({label:cfg.label, icon:cfg.icon, score:acts.length*(avgHeat/100)});
+        }
+        hotThemes = scores.sort((a,b)=>b.score-a.score).slice(0,3);
+      }
+    }
+  } catch(e) { console.warn('Hot themes extraction failed:', e); hotThemes=[]; }
+ 
+  // 10. AI Strategy
+  let comparisons=[], recommendations='';
+  try {
+    const selectedOps = promptSelectedOpTitles();
+    const allEvents   = getPromptEvents();
+    const rawComps    = buildCategoryComparisons(allEvents, selectedOps);
+    comparisons = rawComps.map(item=>({
+      catKey:item.catKey, label:item.label,
+      wynn:{count:item.wynn.count, avgHeat:item.wynn.avg, topEventName:item.wynn.topEvent?.name||''},
+      topOpponent:item.topOpponent?{organiser:item.topOpponent.opTitle,count:item.topOpponent.count,avgHeat:item.topOpponent.avg,topEventName:item.topOpponent.topEvent?.name||''}:null,
+      wynnLeads:item.wynn.count>0&&(!item.topOpponent||item.wynn.avg>item.topOpponent.avg)
+    }));
+    const promptList = typeof getPromptListEl==='function' ? getPromptListEl() : null;
+    if (promptList) {
+      const items = promptList.querySelectorAll('.prompt-item');
+      if (items[2]) recommendations = items[2].querySelector('.prompt-item-body')?.innerText||'';
+    }
+  } catch(e) { console.warn('AI strategy extraction failed:',e); }
+ 
+  const perspective = (typeof DEMO!=='undefined'&&DEMO.perspective) ? DEMO.perspective : {};
   const cachedAiRecs = Array.isArray(_reportCache?.aiRecommendations) ? _reportCache.aiRecommendations : [];
+  const cachedComparisons = Array.isArray(_reportCache?.comparisons) ? _reportCache.comparisons : [];
   const _CAT_L2 = { concert:'Concert', sport:'Sport', crossover:'Crossover', exhibition:'Exhibition', experience:'Experience', food:'Food', accommodation:'Hotel', shopping:'Shopping', gaming:'Gaming' };
-  const recommendations = cachedAiRecs.length
-    ? cachedAiRecs.map(rec => {
-        const catLabel  = _CAT_L2[rec.catKey] || rec.catKey || '';
-        const typeLabel = rec.type === 'keep_up' ? '✅ Keep it Up' : rec.type === 'avoid' ? '🚫 Avoid for Now' : '⚡ Improve';
-        return `[${typeLabel}] ${catLabel}: ${rec.text || ''}`;
-      }).join('\n\n')
-    : '';
-
-  const perspective = (typeof DEMO !== 'undefined' && DEMO.perspective) ? DEMO.perspective : {};
-  const aiStrategy  = { comparisons: cachedComparisons, recommendations, recommendationItems: cachedAiRecs, perspective };
-
-  // ── Assemble & open ──────────────────────────────────────────────────────────
+  const recommendationItems = cachedAiRecs;
+  if (!recommendations && cachedAiRecs.length) {
+    recommendations = cachedAiRecs.map(rec => {
+      const catLabel  = _CAT_L2[rec.catKey] || rec.catKey || '';
+      const typeLabel = rec.type === 'keep_up' ? '✅ Keep it Up' : rec.type === 'avoid' ? '🚫 Avoid for Now' : '⚡ Improve';
+      return `[${typeLabel}] ${catLabel}: ${rec.text || ''}`;
+    }).join('\n\n');
+  }
+  const finalComparisons = cachedComparisons.length ? cachedComparisons : comparisons;
+  const aiStrategy = { comparisons: finalComparisons, recommendations, recommendationItems, perspective };
+ 
+  // 11. Assemble & save
   const reportData = {
     generatedAt: new Date().toISOString(),
-    reportScope: 'filtered',
     period, filters, kpis, summary, events,
     heatmapData, chartData, leaderboard,
-    hotThemes, aiStrategy, keywords,
-    requestedFilters: {
-      operators: typeof getSelectedValues === 'function' ? getSelectedValues('operator') : [],
-      categories: typeof getSelectedValues === 'function' ? getSelectedValues('category') : []
-    }
+    hotThemes, aiStrategy
   };
-
+ 
   localStorage.setItem('macauReportData', JSON.stringify(reportData));
-  window.open('download_report.html', '_blank');
+
+ // 儲存落 period_cache — 只有全 filter run 先 save，避免覆蓋 archive
+  const _from = (($('fromDate')||{}).value||'').trim();
+  const _to   = (($('toDate')||{}).value||'').trim();
+  if (_from && _to) {
+    const _SAVE_ALL_OPS  = ['wynn','sands','galaxy','mgm','melco','sjm','government'];
+    const _SAVE_ALL_CATS = ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping'];
+    const _curOps  = _appliedFilterState.operators  || [];
+    const _curCats = _appliedFilterState.categories || [];
+    const _isFullRun = _SAVE_ALL_OPS.every(o => _curOps.includes(o)) && _SAVE_ALL_CATS.every(c => _curCats.includes(c));
+    if (_isFullRun) {
+      console.log('hotThemes:', hotThemes);
+      console.log('recommendations:', recommendations);
+      console.log('leaderboard:', leaderboard);
+      fetch('http://127.0.0.1:9038/api/period-cache/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from_date:       _from,
+          to_date:         _to,
+          hot_themes:      hotThemes || [],
+          recommendations: recommendations || '',
+          comparisons:     comparisons || [],
+          leaderboard:     leaderboard || [],
+          events:          events      || {},
+          heatmap_data:    heatmapData || {}
+        })
+      }).catch(e => console.warn('period-cache save failed:', e));
+    } else {
+      console.log('[period-cache] 唔係全部 filter，跳過 save，保護 archive data');
+    }
+  }
+
+  if (openReport) window.open('download_report.html', '_blank');
 }
+
 </script>
 
 </body>

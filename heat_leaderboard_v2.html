@@ -605,7 +605,7 @@ function loadData(data){
   }
   document.getElementById('nav-meta').textContent=`🤖 AI Activities · ${data.total||'?'} events`;
   renderTop10(); renderCats(); renderMiniLb(); renderStats();
-  if(typeof requestAnimationFrame==='function'){
+    if(typeof requestAnimationFrame==='function'){
     requestAnimationFrame(function(){
       setTimeout(function(){loadFootfallForHeatLb().catch(function(){});},0);
     });
@@ -645,7 +645,7 @@ function renderTop10(){
     const purl=buildUrl(e.event_id,plt);
     const srcPosts=Array.isArray(e.source_posts)?e.source_posts.filter(p=>p.url):[];
     const ffk=escAttr(footfallKeyHeat(e));
-    
+
     const postsHtml=srcPosts.length
       ?srcPosts.map(p=>`<div class="lb-post">
           <div class="post-head"><span class="plt-badge plt-${p.platform}">${PLT_ICONS[p.platform]||'🔗'} ${PLT_LABELS[p.platform]||p.platform}</span><span class="post-date">${p.published_at||''}</span></div>
@@ -665,10 +665,10 @@ function renderTop10(){
       <div class="lb-name">${actName(e)}</div>
       <div class="lb-desc">${actDesc(e)}</div>
       <div class="lb-tags">
-        ${tagOp(e.operator)}${plats.slice(0,3).map(tagPlt).join('')}${getCats(e).slice(0,2).map(tagCat).join('')}${tagSrc(e.source_count||1)}
+        ${tagOp(e.operator)}${plats.slice(0,3).map(tagPlt).join('')}${getCats(e).slice(0,2).map(tagCat).join('')}
         <span class="exp-btn" id="expbtn-${wid}">▼ Source Posts</span>
       </div>
-            <div class="footfall-slot" data-footfall-key="${ffk}"><div class="footfall-box footfall-loading"><div class="fb-line">客流量：<span class="fb-pending">计算中…</span></div></div></div>
+            <div class="footfall-slot" data-footfall-key="${ffk}"><div class="footfall-box footfall-loading"><div class="fb-line">Visitor Traffic：<span class="fb-pending">Calculating…</span></div></div></div>
     </div>
     <div class="lb-score">
       <div class="heat-num">${(e.heat_score||0).toFixed(1)}</div>
@@ -678,7 +678,7 @@ function renderTop10(){
   </div>
   <div class="lb-posts" id="posts-${wid}" style="display:none">
     ${postsHtml}
-    ${(e.source_count||0)>1?`<div class="post-note">📊 This activity has <strong>${e.source_count}</strong> source posts across ${e.platform_count||plats.length} platform(s)</div>`:''}
+
   </div>
 </div>`;
   }).join('');
@@ -739,7 +739,7 @@ function renderCats(){
     <div class="cat-name">${actName(e)}</div>
     <div class="cat-desc">${actDesc(e)}</div>
     <div class="cat-meta" style="justify-content:space-between;align-items:center;">
-      <div style="display:flex;flex-wrap:wrap;gap:5px;">${tagOp(e.operator)}${plats.slice(0,2).map(tagPlt).join('')}${tagSrc(e.source_count||1)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;">${tagOp(e.operator)}${plats.slice(0,2).map(tagPlt).join('')}</div>
       <button onclick="toggleCatInline('${cid}')" id="ci-btn-${cid}" style="
         font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:8px;
         background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.20);

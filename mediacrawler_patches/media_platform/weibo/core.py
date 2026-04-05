@@ -99,7 +99,6 @@ class WeiboCrawler(AbstractCrawler):
                 f"[WeiboCrawler.search] 帖文不在區間但熱評在 NEGATIVE_MONITOR 區間內，保留: {note_id}"
             )
         return ok
-
     async def start(self):
         playwright_proxy_format, httpx_proxy_format = None, None
         if config.ENABLE_IP_PROXY:
@@ -249,7 +248,6 @@ class WeiboCrawler(AbstractCrawler):
                         f"[WeiboCrawler.search] Reached target stored notes {accepted}/{target_max}, stop."
                     )
                     break
-
     async def get_specified_notes(self):
         """
         get specified notes info

@@ -52,7 +52,6 @@ from .field import SearchSortType
 from .help import parse_note_info_from_note_url, parse_creator_info_from_url, get_search_id
 from .login import XiaoHongShuLogin
 
-
 def _xhs_note_in_negative_monitor_crawl_range(note: dict) -> bool:
     fr, to_d = negative_monitor_crawl_range_from_env()
     if not fr and not to_d:
@@ -61,7 +60,6 @@ def _xhs_note_in_negative_monitor_crawl_range(note: dict) -> bool:
     if d is None:
         return True
     return negative_monitor_note_date_in_range(d, fr, to_d)
-
 
 class XiaoHongShuCrawler(AbstractCrawler):
     context_page: Page
@@ -107,7 +105,7 @@ class XiaoHongShuCrawler(AbstractCrawler):
                 await self.browser_context.add_init_script(path="libs/stealth.min.js")
 
             self.context_page = await self.browser_context.new_page()
-            await self.context_page.goto(self.index_url)
+            await self.context_page.goto(self.index_url, timeout=600000)
 
             # Create a client to interact with the Xiaohongshu website.
             self.xhs_client = await self.create_xhs_client(httpx_proxy_format)
