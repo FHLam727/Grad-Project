@@ -4,7 +4,6 @@ const METRIC_META = [
   { key: "unique_authors", label: "Unique Authors", subtitle: "Distinct authors posting on that day", accent: "accent-shopping" },
   { key: "velocity", label: "Velocity", subtitle: "Daily post count used as the speed signal", accent: "accent-accommodation" },
 ];
-const SESSION_QUERY_KEYS = ["first_name", "last_name", "email", "position", "role", "token"];
 
 const CATEGORY_LABELS = {
   entertainment: "Concert / Sport",
@@ -30,7 +29,6 @@ const elements = {
   trendHeatFocusCard: document.getElementById("trendHeatFocusCard"),
   chartGrid: document.getElementById("chartGrid"),
   backToLeaderboardLink: document.getElementById("backToLeaderboardLink"),
-  topbarLeaderboardLink: document.getElementById("topbarLeaderboardLink"),
 };
 
 const state = {
@@ -78,50 +76,6 @@ function clipText(value, maxLength = 18) {
   return `${text.slice(0, maxLength - 3)}...`;
 }
 
-function getSessionParams() {
-  const search = new URLSearchParams(window.location.search);
-  const firstName = search.get("first_name");
-  if (!firstName) {
-    return null;
-  }
-  return {
-    first_name: firstName,
-    last_name: search.get("last_name") || "",
-    email: search.get("email") || "",
-    position: search.get("position") || "",
-    role: search.get("role") || "user",
-    token: search.get("token") || "",
-  };
-}
-
-function appendSessionParams(url) {
-  const session = getSessionParams();
-  if (!session) {
-    return url;
-  }
-  SESSION_QUERY_KEYS.forEach((key) => {
-    if (session[key]) {
-      url.searchParams.set(key, session[key]);
-    }
-  });
-  return url;
-}
-
-function enforceSystemSession() {
-  const session = getSessionParams();
-  if (!session) {
-    window.location.href = "/login_page.html";
-    throw new Error("Missing login session. Redirecting to login page.");
-  }
-  if (session.position === "IT Admin") {
-    const adminUrl = new URL("/admin_page.html", window.location.origin);
-    appendSessionParams(adminUrl);
-    window.location.href = `${adminUrl.pathname}${adminUrl.search}`;
-    throw new Error("IT Admin should use the admin page.");
-  }
-  return session;
-}
-
 function formatAxisDateLabel(value) {
   if (!value) {
     return "";
@@ -151,7 +105,7 @@ function formatWeekLabel(weekStart, weekEnd) {
 }
 
 function syncLeaderboardLink() {
-  const base = appendSessionParams(new URL("/full-web-heat-analysis", window.location.origin));
+  const base = new URL("/full-web-heat-analysis", window.location.origin);
   if (state.selectedEvent) {
     base.searchParams.set("event", state.selectedEvent);
   }
@@ -163,9 +117,6 @@ function syncLeaderboardLink() {
     base.searchParams.set("week_end", state.currentWeek.week_end);
   }
   elements.backToLeaderboardLink.href = `${base.pathname}${base.search}`;
-  if (elements.topbarLeaderboardLink) {
-    elements.topbarLeaderboardLink.href = `${base.pathname}${base.search}`;
-  }
 }
 
 function renderIndicatorCards(summary) {
@@ -368,7 +319,6 @@ async function loadPageData() {
 }
 
 async function bootstrap() {
-  enforceSystemSession();
   const urlState = getUrlState();
   state.platform = urlState.platform || "wb";
   elements.trendPlatformSelect.value = state.platform;
