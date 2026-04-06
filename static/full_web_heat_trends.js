@@ -300,7 +300,7 @@ async function loadPageData() {
   elements.trendDbPathLabel.textContent = overview.db_path || "Unknown analytics database";
   if (overview.total_posts === 0) {
     elements.trendWeekLabel.textContent = "Database is empty";
-    elements.trendWeekSubLabel.textContent = "No social posts were found in social_media_analytics.db.";
+    elements.trendWeekSubLabel.textContent = "No social posts were found in the configured analytics database yet.";
   } else if (!state.currentWeek.week_start) {
     elements.trendWeekLabel.textContent = "No analyzed week yet";
     elements.trendWeekSubLabel.textContent = "Open Heat Analysis and run one weekly analysis first.";

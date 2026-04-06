@@ -23,8 +23,7 @@ try:
     import joblib
 except ImportError:  # pragma: no cover - optional until footfall routes are used
     joblib = None
-from full_web_heat_adapter import get_mediacrawler_root, get_project_analytics_service
-from full_web_heat_jobs import heat_job_manager
+from full_web_backend import get_project_analytics_service, get_project_job_manager
 
 # ── 最先 load .env，確保所有 os.getenv() 都能讀到環境變量 ──────────────────
 load_dotenv()
@@ -340,7 +339,7 @@ def _heat_service():
 
 
 def _heat_jobs():
-    return heat_job_manager
+    return get_project_job_manager()
 
 
 def _file_response(path: Path) -> FileResponse:
@@ -383,7 +382,6 @@ async def get_heat_overview(platform: str = "wb", auto_sync: bool = False):
         if auto_sync:
             service.sync(platform=platform)
         payload = service.get_overview(platform=platform)
-        payload["mediacrawler_root"] = str(get_mediacrawler_root())
         return payload
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

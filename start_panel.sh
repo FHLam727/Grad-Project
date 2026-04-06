@@ -2,34 +2,45 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
-
-if [[ -n "${MEDIACRAWLER_ROOT:-}" ]]; then
-  MC_ROOT="${MEDIACRAWLER_ROOT}"
+if [[ -x "$PROJECT_ROOT/.venv/bin/python" ]]; then
+  PYTHON_BIN="$PROJECT_ROOT/.venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
+  PYTHON_BIN="$(command -v python3)"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON_BIN="$(command -v python)"
 else
-  MC_ROOT=""
-  SEARCH_DIR="$PROJECT_ROOT"
-  while [[ "$SEARCH_DIR" != "/" ]]; do
-    if [[ -f "$SEARCH_DIR/MediaCrawler/api/services/project_analytics.py" ]]; then
-      MC_ROOT="$SEARCH_DIR/MediaCrawler"
-      break
-    fi
-    SEARCH_DIR="$(dirname "$SEARCH_DIR")"
-  done
-fi
-
-if [[ -z "$MC_ROOT" || ! -d "$MC_ROOT" ]]; then
-  echo "Could not find MediaCrawler. Set MEDIACRAWLER_ROOT first." >&2
+  echo "Could not find a usable Python interpreter. Install Python 3 first." >&2
   exit 1
 fi
 
-PYTHON_BIN="$MC_ROOT/.venv/bin/python"
-if [[ ! -x "$PYTHON_BIN" ]]; then
-  echo "Missing MediaCrawler virtualenv Python: $PYTHON_BIN" >&2
-  exit 1
-fi
-
-export MEDIACRAWLER_ROOT="$MC_ROOT"
 export MACAU_ANALYTICS_DB_PATH="${MACAU_ANALYTICS_DB_PATH:-$PROJECT_ROOT/macau_analytics.db}"
+export PROJECT_ANALYTICS_DB_PATH="${PROJECT_ANALYTICS_DB_PATH:-$PROJECT_ROOT/data/social_media_analytics.db}"
+
+"$PYTHON_BIN" - <<'PY'
+import importlib
+import sys
+
+missing = []
+for module_name, import_name in (
+    ("fastapi", "fastapi"),
+    ("uvicorn", "uvicorn"),
+    ("pandas", "pandas"),
+    ("python-dotenv", "dotenv"),
+    ("jieba", "jieba"),
+):
+    try:
+        importlib.import_module(import_name)
+    except Exception:
+        missing.append(module_name)
+
+if missing:
+    print(
+        "Missing dependencies: " + ", ".join(missing) + "\n"
+        "Install them with: python3 -m pip install -r requirements_extra.txt",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+PY
 
 cd "$PROJECT_ROOT"
 exec "$PYTHON_BIN" -m uvicorn bridge:app --reload --host 127.0.0.1 --port 9038
