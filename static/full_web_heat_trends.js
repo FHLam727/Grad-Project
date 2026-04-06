@@ -23,17 +23,12 @@ const PLATFORM_LABELS = {
 const elements = {
   trendDbPathLabel: document.getElementById("trendDbPathLabel"),
   trendPlatformSelect: document.getElementById("trendPlatformSelect"),
-  trendWindowModeSelect: document.getElementById("trendWindowModeSelect"),
-  trendSnapshotLabel: document.getElementById("trendSnapshotLabel"),
-  trendActiveWindowLabel: document.getElementById("trendActiveWindowLabel"),
   trendWeekLabel: document.getElementById("trendWeekLabel"),
   trendWeekSubLabel: document.getElementById("trendWeekSubLabel"),
   trendEventSelect: document.getElementById("trendEventSelect"),
   trendIndicatorGrid: document.getElementById("trendIndicatorGrid"),
   trendHeatFocusCard: document.getElementById("trendHeatFocusCard"),
   chartGrid: document.getElementById("chartGrid"),
-  trendPageTitle: document.getElementById("trendPageTitle"),
-  trendPageSubtitle: document.getElementById("trendPageSubtitle"),
   backToLeaderboardLink: document.getElementById("backToLeaderboardLink"),
   topbarLeaderboardLink: document.getElementById("topbarLeaderboardLink"),
 };
@@ -42,12 +37,10 @@ const state = {
   selectedEvent: "",
   leaderboard: [],
   platform: "wb",
-  windowMode: "weekly",
   currentWeek: {
     week_start: "",
     week_end: "",
     status: "",
-    month_key: "",
   },
 };
 
@@ -83,10 +76,6 @@ function clipText(value, maxLength = 18) {
     return text;
   }
   return `${text.slice(0, maxLength - 3)}...`;
-}
-
-function isMonthlyMode() {
-  return state.windowMode === "monthly";
 }
 
 function getSessionParams() {
@@ -149,8 +138,6 @@ function getUrlState() {
   return {
     event: url.searchParams.get("event") || "",
     platform: url.searchParams.get("platform") || "wb",
-    windowMode: url.searchParams.get("window_mode") || (url.searchParams.get("month_key") ? "monthly" : "weekly"),
-    monthKey: url.searchParams.get("month_key") || "",
     weekStart: url.searchParams.get("week_start") || "",
     weekEnd: url.searchParams.get("week_end") || "",
   };
@@ -163,13 +150,6 @@ function formatWeekLabel(weekStart, weekEnd) {
   return `${weekStart} to ${weekEnd}`;
 }
 
-function formatCurrentWindowLabel() {
-  if (isMonthlyMode()) {
-    return state.currentWeek.month_key || "No monthly snapshot selected";
-  }
-  return formatWeekLabel(state.currentWeek.week_start, state.currentWeek.week_end);
-}
-
 function syncLeaderboardLink() {
   const base = appendSessionParams(new URL("/full-web-heat-analysis", window.location.origin));
   if (state.selectedEvent) {
@@ -178,10 +158,7 @@ function syncLeaderboardLink() {
   if (state.platform) {
     base.searchParams.set("platform", state.platform);
   }
-  base.searchParams.set("window_mode", state.windowMode);
-  if (isMonthlyMode() && state.currentWeek.month_key) {
-    base.searchParams.set("month_key", state.currentWeek.month_key);
-  } else if (state.currentWeek.week_start && state.currentWeek.week_end) {
+  if (state.currentWeek.week_start && state.currentWeek.week_end) {
     base.searchParams.set("week_start", state.currentWeek.week_start);
     base.searchParams.set("week_end", state.currentWeek.week_end);
   }
@@ -191,30 +168,13 @@ function syncLeaderboardLink() {
   }
 }
 
-function syncTrendModeUI() {
-  if (elements.trendSnapshotLabel) {
-    elements.trendSnapshotLabel.textContent = isMonthlyMode() ? "Monthly Snapshot" : "Weekly Snapshot";
-  }
-  if (elements.trendActiveWindowLabel) {
-    elements.trendActiveWindowLabel.textContent = isMonthlyMode() ? "Current Month" : "Current Week";
-  }
-  if (elements.trendPageTitle) {
-    elements.trendPageTitle.textContent = isMonthlyMode() ? "Monthly Full-Web Trend Analysis" : "Weekly Full-Web Trend Analysis";
-  }
-  if (elements.trendPageSubtitle) {
-    elements.trendPageSubtitle.textContent = isMonthlyMode()
-      ? "Focus on the selected calendar month. The small indicator cards explain the drivers behind the final heat score."
-      : "Focus on the current weekly snapshot only. The small indicator cards explain the drivers behind the final heat score.";
-  }
-}
-
 function renderIndicatorCards(summary) {
   clearNode(elements.trendIndicatorGrid);
   const cards = [
-    { label: "Discussion", value: formatNumber(summary.discussion_total || 0), sub: `Conversation volume in the selected ${isMonthlyMode() ? "month" : "week"}` },
-    { label: "Engagement", value: formatNumber(summary.total_engagement || 0), sub: `Likes, comments, and shares in the selected ${isMonthlyMode() ? "month" : "week"}` },
-    { label: "Unique Authors", value: formatNumber(summary.unique_authors || 0), sub: `Distinct authors in the selected ${isMonthlyMode() ? "month" : "week"}` },
-    { label: "Velocity", value: formatNumber(summary.post_count || 0), sub: `Posting speed inside the selected ${isMonthlyMode() ? "monthly" : "weekly"} snapshot` },
+    { label: "Discussion", value: formatNumber(summary.discussion_total || 0), sub: "Conversation volume in the selected week" },
+    { label: "Engagement", value: formatNumber(summary.total_engagement || 0), sub: "Likes, comments, and shares in the selected week" },
+    { label: "Unique Authors", value: formatNumber(summary.unique_authors || 0), sub: "Distinct authors in the selected week" },
+    { label: "Velocity", value: formatNumber(summary.post_count || 0), sub: "Posting speed inside the selected weekly snapshot" },
   ];
 
   cards.forEach((card) => {
@@ -235,7 +195,7 @@ function renderHeatFocusCard(summary) {
     <p class="eyebrow">Final Heat</p>
     <h3>${summary.cluster_key || "-"}</h3>
     <div class="trend-heat-score">${formatScore(summary.heat_score || 0)}</div>
-    <p class="helper-copy">${categoryLabel} · Final combined score for the selected ${isMonthlyMode() ? "monthly" : "weekly"} snapshot</p>
+    <p class="helper-copy">${categoryLabel} · Final combined score for the selected weekly snapshot</p>
   `;
 }
 
@@ -257,7 +217,7 @@ function renderMetricChart(metricSeries, meta) {
 
   const svg = wrapper.querySelector("svg");
   if (!metricSeries.length) {
-    svg.innerHTML = `<text class="metric-label" x="260" y="126" text-anchor="middle">No ${isMonthlyMode() ? "monthly" : "weekly"} data</text>`;
+    svg.innerHTML = `<text class="metric-label" x="260" y="126" text-anchor="middle">No weekly data</text>`;
     return wrapper;
   }
 
@@ -338,7 +298,7 @@ function populateEventSelect(items) {
 }
 
 async function loadTrendData() {
-  if (!state.selectedEvent || (!isMonthlyMode() && (!state.currentWeek.week_start || !state.currentWeek.week_end)) || (isMonthlyMode() && !state.currentWeek.month_key)) {
+  if (!state.selectedEvent || !state.currentWeek.week_start || !state.currentWeek.week_end) {
     renderIndicatorCards({});
     renderHeatFocusCard({});
     renderCharts({});
@@ -348,14 +308,10 @@ async function loadTrendData() {
   const params = new URLSearchParams({
     platform: state.platform,
     event_family_key: state.selectedEvent,
-    days: isMonthlyMode() ? "31" : "7",
+    days: "7",
+    week_start: state.currentWeek.week_start,
+    week_end: state.currentWeek.week_end,
   });
-  if (isMonthlyMode()) {
-    params.set("month_key", state.currentWeek.month_key);
-  } else {
-    params.set("week_start", state.currentWeek.week_start);
-    params.set("week_end", state.currentWeek.week_end);
-  }
   const payload = await requestJson(`/api/full-web-heat-analysis/event-trend?${params.toString()}`);
   renderIndicatorCards(payload.summary || {});
   renderHeatFocusCard(payload.summary || {});
@@ -364,17 +320,13 @@ async function loadTrendData() {
 
 async function resolveWeeklySnapshot() {
   const urlState = getUrlState();
-  const windows = await requestJson(
-    `/api/full-web-heat-analysis/analysis-windows?platform=${encodeURIComponent(state.platform)}&window_mode=${encodeURIComponent(
-      state.windowMode
-    )}&weeks=24&periods=12`
+  const windows = await requestJson(`/api/full-web-heat-analysis/analysis-windows?platform=${encodeURIComponent(state.platform)}&weeks=24`);
+  const requestedWeek = windows.items.find(
+    (item) => item.week_start === urlState.weekStart && item.week_end === urlState.weekEnd
   );
-  const requestedWeek = isMonthlyMode()
-    ? windows.items.find((item) => item.month_key === urlState.monthKey)
-    : windows.items.find((item) => item.week_start === urlState.weekStart && item.week_end === urlState.weekEnd);
   const latestCompleted = windows.items.find((item) => item.status === "completed");
   const latestAnalyzable = windows.items.find((item) => item.status === "to_be_analyzed");
-  state.currentWeek = requestedWeek || latestCompleted || latestAnalyzable || { week_start: "", week_end: "", status: "", month_key: "" };
+  state.currentWeek = requestedWeek || latestCompleted || latestAnalyzable || { week_start: "", week_end: "", status: "" };
 }
 
 async function loadPageData() {
@@ -384,9 +336,7 @@ async function loadPageData() {
     platform: state.platform,
     limit: "60",
   });
-  if (isMonthlyMode() && state.currentWeek.month_key) {
-    query.set("month_key", state.currentWeek.month_key);
-  } else if (state.currentWeek.week_start && state.currentWeek.week_end) {
+  if (state.currentWeek.week_start && state.currentWeek.week_end) {
     query.set("week_start", state.currentWeek.week_start);
     query.set("week_end", state.currentWeek.week_end);
   }
@@ -400,15 +350,15 @@ async function loadPageData() {
   if (overview.total_posts === 0) {
     elements.trendWeekLabel.textContent = "Database is empty";
     elements.trendWeekSubLabel.textContent = "No social posts were found in the configured analytics database yet.";
-  } else if ((!isMonthlyMode() && !state.currentWeek.week_start) || (isMonthlyMode() && !state.currentWeek.month_key)) {
-    elements.trendWeekLabel.textContent = isMonthlyMode() ? "No analyzed month yet" : "No analyzed week yet";
-    elements.trendWeekSubLabel.textContent = `Open Heat Analysis and run one ${isMonthlyMode() ? "monthly" : "weekly"} analysis first.`;
+  } else if (!state.currentWeek.week_start) {
+    elements.trendWeekLabel.textContent = "No analyzed week yet";
+    elements.trendWeekSubLabel.textContent = "Open Heat Analysis and run one weekly analysis first.";
   } else {
-    elements.trendWeekLabel.textContent = formatCurrentWindowLabel();
+    elements.trendWeekLabel.textContent = formatWeekLabel(state.currentWeek.week_start, state.currentWeek.week_end);
     elements.trendWeekSubLabel.textContent =
       state.currentWeek.status === "completed"
-        ? `Trend charts are limited to the selected ${isMonthlyMode() ? "calendar month" : "Sunday to Saturday snapshot"}.`
-        : `This ${isMonthlyMode() ? "month" : "week"} has raw posts but no analyzed clusters yet. Run analysis from Heat Analysis first.`;
+        ? "Trend charts are limited to the selected Sunday to Saturday snapshot."
+        : "This week has raw posts but no weekly clusters yet. Run analysis from Heat Analysis first.";
   }
 
   state.leaderboard = leaderboard.items || [];
@@ -421,27 +371,13 @@ async function bootstrap() {
   enforceSystemSession();
   const urlState = getUrlState();
   state.platform = urlState.platform || "wb";
-  state.windowMode = urlState.windowMode || "weekly";
   elements.trendPlatformSelect.value = state.platform;
-  if (elements.trendWindowModeSelect) {
-    elements.trendWindowModeSelect.value = state.windowMode;
-  }
-  syncTrendModeUI();
 
   elements.trendPlatformSelect.addEventListener("change", async (event) => {
     state.platform = event.target.value || "wb";
     state.selectedEvent = "";
     await loadPageData();
   });
-
-  if (elements.trendWindowModeSelect) {
-    elements.trendWindowModeSelect.addEventListener("change", async (event) => {
-      state.windowMode = event.target.value || "weekly";
-      syncTrendModeUI();
-      state.selectedEvent = "";
-      await loadPageData();
-    });
-  }
 
   elements.trendEventSelect.addEventListener("change", async (event) => {
     state.selectedEvent = event.target.value;
