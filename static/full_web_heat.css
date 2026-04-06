@@ -552,6 +552,8 @@ button.ghost-button-link:disabled {
 
 .tab-dropdown {
   position: relative;
+  width: 100%;
+  min-width: 0;
 }
 
 .tab-dropdown::after {
@@ -568,7 +570,10 @@ button.ghost-button-link:disabled {
 .tab-dropdown select,
 .control-field select {
   appearance: none;
-  min-width: 170px;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 12px 36px 12px 14px;
   border-radius: 999px;
   border: 1px solid var(--stroke);
@@ -576,6 +581,13 @@ button.ghost-button-link:disabled {
   color: var(--text);
   font-size: 14px;
   font-family: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#trendEventSelect {
+  font-size: 13px;
 }
 
 .control-field {
