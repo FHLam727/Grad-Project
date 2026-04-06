@@ -68,14 +68,6 @@ function formatScore(value) {
   return Number(value || 0).toFixed(2);
 }
 
-function clipText(value, maxLength = 18) {
-  const text = String(value || "").trim();
-  if (text.length <= maxLength) {
-    return text;
-  }
-  return `${text.slice(0, maxLength - 3)}...`;
-}
-
 function formatAxisDateLabel(value) {
   if (!value) {
     return "";
@@ -233,8 +225,7 @@ function populateEventSelect(items) {
   items.forEach((item) => {
     const option = document.createElement("option");
     option.value = item.cluster_key;
-    option.textContent = clipText(item.cluster_key, 18);
-    option.title = item.cluster_key;
+    option.textContent = item.cluster_key;
     elements.trendEventSelect.appendChild(option);
   });
 
