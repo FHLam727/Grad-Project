@@ -3,22 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Macau Full-Web Trend Analysis</title>
+    <title>Macao Full-Web Trend Analysis</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/full-web-assets/full_web_heat.css?v=20260407l" />
+    <link rel="stylesheet" href="/full-web-assets/full_web_heat.css?v=20260407s" />
   </head>
   <body class="report-body">
     <div class="report-shell">
       <header class="report-topbar">
         <div class="brand-block">
-          <div class="brand-logo">TA</div>
+          <div class="brand-logo">MR</div>
           <div>
-            <p class="eyebrow">Macau Event Intelligence</p>
+            <p class="eyebrow">Macao Resorts Analytics</p>
             <h1>Full-Web Trend Analysis</h1>
           </div>
         </div>
@@ -45,7 +45,7 @@
             </div>
 
             <div class="filter-group">
-              <p class="filter-label">Analysis Window</p>
+              <p class="filter-label">Date Range</p>
               <div class="tab-dropdown">
                 <select id="trendWindowModeSelect">
                   <option value="weekly">Weekly</option>
@@ -56,25 +56,12 @@
             </div>
 
             <div class="filter-group">
-              <p class="filter-label">Selected Window</p>
-              <div class="snapshot-card heat-info-card">
-                <span id="trendWindowEyebrow">Current Week</span>
-                <strong id="trendWeekLabel">No imported week yet</strong>
-                <small id="trendWeekSubLabel">Trend analysis is limited to the current weekly snapshot.</small>
-              </div>
-            </div>
-
-            <div class="filter-group">
               <div class="filter-header-row">
                 <p class="filter-label" id="trendSnapshotFilterLabel">Weekly Filter</p>
                 <button class="ghost-button-link control-button mini-control-button" id="openTrendCalendarButton" type="button">
                   Pick Week
                 </button>
               </div>
-              <p class="helper-copy weekly-filter-copy" id="trendSnapshotFilterCopy">
-                Fixed Sunday to Saturday windows only. Use this filter to switch between `To Be Updated`, `To Be Analyzed`,
-                and `Completed` weeks.
-              </p>
               <div class="snapshot-window-list" id="trendSnapshotWindowList"></div>
             </div>
 
@@ -85,13 +72,6 @@
               </div>
             </div>
 
-            <div class="filter-group">
-              <p class="filter-label">Heat Formula</p>
-              <p class="helper-copy">
-                The four cards below are the component indicators used to understand heat. The large heat card is the
-                final combined score.
-              </p>
-            </div>
           </section>
         </aside>
 
@@ -107,12 +87,12 @@
             <div class="market-header">
               <div>
                 <h2 class="market-title" id="trendPageTitle">Weekly Trend Analysis</h2>
-                <p class="market-subtitle">
-                  <span id="trendPageSubtitlePrefix">Focus on the current weekly snapshot only.</span> The small indicator cards explain the drivers behind the
-                  final heat score.
-                </p>
               </div>
               <div class="page-switcher">
+                <button class="ghost-button-link control-button mini-control-button insight-button" id="openIndicatorGuideButton" type="button">
+                  <span>Metric Definitions</span>
+                  <span class="info-button-mark">?</span>
+                </button>
                 <a class="tab-button secondary" id="backToLeaderboardLink" href="/full-web-heat-analysis">Leaderboard</a>
                 <button class="tab-button active" type="button">Trend Analysis</button>
               </div>
@@ -161,8 +141,76 @@
           </div>
         </div>
       </section>
+
+      <section class="modal-shell hidden" id="indicatorGuideModal" aria-hidden="true">
+        <div class="modal-backdrop" id="indicatorGuideBackdrop"></div>
+        <div class="modal-panel info-modal-panel">
+          <div class="modal-header">
+            <div>
+              <h2 class="panel-title info-modal-title">Metric Definitions</h2>
+            </div>
+            <button class="ghost-button-link control-button" id="closeIndicatorGuideButton" type="button">Close</button>
+          </div>
+          <div class="info-stack info-stack-spacious">
+            <div class="info-card info-card-highlight formula-hero-card">
+              <strong>How To Read Trend Analysis</strong>
+              <p>Trend Analysis shows the four daily indicators behind one selected event or topic. Each chart isolates a single metric so users can see when visibility, engagement, author breadth, or posting momentum changes across the chosen date range.</p>
+            </div>
+            <section class="info-section">
+              <div class="info-section-header">
+                <p class="eyebrow info-section-kicker">Metric Definitions</p>
+              </div>
+              <div class="info-grid info-grid-metrics">
+                <div class="info-card info-card-compact">
+                  <strong>Daily Discussion Volume</strong>
+                  <p>The total discussion count captured for the selected cluster on each day. This includes post discussion plus captured comment and sub-comment activity when the source platform provides those fields.</p>
+                  <div class="formula-block formula-block-compact">
+                    <code>Daily Discussion = Post Discussion + Comments + Sub-comments</code>
+                  </div>
+                </div>
+                <div class="info-card info-card-compact">
+                  <strong>Daily Engagement Total</strong>
+                  <p>The combined likes, comments, and shares recorded for that cluster on each day. It reflects how strongly audiences are reacting to the content.</p>
+                  <div class="formula-block formula-block-compact">
+                    <code>Daily Engagement = Likes + Comments + Shares</code>
+                  </div>
+                </div>
+                <div class="info-card info-card-compact">
+                  <strong>Daily Unique Authors</strong>
+                  <p>The number of distinct authors who posted about that cluster on each day. Higher values indicate broader participation rather than concentration in a few accounts.</p>
+                  <div class="formula-block formula-block-compact">
+                    <code>Daily Unique Authors = Count of Distinct Authors</code>
+                  </div>
+                </div>
+                <div class="info-card info-card-compact">
+                  <strong>Daily Post Volume</strong>
+                  <p>The number of posts assigned to that cluster on each day. This is used as the velocity signal because rapid post accumulation usually indicates momentum.</p>
+                  <div class="formula-block formula-block-compact">
+                    <code>Daily Post Volume = Count of Cluster Posts</code>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <section class="info-section">
+              <div class="info-section-header">
+                <p class="eyebrow info-section-kicker">How This Connects To Heat</p>
+              </div>
+              <div class="info-grid info-grid-levels">
+                <div class="info-card info-card-compact">
+                  <strong>How To Interpret A Spike</strong>
+                  <p>A spike means that one indicator increased sharply on that date. When several charts spike together, the event is gaining visibility, interaction, author breadth, and posting momentum at the same time.</p>
+                </div>
+                <div class="info-card info-card-compact">
+                  <strong>How This Relates To Heat Score</strong>
+                  <p>Trend charts show raw daily values. The leaderboard heat score uses the same inputs, but converts them into weighted factors before calculating the final result. Use the Heat Analysis explanation panel to review the full factor-based formula and scoring logic.</p>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
     </div>
 
-    <script type="module" src="/full-web-assets/full_web_heat_trends.js?v=20260407l"></script>
+    <script type="module" src="/full-web-assets/full_web_heat_trends.js?v=20260407t"></script>
   </body>
 </html>

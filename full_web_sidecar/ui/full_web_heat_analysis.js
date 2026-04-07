@@ -119,6 +119,10 @@ const elements = {
   leaderboardBusyOverlay: document.getElementById("leaderboardBusyOverlay"),
   leaderboardBusyTitle: document.getElementById("leaderboardBusyTitle"),
   leaderboardBusyDetail: document.getElementById("leaderboardBusyDetail"),
+  openHeatFormulaButton: document.getElementById("openHeatFormulaButton"),
+  heatFormulaModal: document.getElementById("heatFormulaModal"),
+  heatFormulaBackdrop: document.getElementById("heatFormulaBackdrop"),
+  closeHeatFormulaButton: document.getElementById("closeHeatFormulaButton"),
   trendPageLink: document.getElementById("trendPageLink"),
   backToMarketLink: document.getElementById("backToMarketLink"),
   eventTabButton: document.getElementById("eventTabButton"),
@@ -420,17 +424,11 @@ function syncTrendLink() {
 
 function setSelectedWeek(week) {
   state.selectedWeek = week || null;
-  const statusMeta = getCurrentStatusMeta();
-  elements.activeWindowEyebrow.textContent = isQuarterlyMode() ? "Current Quarter" : isMonthlyMode() ? "Current Month" : "Current Week";
-  elements.activeWeekLabel.textContent = formatSelectedWindowLabel(state.selectedWeek);
-  if (!state.selectedWeek) {
-    elements.activeWeekSubLabel.textContent = isQuarterlyMode()
-      ? "Choose one quarterly snapshot after selecting a platform."
-      : isMonthlyMode()
-      ? "Choose one monthly snapshot after selecting a platform."
-      : "Choose one weekly snapshot after selecting a platform.";
-  } else {
-    elements.activeWeekSubLabel.textContent = `${statusMeta.label}. ${statusMeta.detail}`;
+  if (elements.activeWindowEyebrow) {
+    elements.activeWindowEyebrow.textContent = isQuarterlyMode() ? "Current Quarter" : isMonthlyMode() ? "Current Month" : "Current Week";
+  }
+  if (elements.activeWeekLabel) {
+    elements.activeWeekLabel.textContent = formatSelectedWindowLabel(state.selectedWeek);
   }
   updateActionButtons();
   syncTrendLink();
@@ -444,9 +442,10 @@ function updateActionButtons() {
     elements.updateDatabaseButton.disabled = true;
     elements.openSnapshotCalendarButton.disabled = false;
     elements.openSnapshotCalendarButton.textContent = "Pick Quarter";
-    elements.snapshotFilterLabel.textContent = "Quarterly Filter";
-    elements.snapshotFilterCopy.textContent =
-      "Quarterly reporting stays visible for planning, but Full-Web collection started on 2026-03-01. The first complete Q2 2026 report will be available after June 2026.";
+    elements.snapshotFilterLabel.textContent = "Date Range";
+    if (elements.snapshotFilterCopy) {
+      elements.snapshotFilterCopy.textContent = "";
+    }
     setStatus(
       "Quarterly report pending",
       state.calendarNotice || QUARTERLY_PENDING_COPY
@@ -457,10 +456,10 @@ function updateActionButtons() {
   elements.updateDatabaseButton.disabled = false;
   elements.openSnapshotCalendarButton.disabled = false;
   elements.openSnapshotCalendarButton.textContent = isMonthlyMode() ? "Pick Month" : "Pick Week";
-  elements.snapshotFilterLabel.textContent = isMonthlyMode() ? "Monthly Filter" : "Weekly Filter";
-  elements.snapshotFilterCopy.textContent = isMonthlyMode()
-    ? "Monthly snapshots are derived from your existing Full-Web database. Monthly mode supports `To Be Updated`, `To Be Analyzed`, and `Completed` months based on imported data."
-    : "Fixed Sunday to Saturday windows only. Use this filter to switch between `To Be Updated`, `To Be Analyzed`, and `Completed` weeks.";
+  elements.snapshotFilterLabel.textContent = "Date Range";
+  if (elements.snapshotFilterCopy) {
+    elements.snapshotFilterCopy.textContent = "";
+  }
 
   if (!state.selectedWeek) {
     setStatus(
@@ -527,7 +526,7 @@ function renderOverview(items) {
       node.innerHTML = `
         <span>${card.label}</span>
         <strong>${card.value}</strong>
-        <small>${card.sub}</small>
+        ${card.sub ? `<small>${card.sub}</small>` : ""}
       `;
       elements.heatOverviewGrid.appendChild(node);
     });
@@ -539,49 +538,60 @@ function renderOverview(items) {
   const topItem = items[0];
   const cards = [
     {
+      key: "platform",
       label: "Platform",
       value: PLATFORM_LABELS[state.platform] || "Unknown",
-      sub: `${getBoardTypeLabel()} leaderboard scope`,
+      sub: "",
     },
     {
-      label: "Status",
-      value: getCurrentStatusMeta().label,
-      sub: getCurrentStatusMeta().detail,
+      key: "selected-range",
+      label: "Selected Range",
+      value: formatSelectedWindowLabel(state.selectedWeek),
+      sub: "",
     },
     {
+      key: "monthly-posts",
       label: isMonthlyMode() ? "Monthly Posts" : "Weekly Posts",
       value: formatNumber(state.selectedWeek?.post_count || 0),
-      sub: isMonthlyMode() ? "Raw posts in the selected month" : "Raw posts in the selected week",
+      sub: "",
     },
     {
-      label: "Top Title",
+      key: "top-title",
+      label: state.boardType === "topic" ? "Top Topic" : "Top Event",
       value: clipText(topItem?.cluster_key || "No cluster", 34),
-      sub: topItem ? `Heat ${formatScore(topItem.heat_score)}` : "No cluster built yet",
+      subHtml: topItem
+        ? `<span class="overview-heat-flames">${getHeatTone(Number(topItem.heat_score || 0)).flames}</span><span>Heat ${formatScore(
+            topItem.heat_score
+          )}</span>`
+        : "",
     },
     {
+      key: "engagement",
       label: "Engagement",
       value: formatNumber(totalEngagement),
-      sub: "Visible leaderboard total",
+      sub: "",
     },
     {
+      key: "discussion",
       label: "Discussion",
       value: formatNumber(totalDiscussion),
-      sub: "Visible leaderboard total",
+      sub: "",
     },
     {
+      key: "posts",
       label: "Posts",
       value: formatNumber(totalPosts),
-      sub: "Visible leaderboard total",
+      sub: "",
     },
   ];
 
   cards.forEach((card) => {
     const node = document.createElement("article");
-    node.className = "overview-card";
+    node.className = `overview-card overview-card-${card.key}`;
     node.innerHTML = `
       <span>${card.label}</span>
       <strong>${card.value}</strong>
-      <small>${card.sub}</small>
+      ${card.subHtml ? `<small class="overview-rich-sub">${card.subHtml}</small>` : card.sub ? `<small>${card.sub}</small>` : ""}
     `;
     elements.heatOverviewGrid.appendChild(node);
   });
@@ -615,6 +625,8 @@ function renderLeaderboard(items) {
   items.forEach((item, index) => {
     const tone = getHeatTone(Number(item.heat_score || 0));
     const row = document.createElement("tr");
+    row.className = "leaderboard-row-focus";
+    row.tabIndex = 0;
     row.innerHTML = `
       <td class="leaderboard-rank-cell"><span class="rank-pill">${index + 1}</span></td>
       <td class="heat-title-cell">
@@ -634,6 +646,13 @@ function renderLeaderboard(items) {
       state.selectedEvent = item.cluster_key || "";
       syncTrendLink();
     });
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        state.selectedEvent = item.cluster_key || "";
+        syncTrendLink();
+      }
+    });
     row.addEventListener("contextmenu", (event) => {
       event.preventDefault();
       state.contextRow = item;
@@ -643,22 +662,35 @@ function renderLeaderboard(items) {
   });
 }
 
+function openHeatFormulaModal() {
+  elements.heatFormulaModal?.classList.remove("hidden");
+  elements.heatFormulaModal?.setAttribute("aria-hidden", "false");
+}
+
+function closeHeatFormulaModal() {
+  elements.heatFormulaModal?.classList.add("hidden");
+  elements.heatFormulaModal?.setAttribute("aria-hidden", "true");
+}
+
 function syncLeaderboardCopy() {
   if (isQuarterlyMode()) {
     elements.leaderboardTitle.textContent = `Quarterly ${getBoardTypeLabel()} Leaderboard`;
-    elements.leaderboardSubtitle.textContent =
-      "Quarterly reporting is visible for planning only. This leaderboard will become available once a complete Q2 2026 window has been collected and analyzed.";
+    if (elements.leaderboardSubtitle) {
+      elements.leaderboardSubtitle.textContent = "";
+    }
     return;
   }
   if (state.boardType === "topic") {
     elements.leaderboardTitle.textContent = "Topic Leaderboard";
-    elements.leaderboardSubtitle.textContent =
-      `Select one ${isMonthlyMode() ? "monthly" : "weekly"} snapshot on the left, then compare broader discussion topics using the same ${isMonthlyMode() ? "monthly" : "weekly"} window.`;
+    if (elements.leaderboardSubtitle) {
+      elements.leaderboardSubtitle.textContent = "";
+    }
     return;
   }
   elements.leaderboardTitle.textContent = "Event Leaderboard";
-  elements.leaderboardSubtitle.textContent =
-    `Select one ${isMonthlyMode() ? "monthly" : "weekly"} snapshot on the left, then compare event clusters by heat, posts, engagement, discussion, or unique authors.`;
+  if (elements.leaderboardSubtitle) {
+    elements.leaderboardSubtitle.textContent = "";
+  }
 }
 
 function renderSnapshotWindowList() {
@@ -697,9 +729,6 @@ function renderSnapshotWindowList() {
         <strong>${isMonthlyMode() ? formatMonthLabel(item.month_key) : `${item.week_start.slice(5)} to ${item.week_end.slice(5)}`}</strong>
         <span class="snapshot-status-badge ${statusMeta.className}">${statusMeta.label}</span>
       </div>
-      <p>${formatNumber(item.post_count || 0)} posts · ${
-        isMonthlyMode() ? "calendar month window" : "fixed Sunday-Saturday window"
-      }</p>
     `;
     button.addEventListener("click", async () => {
       setSelectedWeek(item);
@@ -1002,7 +1031,6 @@ function renderCalendar() {
       button.className = `calendar-day ${statusMeta.className}${isSelected ? " selected-week" : ""}`;
       button.innerHTML = `
         <span class="calendar-day-month">${formatMonthLabel(item.month_key)}</span>
-        <span class="calendar-day-meta">${formatNumber(item.post_count || 0)} posts · calendar month window</span>
       `;
       if (isSelectable) {
         button.addEventListener("click", () => {
@@ -1061,10 +1089,9 @@ function renderCalendar() {
       const button = document.createElement("button");
       button.type = "button";
       button.className = `calendar-day ${statusMeta.className}${isSelected ? " selected-week" : ""}`;
-      button.innerHTML = `
-        <span class="calendar-week-range">${week.week_start} to ${week.week_end}</span>
-        <span class="calendar-day-meta">${formatNumber(week.post_count || 0)} posts · fixed Sunday-Saturday window</span>
-      `;
+        button.innerHTML = `
+          <span class="calendar-week-range">${week.week_start} to ${week.week_end}</span>
+        `;
       if (isSelectable) {
         button.addEventListener("click", () => {
           state.calendarSelectedWeek = week;
@@ -1352,6 +1379,9 @@ function bindEvents() {
   elements.updateCalendarBackdrop.addEventListener("click", closeCalendar);
   elements.confirmUpdateButton.addEventListener("click", confirmCalendarSelection);
   elements.sidebarRunAnalysisButton.addEventListener("click", runAnalysisForSelectedWeek);
+  elements.openHeatFormulaButton?.addEventListener("click", openHeatFormulaModal);
+  elements.closeHeatFormulaButton?.addEventListener("click", closeHeatFormulaModal);
+  elements.heatFormulaBackdrop?.addEventListener("click", closeHeatFormulaModal);
   elements.clusterMarkNoiseButton?.addEventListener("click", () => {
     hideClusterContextMenu();
     openClusterNoiseModal();

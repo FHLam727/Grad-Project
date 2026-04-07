@@ -1,8 +1,8 @@
 const METRIC_META = [
-  { key: "discussion_total", label: "Discussion", subtitle: "Total daily discussion volume", accent: "accent-entertainment" },
-  { key: "engagement_total", label: "Engagement", subtitle: "Likes, comments, and shares aggregated per day", accent: "accent-experience" },
-  { key: "unique_authors", label: "Unique Authors", subtitle: "Distinct authors posting on that day", accent: "accent-shopping" },
-  { key: "velocity", label: "Velocity", subtitle: "Daily post count used as the speed signal", accent: "accent-accommodation" },
+  { key: "discussion_total", label: "Discussion", subtitle: "Daily Discussion Volume", accent: "accent-entertainment" },
+  { key: "engagement_total", label: "Engagement", subtitle: "Daily Engagement Total", accent: "accent-experience" },
+  { key: "unique_authors", label: "Unique Authors", subtitle: "Daily Unique Authors", accent: "accent-shopping" },
+  { key: "velocity", label: "Velocity", subtitle: "Daily Post Volume", accent: "accent-accommodation" },
 ];
 const API_BASE = "/api/full-web-heat-analysis";
 const HEAT_ROUTE = "/full-web-heat-analysis";
@@ -60,6 +60,10 @@ const elements = {
   trendBusyOverlay: document.getElementById("trendBusyOverlay"),
   trendBusyTitle: document.getElementById("trendBusyTitle"),
   trendBusyDetail: document.getElementById("trendBusyDetail"),
+  openIndicatorGuideButton: document.getElementById("openIndicatorGuideButton"),
+  indicatorGuideModal: document.getElementById("indicatorGuideModal"),
+  indicatorGuideBackdrop: document.getElementById("indicatorGuideBackdrop"),
+  closeIndicatorGuideButton: document.getElementById("closeIndicatorGuideButton"),
   trendCalendarModal: document.getElementById("trendCalendarModal"),
   trendCalendarBackdrop: document.getElementById("trendCalendarBackdrop"),
   closeTrendCalendarButton: document.getElementById("closeTrendCalendarButton"),
@@ -363,9 +367,6 @@ function renderSnapshotWindowList() {
         <strong>${isMonthlyMode() ? formatMonthLabel(item.month_key) : `${item.week_start.slice(5)} to ${item.week_end.slice(5)}`}</strong>
         <span class="snapshot-status-badge ${statusMeta.className}">${statusMeta.label}</span>
       </div>
-      <p>${formatNumber(item.post_count || 0)} posts · ${
-        isMonthlyMode() ? "calendar month window" : "fixed Sunday-Saturday window"
-      }</p>
     `;
     button.addEventListener("click", async () => {
       state.currentWeek = item;
@@ -378,28 +379,38 @@ function renderSnapshotWindowList() {
 }
 
 function syncTrendWindowCopy() {
-  elements.trendWindowEyebrow.textContent = isQuarterlyMode() ? "Current Quarter" : isMonthlyMode() ? "Current Month" : "Current Week";
-  elements.trendSnapshotFilterLabel.textContent = isQuarterlyMode() ? "Quarterly Filter" : isMonthlyMode() ? "Monthly Filter" : "Weekly Filter";
-  elements.trendSnapshotFilterCopy.textContent = isQuarterlyMode()
-    ? "Quarterly reporting is visible for planning, but Full-Web collection starts on 2026-03-01. The first complete Q2 2026 report will be available after June 2026."
-    : isMonthlyMode()
-    ? "Monthly snapshots are derived from your existing Full-Web database. Pick Month to switch between available monthly cluster windows."
-    : "Fixed Sunday to Saturday windows only. Pick Week to switch between completed, analyzable, or future weekly snapshots.";
+  if (elements.trendWindowEyebrow) {
+    elements.trendWindowEyebrow.textContent = isQuarterlyMode() ? "Current Quarter" : isMonthlyMode() ? "Current Month" : "Current Week";
+  }
+  elements.trendSnapshotFilterLabel.textContent = "Date Range";
+  if (elements.trendSnapshotFilterCopy) {
+    elements.trendSnapshotFilterCopy.textContent = "";
+  }
   elements.openTrendCalendarButton.textContent = isQuarterlyMode() ? "Pick Quarter" : isMonthlyMode() ? "Pick Month" : "Pick Week";
   if (isQuarterlyMode()) {
-    elements.trendWeekLabel.textContent = state.currentWeek?.quarter_key || "2026-Q2";
-    elements.trendWeekSubLabel.textContent =
-      "Quarterly reporting is pending until a complete Q2 2026 window is available after June 2026.";
+    if (elements.trendWeekLabel) {
+      elements.trendWeekLabel.textContent = state.currentWeek?.quarter_key || "2026-Q2";
+    }
+    if (elements.trendWeekSubLabel) {
+      elements.trendWeekSubLabel.textContent = "";
+    }
     return;
   }
   if ((!isMonthlyMode() && !state.currentWeek.week_start) || (isMonthlyMode() && !state.currentWeek.month_key)) {
-    elements.trendWeekLabel.textContent = isMonthlyMode() ? "No analyzed month yet" : "No analyzed week yet";
-    elements.trendWeekSubLabel.textContent = `Open Heat Analysis and run one ${isMonthlyMode() ? "monthly" : "weekly"} analysis first.`;
+    if (elements.trendWeekLabel) {
+      elements.trendWeekLabel.textContent = isMonthlyMode() ? "No analyzed month yet" : "No analyzed week yet";
+    }
+    if (elements.trendWeekSubLabel) {
+      elements.trendWeekSubLabel.textContent = "";
+    }
     return;
   }
-  const statusMeta = STATUS_META[state.currentWeek.status] || STATUS_META.to_be_updated;
-  elements.trendWeekLabel.textContent = formatSelectedWindowLabel(state.currentWeek);
-  elements.trendWeekSubLabel.textContent = `${statusMeta.label}. ${statusMeta.detail}`;
+  if (elements.trendWeekLabel) {
+    elements.trendWeekLabel.textContent = formatSelectedWindowLabel(state.currentWeek);
+  }
+  if (elements.trendWeekSubLabel) {
+    elements.trendWeekSubLabel.textContent = "";
+  }
 }
 
 function renderTrendCalendarLegend() {
@@ -421,11 +432,9 @@ function syncTrendCalendarSelectionSummary() {
   elements.trendCalendarSelectionLabel.textContent = state.calendarSelectedWindow
     ? formatSelectedWindowLabel(state.calendarSelectedWindow)
     : (isMonthlyMode() ? "No month selected" : "No week selected");
-  elements.trendCalendarSelectionDetail.textContent = state.calendarSelectedWindow
-    ? `${(STATUS_META[state.calendarSelectedWindow.status] || STATUS_META.to_be_updated).label}. ${
-        (STATUS_META[state.calendarSelectedWindow.status] || STATUS_META.to_be_updated).detail
-      }`
-    : `Choose one ${isMonthlyMode() ? "monthly" : "weekly"} snapshot to refresh trend charts.`;
+  if (elements.trendCalendarSelectionDetail) {
+    elements.trendCalendarSelectionDetail.textContent = "";
+  }
   elements.confirmTrendCalendarButton.disabled = !state.calendarSelectedWindow;
   elements.confirmTrendCalendarButton.textContent = isMonthlyMode() ? "Use This Month" : "Use This Week";
 }
@@ -437,8 +446,9 @@ function renderTrendCalendar() {
     elements.trendCalendarMonthLabel.textContent = "Quarterly Reporting";
     elements.trendCalendarEyebrow.textContent = "Quarterly Trend Filter";
     elements.trendCalendarTitle.textContent = "Pick Quarter";
-    elements.trendCalendarHelper.textContent =
-      "Quarterly reporting is visible for planning, but a complete quarter is not available yet. The first complete Q2 2026 report will be available after June 2026.";
+    if (elements.trendCalendarHelper) {
+      elements.trendCalendarHelper.textContent = "";
+    }
     const empty = document.createElement("div");
     empty.className = "snapshot-window-empty";
     empty.textContent =
@@ -446,8 +456,9 @@ function renderTrendCalendar() {
     elements.trendCalendarGrid.appendChild(empty);
     clearNode(elements.trendCalendarLegend);
     elements.trendCalendarSelectionLabel.textContent = "2026-Q2";
-    elements.trendCalendarSelectionDetail.textContent =
-      "Quarterly reporting is pending until a complete Q2 2026 window is available.";
+    if (elements.trendCalendarSelectionDetail) {
+      elements.trendCalendarSelectionDetail.textContent = "";
+    }
     elements.confirmTrendCalendarButton.disabled = true;
     elements.confirmTrendCalendarButton.textContent = "Use This Quarter";
     return;
@@ -456,9 +467,9 @@ function renderTrendCalendar() {
   elements.trendCalendarMonthLabel.textContent = isMonthlyMode() ? "Available Months" : "Available Weeks";
   elements.trendCalendarEyebrow.textContent = isMonthlyMode() ? "Monthly Trend Filter" : "Weekly Trend Filter";
   elements.trendCalendarTitle.textContent = isMonthlyMode() ? "Pick Month" : "Pick Week";
-  elements.trendCalendarHelper.textContent = isMonthlyMode()
-    ? "Choose one calendar month for the trend view. The time selector matches the leaderboard snapshot logic."
-    : "Choose one fixed Sunday to Saturday window for the trend view. The time selector matches the leaderboard snapshot logic.";
+  if (elements.trendCalendarHelper) {
+    elements.trendCalendarHelper.textContent = "";
+  }
 
   if (isMonthlyMode()) {
     const section = document.createElement("section");
@@ -474,7 +485,6 @@ function renderTrendCalendar() {
       button.className = `calendar-day ${statusMeta.className}${isSelected ? " selected-week" : ""}`;
       button.innerHTML = `
         <span class="calendar-day-month">${formatMonthLabel(item.month_key)}</span>
-        <span class="calendar-day-meta">${formatNumber(item.post_count || 0)} posts · calendar month window</span>
       `;
       button.addEventListener("click", () => {
         state.calendarSelectedWindow = item;
@@ -506,7 +516,6 @@ function renderTrendCalendar() {
         button.className = `calendar-day ${statusMeta.className}${isSelected ? " selected-week" : ""}`;
         button.innerHTML = `
           <span class="calendar-week-range">${week.week_start} to ${week.week_end}</span>
-          <span class="calendar-day-meta">${formatNumber(week.post_count || 0)} posts · fixed Sunday-Saturday window</span>
         `;
         button.addEventListener("click", () => {
           state.calendarSelectedWindow = week;
@@ -536,6 +545,16 @@ function closeTrendCalendar() {
   elements.trendCalendarModal.setAttribute("aria-hidden", "true");
 }
 
+function openIndicatorGuideModal() {
+  elements.indicatorGuideModal?.classList.remove("hidden");
+  elements.indicatorGuideModal?.setAttribute("aria-hidden", "false");
+}
+
+function closeIndicatorGuideModal() {
+  elements.indicatorGuideModal?.classList.add("hidden");
+  elements.indicatorGuideModal?.setAttribute("aria-hidden", "true");
+}
+
 function renderIndicatorCards(summary) {
   clearNode(elements.trendIndicatorGrid);
   if (isQuarterlyMode()) {
@@ -550,6 +569,11 @@ function renderIndicatorCards(summary) {
         label: "Collection Start",
         value: "2026-03-01",
         sub: "Full-Web collection began in March 2026.",
+      },
+      {
+        label: "Selected Range",
+        value: state.currentWeek?.quarter_key || "2026-Q2",
+        sub: "Quarterly target currently in view.",
       },
       {
         label: "First Report",
@@ -568,13 +592,18 @@ function renderIndicatorCards(summary) {
       node.innerHTML = `
         <span>${card.label}</span>
         <strong>${card.value}</strong>
-        <small>${card.sub}</small>
       `;
       elements.trendIndicatorGrid.appendChild(node);
     });
     return;
   }
   const cards = [
+    {
+      label: "Selected Range",
+      value: formatSelectedWindowLabel(state.currentWeek),
+      sub: "",
+      wide: true,
+    },
     {
       label: "Discussion",
       value: formatNumber(summary.discussion_total || 0),
@@ -599,11 +628,10 @@ function renderIndicatorCards(summary) {
 
   cards.forEach((card) => {
     const node = document.createElement("article");
-    node.className = "trend-indicator-card";
+    node.className = `trend-indicator-card${card.wide ? " trend-indicator-card-wide" : ""}`;
     node.innerHTML = `
       <span>${card.label}</span>
       <strong>${card.value}</strong>
-      <small>${card.sub}</small>
     `;
     elements.trendIndicatorGrid.appendChild(node);
   });
@@ -626,7 +654,6 @@ function renderHeatFocusCard(summary) {
     <p class="eyebrow">Final Heat</p>
     <h3>${summary.cluster_key || "-"}</h3>
     <div class="trend-heat-score">${formatScore(summary.heat_score || 0)}</div>
-    <p class="helper-copy">Final combined score for the selected ${isQuarterlyMode() ? "quarterly" : isMonthlyMode() ? "monthly" : "weekly"} snapshot</p>
   `;
 }
 
@@ -636,7 +663,6 @@ function renderMetricChart(metricSeries, meta) {
   wrapper.innerHTML = `
     <div class="chart-card-head">
       <div>
-        <p class="chart-kicker">${meta.label}</p>
         <h3>${meta.subtitle}</h3>
       </div>
       <span class="pill-badge ${meta.accent}">${meta.label}</span>
@@ -647,6 +673,7 @@ function renderMetricChart(metricSeries, meta) {
   `;
 
   const svg = wrapper.querySelector("svg");
+  const chartStage = wrapper.querySelector(".chart-stage");
   const validSeries = metricSeries.filter((item) => item.value !== null && item.value !== undefined);
   if (!validSeries.length) {
     svg.innerHTML = `<text class="metric-label" x="260" y="126" text-anchor="middle">No ${isMonthlyMode() ? "monthly" : "weekly"} data</text>`;
@@ -687,10 +714,46 @@ function renderMetricChart(metricSeries, meta) {
     <line class="metric-axis" x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${padding.top + chartHeight}"></line>
     ${areaPath ? `<path class="metric-area" d="${areaPath}"></path>` : ""}
     ${linePath ? `<path class="metric-line" d="${linePath}"></path>` : ""}
-    ${plottedPoints.map((point) => `<circle class="metric-point" cx="${point.x}" cy="${point.y}" r="4.5"></circle>`).join("")}
+    ${plottedPoints
+      .map(
+        (point, index) =>
+          `<circle class="metric-point interactive-point" data-point-index="${index}" cx="${point.x}" cy="${point.y}" r="4.5" tabindex="0"></circle>`
+      )
+      .join("")}
     ${xLabels}
     ${pendingLabel}
   `;
+
+  const tooltip = document.createElement("div");
+  tooltip.className = "chart-tooltip hidden";
+  chartStage.appendChild(tooltip);
+
+  svg.querySelectorAll(".interactive-point").forEach((node, index) => {
+    const point = plottedPoints[index];
+    const showTooltip = () => {
+      node.setAttribute("r", "8");
+      node.classList.add("is-active");
+      tooltip.classList.remove("hidden");
+      tooltip.innerHTML = `
+        <span class="chart-tooltip-meta">${meta.label}</span>
+        <strong>${formatAxisDateLabel(point.date)}</strong>
+        <span class="chart-tooltip-value">${formatNumber(point.value || 0)}</span>
+      `;
+      const pointRect = node.getBoundingClientRect();
+      const stageRect = chartStage.getBoundingClientRect();
+      tooltip.style.left = `${pointRect.left - stageRect.left + pointRect.width / 2}px`;
+      tooltip.style.top = `${pointRect.top - stageRect.top}px`;
+    };
+    const hideTooltip = () => {
+      node.setAttribute("r", "4.5");
+      node.classList.remove("is-active");
+      tooltip.classList.add("hidden");
+    };
+    node.addEventListener("mouseenter", showTooltip);
+    node.addEventListener("mouseleave", hideTooltip);
+    node.addEventListener("focus", showTooltip);
+    node.addEventListener("blur", hideTooltip);
+  });
 
   return wrapper;
 }
@@ -704,7 +767,6 @@ function renderCharts(metrics) {
       wrapper.innerHTML = `
         <div class="chart-card-head">
           <div>
-            <p class="chart-kicker">${meta.label}</p>
             <h3>${meta.subtitle}</h3>
           </div>
           <span class="pill-badge ${meta.accent}">${meta.label}</span>
@@ -867,14 +929,14 @@ async function loadPageData() {
       : isMonthlyMode()
       ? "Monthly Trend Analysis"
       : "Weekly Trend Analysis";
-    elements.trendPageSubtitlePrefix.textContent = isQuarterlyMode()
-      ? "Quarterly reporting is shown as a planning state until one complete quarter is available."
-      : isMonthlyMode()
-      ? "Focus on the current monthly snapshot only."
-      : "Focus on the current weekly snapshot only.";
+    if (elements.trendPageSubtitlePrefix) {
+      elements.trendPageSubtitlePrefix.textContent = "";
+    }
     if (overview.total_posts === 0) {
       elements.trendWeekLabel.textContent = "Database is empty";
-      elements.trendWeekSubLabel.textContent = "No social posts were found in social_media_analytics.db.";
+      if (elements.trendWeekSubLabel) {
+        elements.trendWeekSubLabel.textContent = "";
+      }
     } else {
       syncTrendWindowCopy();
     }
@@ -925,6 +987,9 @@ async function bootstrap() {
   elements.openTrendCalendarButton.addEventListener("click", openTrendCalendar);
   elements.closeTrendCalendarButton.addEventListener("click", closeTrendCalendar);
   elements.trendCalendarBackdrop.addEventListener("click", closeTrendCalendar);
+  elements.openIndicatorGuideButton?.addEventListener("click", openIndicatorGuideModal);
+  elements.closeIndicatorGuideButton?.addEventListener("click", closeIndicatorGuideModal);
+  elements.indicatorGuideBackdrop?.addEventListener("click", closeIndicatorGuideModal);
   elements.confirmTrendCalendarButton.addEventListener("click", async () => {
     if (!state.calendarSelectedWindow) {
       return;
