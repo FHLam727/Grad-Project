@@ -180,6 +180,17 @@
       box-shadow: var(--cardShadow);
       padding:16px;
     }
+    #resultsSummaryBlock{
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+    #resultsSummaryBlock .empty-state{
+      padding-top: 14px !important;
+      padding-bottom: 18px !important;
+    }
+    #resultsSummaryBlock .results-summary-banner{
+      margin-top: 8px;
+    }
     .block + .block{margin-top:14px;}
 
     .block-head{
@@ -1846,6 +1857,12 @@
     // ── Summary Banner（event cards 上方）─────────────────────
     async function buildSummaryBanner(catData, filterParams) {
         const { fromDate, toDate } = filterParams || {};
+        const currentFilters = {
+            operators: [...(_appliedFilterState?.operators || [])],
+            categories: [...(_appliedFilterState?.categories || [])]
+        };
+        const currentPeriod = { start: fromDate || '', end: toDate || '' };
+        const cachedInsights = _getCachedInsightsForSelection(currentFilters, currentPeriod, _currentKeywordString());
 
         // ── Aggregate stats ───────────────────────────────────
         const totalEvents = Object.values(catData).reduce((s,a) => s + a.length, 0);
@@ -1934,6 +1951,17 @@
                 </div>
             </div>
         `;
+
+        const cachedSlot = banner.querySelector('#hotThemesSlot');
+        if (cachedInsights?.hotThemes?.length && cachedSlot) {
+            _renderHotThemesToSlot(cachedSlot, cachedInsights.hotThemes);
+            _attachHotThemeFilterHandlers(cachedSlot, cachedInsights.hotThemes, catData);
+            if (_reportCache) _reportCache.hotThemes = cachedInsights.hotThemes.slice();
+            _cachedHotThemesHTML = cachedSlot.innerHTML;
+            _cachedHotThemesStyle = cachedSlot.style.cssText;
+            _markReportAnalysisReady('hotThemesReady');
+            return banner;
+        }
 
         // ── Fire async DeepSeek call, inject result when ready ──
         fetchHotThemes(catData).then(themes => {
@@ -2026,37 +2054,16 @@
 	                _cachedHotThemesStyle = slot.style.cssText;
                    // Also store structured data for Preview Report (no DOM scraping needed)
 	                if (_reportCache) {
-	                    _reportCache.hotThemes = themesMeta.map(({ label, avgHeat, opSet }) => ({
-	                        label, icon: '🔥', avgHeat: avgHeat ?? null, operators: [...opSet]
+	                    _reportCache.hotThemes = themesMeta.map(({ label, avgHeat, opSet, indices }) => ({
+	                        label, icon: '🔥', avgHeat: avgHeat ?? null, operators: [...opSet], indices: [...indices]
 	                    }));
+                      _persistReportInsightsToSessionIfReady();
 	                    _persistFullReportInsightsIfReady();
 	                }
 	                _markReportAnalysisReady('hotThemesReady');
 	            }
 
-            // Click-to-filter by theme indices
-            slot.querySelectorAll('.hot-theme-card[data-theme-idx]').forEach(chip => {
-                chip.addEventListener('click', () => {
-                    const idx = parseInt(chip.dataset.themeIdx);
-                    const meta = themesMeta[idx];
-                    if (!meta || !meta.indices || !meta.indices.length) return;
-                    // Filter allActs to only those matching the 1-based indices
-                    const filtered = {};
-                    meta.indices.forEach(n => {
-                        const act = allActs[n - 1];
-                        if (!act) return;
-                        const cat = act.sub_type || act.category || 'experience';
-                        if (!filtered[cat]) filtered[cat] = [];
-                        filtered[cat].push(act);
-                    });
-                    const container = document.getElementById('analyticsContent');
-                    if (container && Object.keys(filtered).length) {
-                        container.innerHTML = '';
-                        _renderGroupedBody(filtered, container);
-                        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                });
-            });
+            _attachHotThemeFilterHandlers(slot, themesMeta, catData);
 
             // Hover effect for hot-theme cards
             slot.querySelectorAll('.hot-theme-card').forEach(card => {
@@ -2077,10 +2084,11 @@
     }
 
     // ── 核心：Group by Category 渲染 ─────────────────────────
-    async function _renderGroupedBody(data, container) {
+    async function _renderGroupedBody(data, container, options = {}) {
         if (!container) container = document.getElementById("analyticsContent");
         if (!container) return;
         const summaryHost = document.getElementById('resultsSummaryHost');
+        const skipSummary = !!options.skipSummary;
 
         // data 可以係 category_summaries (新格式) 或 operator_summaries (舊格式)
         // 判斷：如果 key 係 category 名就用新格式，否則轉換
@@ -2109,7 +2117,7 @@
 
         const totalCards = Object.values(catData).reduce((s,a) => s + a.length, 0);
         if (totalCards === 0) {
-            if (summaryHost) {
+            if (summaryHost && !skipSummary) {
                 summaryHost.innerHTML = `<div class="empty-state" style="padding:28px 24px;">
                     <h4>Results Summary</h4>
                     <p>No matching activities found for the current selection.</p>
@@ -2127,10 +2135,10 @@
             selectedCats: typeof getSelectedValues === 'function' ? getSelectedValues("category") : [],
             selectedOps:  typeof getSelectedValues === 'function' ? getSelectedValues("operator")  : [],
         };
-        if (summaryHost) {
+        if (summaryHost && !skipSummary) {
             summaryHost.innerHTML = '';
             summaryHost.appendChild(await buildSummaryBanner(catData, filterParams));
-        } else {
+        } else if (!skipSummary) {
             container.appendChild(await buildSummaryBanner(catData, filterParams));
         }
 
@@ -2746,6 +2754,7 @@ let _barChart       = null;
 
 // Active drill-down filter: { operator: string|null, catKey: string|null }
 let _chartFilter = { operator: null, catKey: null };
+let _activeHotThemeIdx = null;
 // ── Hot Themes cache (base = after Apply Filter; restored on Clear Filter) ───
 let _cachedHotThemesHTML  = null;
 let _cachedHotThemesStyle = null;
@@ -2779,6 +2788,49 @@ function _reportInsightCacheKey(period, keyword) {
   return `${start}|${end}|${kw}`;
 }
 
+function _normaliseStringSet(values) {
+  return [...new Set((values || []).map(v => String(v).trim().toLowerCase()).filter(Boolean))].sort();
+}
+
+function _sameSelectionValues(a, b) {
+  const aa = _normaliseStringSet(a);
+  const bb = _normaliseStringSet(b);
+  return aa.length === bb.length && aa.every((v, i) => v === bb[i]);
+}
+
+function _selectionMatches(filters, period, keyword, source) {
+  if (!source) return false;
+  const sourcePeriod = source.period || {};
+  const sourceFilters = source.filters || {};
+  return (sourcePeriod.start || '') === (period?.start || '')
+    && (sourcePeriod.end || '') === (period?.end || '')
+    && _reportInsightCacheKey(period, keyword) === (source.key || _reportInsightCacheKey(sourcePeriod, source.keyword || ''))
+    && _sameSelectionValues(sourceFilters.operators || [], filters?.operators || [])
+    && _sameSelectionValues(sourceFilters.categories || [], filters?.categories || []);
+}
+
+function _getCachedInsightsForSelection(filters, period, keyword) {
+  if (_selectionMatches(filters, period, keyword, _reportCache) &&
+      ((_reportCache?.hotThemes?.length || 0) > 0 ||
+       (_reportCache?.aiRecommendations?.length || 0) > 0 ||
+       (_reportCache?.comparisons?.length || 0) > 0)) {
+    return {
+      period: _reportCache.period,
+      filters: _reportCache.filters,
+      keyword: _reportCache.keyword || '',
+      key: _reportInsightCacheKey(_reportCache.period, _reportCache.keyword || ''),
+      hotThemes: Array.isArray(_reportCache.hotThemes) ? _reportCache.hotThemes : [],
+      aiRecommendations: Array.isArray(_reportCache.aiRecommendations) ? _reportCache.aiRecommendations : [],
+      comparisons: Array.isArray(_reportCache.comparisons) ? _reportCache.comparisons : []
+    };
+  }
+  try {
+    const saved = JSON.parse(sessionStorage.getItem('_cachedReportInsights') || 'null');
+    if (_selectionMatches(filters, period, keyword, saved)) return saved;
+  } catch (e) {}
+  return null;
+}
+
 function _resetReportAnalysisState() {
   _reportAnalysisState = { hotThemesReady: false, recommendationsReady: false };
 }
@@ -2790,6 +2842,27 @@ function _markReportAnalysisReady(key) {
 
 function _isReportAnalysisReady() {
   return !!(_reportAnalysisState.hotThemesReady && _reportAnalysisState.recommendationsReady);
+}
+
+function _persistReportInsightsToSessionIfReady() {
+  if (!_reportCache) return;
+  if (!_reportCache.period?.start || !_reportCache.period?.end) return;
+  if (!Array.isArray(_reportCache.hotThemes)         || !_reportCache.hotThemes.length)         return;
+  if (!Array.isArray(_reportCache.aiRecommendations) || !_reportCache.aiRecommendations.length) return;
+  if (!Array.isArray(_reportCache.comparisons)       || !_reportCache.comparisons.length)       return;
+
+  const cacheKey = _reportInsightCacheKey(_reportCache.period, _reportCache.keyword || '');
+  try {
+    sessionStorage.setItem('_cachedReportInsights', JSON.stringify({
+      key: cacheKey,
+      period: _reportCache.period,
+      filters: _reportCache.filters,
+      keyword: _reportCache.keyword || '',
+      hotThemes: _reportCache.hotThemes,
+      aiRecommendations: _reportCache.aiRecommendations,
+      comparisons: _reportCache.comparisons
+    }));
+  } catch(e) {}
 }
 
 async function _persistFullReportInsightsIfReady() {
@@ -2821,16 +2894,6 @@ async function _persistFullReportInsightsIfReady() {
     const data = await resp.json();
     _reportInsightsPersistedKey = cacheKey;
     console.log('[Persist] report-insights saved ✓');
-    try {
-      sessionStorage.setItem('_cachedReportInsights', JSON.stringify({
-        key: cacheKey,
-        period: _reportCache.period,
-        filters: _reportCache.filters,
-        hotThemes: _reportCache.hotThemes,
-        aiRecommendations: _reportCache.aiRecommendations,
-        comparisons: _reportCache.comparisons
-      }));
-    } catch(e) {}
   } catch (err) {
     console.warn('report insights persist failed:', err);
   }
@@ -2844,24 +2907,8 @@ function _renderCachedInsightsToDOM(insights) {
   if (hotThemes.length) {
     const slot = document.getElementById('hotThemesSlot');
     if (slot) {
-      const hotColors = ['#DC2626','#D97706','#7C3AED','#059669','#0891B2'];
-      const OP_CHIP_COLORS = { wynn:'#B45309', sands:'#1D4ED8', galaxy:'#15803D', mgm:'#7C3AED', melco:'#DB2777', sjm:'#0369A1', government:'#374151' };
-      const OP_CHIP_LABELS = { wynn:'Wynn', sands:'Sands', galaxy:'Galaxy', mgm:'MGM', melco:'Melco', sjm:'SJM', government:'Gov' };
-      slot.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:6px;width:100%;';
-      slot.innerHTML = hotThemes.map((t, i) => {
-        const color = hotColors[i % hotColors.length];
-        const heatBadge = t.avgHeat != null
-          ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;background:rgba(234,88,12,0.10);color:#C2410C;border:1px solid rgba(234,88,12,0.20);border-radius:999px;padding:2px 6px;">🔥${Number(t.avgHeat).toFixed(1)}</span>` : '';
-        const opTags = (t.operators||[]).map(op => {
-          const c = OP_CHIP_COLORS[op]||'#6B7280';
-          const lbl = OP_CHIP_LABELS[op]||(op[0].toUpperCase()+op.slice(1));
-          return `<span style="display:inline-flex;align-items:center;font-size:10px;font-weight:600;background:${c}14;color:${c};border:1px solid ${c}30;border-radius:999px;padding:2px 7px;">${lbl}</span>`;
-        }).join('');
-        return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:${color}0d;border:1px solid ${color}28;border-radius:12px;padding:6px 12px;">
-          <span style="font-size:11px;font-weight:700;color:${color};flex:0 0 auto;">🔥 ${t.label||''}</span>
-          ${heatBadge}${opTags}
-        </div>`;
-      }).join('');
+      _renderHotThemesToSlot(slot, hotThemes);
+      _attachHotThemeFilterHandlers(slot, hotThemes, _chartCatData);
     }
   }
 
@@ -2900,6 +2947,180 @@ function _renderCachedInsightsToDOM(insights) {
       if (status) { status.textContent = '✓ Restored from cache'; status.style.display = 'block'; }
     }
   }
+}
+
+function _renderHotThemesToSlot(slot, hotThemes) {
+  if (!slot || !Array.isArray(hotThemes) || !hotThemes.length) return false;
+  const hotColors = ['#DC2626','#D97706','#7C3AED','#059669','#0891B2'];
+  const OP_CHIP_COLORS = { wynn:'#B45309', sands:'#1D4ED8', galaxy:'#15803D', mgm:'#7C3AED', melco:'#DB2777', sjm:'#0369A1', government:'#374151' };
+  const OP_CHIP_LABELS = { wynn:'Wynn', sands:'Sands', galaxy:'Galaxy', mgm:'MGM', melco:'Melco', sjm:'SJM', government:'Gov' };
+  slot.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:6px;width:100%;';
+  slot.innerHTML = hotThemes.map((t, i) => {
+    const color = hotColors[i % hotColors.length];
+    const hasFilter = Array.isArray(t.indices) && t.indices.length > 0;
+    const heatBadge = t.avgHeat != null
+      ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;background:rgba(234,88,12,0.10);color:#C2410C;border:1px solid rgba(234,88,12,0.20);border-radius:999px;padding:2px 6px;">🔥${Number(t.avgHeat).toFixed(1)}</span>` : '';
+    const opTags = (t.operators || []).map(op => {
+      const key = String(op).toLowerCase();
+      const c = OP_CHIP_COLORS[key] || '#6B7280';
+      const lbl = OP_CHIP_LABELS[key] || (key[0]?.toUpperCase() + key.slice(1));
+      return `<span style="display:inline-flex;align-items:center;font-size:10px;font-weight:600;background:${c}14;color:${c};border:1px solid ${c}30;border-radius:999px;padding:2px 7px;">${lbl}</span>`;
+    }).join('');
+    return `<div class="hot-theme-card" data-theme-idx="${i}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:${color}0d;border:1px solid ${color}28;border-radius:12px;padding:6px 12px;cursor:${hasFilter ? 'pointer' : 'default'};">
+      <span style="font-size:11px;font-weight:700;color:${color};flex:0 0 auto;">🔥 ${t.label || ''}</span>
+      ${heatBadge}${opTags}
+    </div>`;
+  }).join('');
+  return true;
+}
+
+function _attachHotThemeFilterHandlers(slot, hotThemes, catData) {
+  if (!slot || !Array.isArray(hotThemes) || !hotThemes.length || !catData) return;
+  const allActs = Object.values(catData).flat();
+  const chips = slot.querySelectorAll('.hot-theme-card[data-theme-idx]');
+
+  function paintActiveChip(activeIdx) {
+    chips.forEach(chip => {
+      const idx = parseInt(chip.dataset.themeIdx, 10);
+      if (idx === activeIdx) {
+        chip.style.boxShadow = '0 8px 20px rgba(15,23,42,0.10)';
+        chip.style.transform = 'translateY(-1px)';
+        chip.style.filter = 'brightness(1.03)';
+      } else {
+        chip.style.boxShadow = '';
+        chip.style.transform = '';
+        chip.style.filter = '';
+      }
+    });
+  }
+
+  function renderThemeFilter(themeIdx) {
+    const container = document.getElementById('analyticsContent');
+    if (!container) return;
+    if (_activeHotThemeIdx === themeIdx) {
+      _activeHotThemeIdx = null;
+      paintActiveChip(null);
+      container.innerHTML = '';
+      _renderGroupedBody(catData, container, { skipSummary: true });
+      return;
+    }
+
+    const meta = hotThemes[themeIdx];
+    if (!meta || !Array.isArray(meta.indices) || !meta.indices.length) return;
+
+    const filtered = {};
+    meta.indices.forEach(n => {
+      const act = allActs[n - 1];
+      if (!act) return;
+      const catKey = act.category || act.sub_type || act.catKey || Object.keys(catData).find(k => (catData[k] || []).includes(act)) || 'experience';
+      if (!filtered[catKey]) filtered[catKey] = [];
+      filtered[catKey].push(act);
+    });
+
+    _activeHotThemeIdx = themeIdx;
+    paintActiveChip(themeIdx);
+    container.innerHTML = '';
+    _renderGroupedBody(filtered, container, { skipSummary: true });
+    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      const idx = parseInt(chip.dataset.themeIdx, 10);
+      renderThemeFilter(idx);
+    });
+  });
+}
+
+function _renderCachedRecommendationsToDOM(recs, comparisons = []) {
+  const list = getPromptListEl();
+  const status = getPromptStatusEl();
+  if (!list || !Array.isArray(recs) || !recs.length) return false;
+
+  const TYPE_CONFIG = {
+    keep_up: { icon: '🚀', label: 'Keep it Up', color: '#15803D', bg: 'rgba(22,163,74,0.08)', border: 'rgba(22,163,74,0.22)' },
+    improve: { icon: '⚡', label: 'Improve', color: '#B45309', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.22)' },
+    avoid: { icon: '🚫', label: 'Avoid for Now', color: '#B91C1C', bg: 'rgba(220,38,38,0.06)', border: 'rgba(220,38,38,0.18)' },
+  };
+  const CAT_ICONS = { concert:'🎤', exhibition:'🖼️', experience:'✨', sport:'🏅', crossover:'🤝', accommodation:'🏨', food:'🍽️', shopping:'🛍️' };
+  const CAT_LABELS = { concert:'Concert', exhibition:'Exhibition', experience:'Experience', sport:'Sport', crossover:'Crossover', accommodation:'Hotel', food:'Food', shopping:'Shopping' };
+  const OP_COLORS = { Wynn:'#B45309', Sands:'#1D4ED8', Galaxy:'#047857', MGM:'#991B1B', Melco:'#6D28D9', SJM:'#0E7490', Government:'#374151' };
+
+  function colorizeOps(text) {
+    return String(text || '').replace(/\b(Wynn|Sands|Galaxy|MGM|Melco|SJM|Government)\b/g, match =>
+      `<span style="font-weight:700;color:${OP_COLORS[match] || '#0F172A'};">${match}</span>`
+    );
+  }
+
+  function buildHeatRankingHtml(catKey) {
+    const comp = (comparisons || []).find(c => String(c.catKey || '').toLowerCase() === String(catKey || '').toLowerCase());
+    if (!comp) return '';
+    const rows = [
+      { opTitle: 'Wynn', count: comp.wynn?.count || 0, avg: comp.wynn?.avgHeat || 0 },
+      ...((comp.opponents || []).map(opp => ({
+        opTitle: opp.organiser,
+        count: opp.count || 0,
+        avg: opp.avgHeat || 0
+      })))
+    ].sort((a, b) => (b.avg || 0) - (a.avg || 0));
+    const rowsHtml = rows.map((r, i) => {
+      const isWynn = r.opTitle === 'Wynn';
+      const color = OP_COLORS[r.opTitle] || '#6B7280';
+      const rankBg = isWynn ? 'rgba(234,179,8,0.15)' : 'rgba(15,23,42,0.06)';
+      const rankColor = isWynn ? '#92400E' : 'rgba(15,23,42,0.45)';
+      const rowBg = isWynn ? 'rgba(234,179,8,0.08)' : 'transparent';
+      const rowBorder = isWynn ? '1px solid rgba(234,179,8,0.22)' : '1px solid transparent';
+      const heatBadge = r.count === 0
+        ? `<span style="font-size:12px;font-weight:600;color:#9CA3AF;font-style:italic;">no events</span>`
+        : `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;background:rgba(249,115,22,0.10);border:1px solid rgba(249,115,22,0.22);font-size:12px;font-weight:700;color:#C2410C;">🔥 avg ${Number(r.avg || 0).toFixed(1)}</span>`;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:10px;background:${rowBg};border:${rowBorder};">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${rankBg};font-size:11px;font-weight:800;color:${rankColor};flex:0 0 auto;">${i + 1}</span>
+        <span style="font-size:13px;font-weight:700;color:${color};">${r.opTitle}</span>
+        <span style="font-size:12px;font-weight:500;color:rgba(15,23,42,0.5);">: ${r.count}</span>
+        ${heatBadge}
+      </div>`;
+    }).join('');
+    return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(15,23,42,0.07);">
+      <div style="font-size:10px;font-weight:700;color:rgba(15,23,42,0.35);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;">Heat Ranking · ${CAT_LABELS[catKey] || catKey}</div>
+      <div style="display:flex;flex-direction:column;gap:4px;">${rowsHtml}</div>
+    </div>`;
+  }
+
+  const cards = recs.slice(0, Math.min(recs.length, 3)).map(rec => {
+    const catKey = String(rec.catKey || '').toLowerCase();
+    const cfg = TYPE_CONFIG[String(rec.type || 'improve').toLowerCase()] || TYPE_CONFIG.improve;
+    const catIcon = CAT_ICONS[catKey] || '📍';
+    const catLabel = CAT_LABELS[catKey] || catKey;
+    return `<div style="display:flex;gap:12px;align-items:flex-start;padding:16px 18px;border-radius:18px;
+        background:${cfg.bg};border:1px solid ${cfg.border};margin-bottom:12px;">
+      <div style="flex:0 0 auto;width:36px;height:36px;border-radius:12px;
+        background:${cfg.color}18;border:1px solid ${cfg.color}30;
+        display:flex;align-items:center;justify-content:center;font-size:18px;margin-top:1px;">
+        ${cfg.icon}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+          <span style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
+            color:${cfg.color};background:${cfg.color}14;border:1px solid ${cfg.color}28;
+            border-radius:999px;padding:2px 8px;">${cfg.icon} ${cfg.label}</span>
+          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;
+            background:rgba(109,40,217,0.10);color:#6D28D9;border:1px solid rgba(109,40,217,0.22);
+            display:inline-flex;align-items:center;gap:4px;">${catIcon} ${catLabel}</span>
+        </div>
+        <div style="font-size:13.5px;line-height:1.7;color:rgba(15,23,42,0.82);">${colorizeOps(rec.text || '')}</div>
+        ${buildHeatRankingHtml(catKey)}
+      </div>
+    </div>`;
+  }).join('');
+
+  list.innerHTML = `<li class="prompt-item" style="display:block;padding:0;background:transparent;box-shadow:none;">
+    <div style="padding:4px 2px;">${cards || '<span style="color:rgba(15,23,42,0.4);font-size:13px;">No recommendations available.</span>'}</div>
+  </li>`;
+  if (status) {
+    status.textContent = '✓ Restored from cache';
+    status.style.display = 'block';
+  }
+  return true;
 }
 async function _fetchStoredReportInsights(period, keyword) {
   if (!period?.start || !period?.end) return null;
@@ -3409,6 +3630,7 @@ function refreshAnalyticsCharts(rawSummaries) {
   // Reset hot themes cache — fresh Apply Filter means fresh base themes
   _cachedHotThemesHTML  = null;
   _cachedHotThemesStyle = null;
+  _activeHotThemeIdx = null;
   _chartCatData = _extractCatData(rawSummaries);
   _comparisonCatData = _chartCatData;  // keep _chartDataSource() in sync
   // In DEMO mode nothing is checked yet → fall back to full default lists
@@ -3492,9 +3714,9 @@ window.renderGroupedResults = async function(summaries, isCrawling) {
         filters:           { operators: [..._appliedFilterState.operators], categories: [..._appliedFilterState.categories] },
         period:            { start: _fromDate, end: _toDate },
         keyword:           _currentKeywordString(),
-        hotThemes:         _reportCache?.hotThemes?.length         ? _reportCache.hotThemes         : [],
-        aiRecommendations: _reportCache?.aiRecommendations?.length ? _reportCache.aiRecommendations : [],
-        comparisons:       _reportCache?.comparisons?.length       ? _reportCache.comparisons       : [],
+        hotThemes:         [],
+        aiRecommendations: [],
+        comparisons:       [],
       };
       _reportInsightsPersistedKey = null;
       console.log('[ReportCache] initialised for', _fromDate, '→', _toDate);
@@ -4642,6 +4864,15 @@ function _chartDataSource() {
 
       const state = precomputedState || buildStrategyPromptState();
       if (reqSeq !== _strategyPromptReqSeq || !state) return;
+      const currentFilters = {
+        operators: [...(_appliedFilterState?.operators || [])],
+        categories: [...(_appliedFilterState?.categories || [])]
+      };
+      const currentPeriod = {
+        start: ((document.getElementById('fromDate') || {}).value || ''),
+        end: ((document.getElementById('toDate') || {}).value || '')
+      };
+      const cachedInsights = _getCachedInsightsForSelection(currentFilters, currentPeriod, _currentKeywordString());
 
       const TYPE_CONFIG = {
         keep_up: { icon: '🚀', label: 'Keep it Up',   color: '#15803D', bg: 'rgba(22,163,74,0.08)',   border: 'rgba(22,163,74,0.22)' },
@@ -4724,6 +4955,18 @@ function _chartDataSource() {
           </li>`;
         }
         if (status) status.textContent = 'Demo mode · Apply filters to generate live recommendations';
+        return;
+      }
+
+      if (cachedInsights?.aiRecommendations?.length) {
+        if (_reportCache) {
+          _reportCache.aiRecommendations = cachedInsights.aiRecommendations.slice();
+          _reportCache.comparisons = Array.isArray(cachedInsights.comparisons) ? cachedInsights.comparisons.slice() : [];
+        }
+        _renderCachedRecommendationsToDOM(cachedInsights.aiRecommendations, cachedInsights.comparisons || []);
+        _markReportAnalysisReady('recommendationsReady');
+        _analysesComplete = true;
+        _updateReportButtons();
         return;
       }
 
@@ -4836,7 +5079,7 @@ function _chartDataSource() {
         </li>`;
       }
 	      if (status) status.textContent = `Strategic recommendations ready · ${events.length} events · ${selectedOps.length} operators`;
-	      _markReportAnalysisReady('recommendationsReady');
+        _markReportAnalysisReady('recommendationsReady');
         // Save into report cache so Preview Report can use them instantly
 	      if (_reportCache && aiRecommendations && aiRecommendations.length) {
 	        _reportCache.aiRecommendations = aiRecommendations;
@@ -4853,6 +5096,7 @@ function _chartDataSource() {
           } : null,
           wynnLeads: (item.wynn?.count ?? 0) > 0 && (!item.topOpponent || (item.wynn?.avg ?? 0) > (item.topOpponent?.avg ?? 0))
         }));
+        _persistReportInsightsToSessionIfReady();
         _persistFullReportInsightsIfReady();
         _analysesComplete = true;   
         _updateReportButtons();    
