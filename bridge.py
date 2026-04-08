@@ -32,7 +32,15 @@ def _bridge_html_file(filename: str) -> FileResponse:
     p = BRIDGE_ROOT / filename
     if not p.is_file():
         raise HTTPException(status_code=404, detail=f"{filename} not found under {BRIDGE_ROOT}")
-    return FileResponse(p, media_type="text/html; charset=utf-8")
+    return FileResponse(
+        p,
+        media_type="text/html; charset=utf-8",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 def _full_web_ui_file(filename: str) -> FileResponse:
@@ -989,8 +997,46 @@ _FOOTFALL_FITTED_CACHE: dict = {}
 def _get_footfall_fitted(model_path: Path):
     import joblib
 
+    def _ensure_prophet_module():
+        try:
+            import prophet  # noqa: F401
+            return
+        except ModuleNotFoundError as first_err:
+            candidates: list[str] = []
+            try:
+                import site
+                candidates.extend(site.getsitepackages())
+            except Exception:
+                pass
+            try:
+                user_site = site.getusersitepackages()  # type: ignore[name-defined]
+                if user_site:
+                    candidates.append(user_site)
+            except Exception:
+                pass
+            for base in Path("/Library/Frameworks/Python.framework/Versions").glob("*"):
+                py_ver = f"python{base.name}"
+                candidates.append(str(base / "lib" / py_ver / "site-packages"))
+            candidates.extend(glob.glob("/Users/*/Library/Python/*/lib/python/site-packages"))
+            seen = set()
+            for p in candidates:
+                if not p or p in seen:
+                    continue
+                seen.add(p)
+                if Path(p).is_dir() and p not in sys.path:
+                    sys.path.append(p)
+            try:
+                import prophet  # noqa: F401
+                print(f"ℹ️ footfall: recovered prophet import via sys.path patch ({sys.executable})")
+                return
+            except ModuleNotFoundError:
+                raise ModuleNotFoundError(
+                    f"{first_err}. bridge python={sys.executable}. sys.path patched but prophet still missing."
+                ) from first_err
+
     k = str(model_path.resolve())
     if k not in _FOOTFALL_FITTED_CACHE:
+        _ensure_prophet_module()
         _FOOTFALL_FITTED_CACHE[k] = joblib.load(model_path)
     return _FOOTFALL_FITTED_CACHE[k]
 
@@ -3788,8 +3834,3 @@ if __name__ == "__main__":
     if not _access_log:
         print("ℹ️  HTTP access log 已關閉（BRIDGE_ACCESS_LOG=0），終端唔再逐條打印 GET/POST")
     uvicorn.run(app, host=_host, port=_port, access_log=_access_log)
-
-# ══════════════════════════════════════════════════════════════════════════════
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=9038)

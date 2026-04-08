@@ -2487,7 +2487,7 @@
                           console.log('[AutoSave] 唔係全部 filter，跳過存檔');
                           return;
                         }
-                        await collectReportData(false);
+                        await collectReportDataForAutoSave();
                         const p = $("totalEventsPill");
                         if (p) {
                           const orig = p.textContent;
@@ -4988,6 +4988,12 @@ if (typeof window._initPage === 'function') window._initPage();
 <script>
 // ── Collect Report Data & open download_report.html ──────────────────────────
 
+const _nativeAlert = window.alert.bind(window);
+window.alert = function(message) {
+  if (message === 'Please wait until all the hot themes and recommendations are generated!') return;
+  return _nativeAlert(message);
+};
+
 
 
 function _normaliseReportCatData(rawSummaries) {
@@ -5003,12 +5009,11 @@ function _normaliseReportCatData(rawSummaries) {
 
 async function collectReportData(openReport = true) {
   if (!_hasAppliedFilters || !_reportCache?.rawSummaries) {
-    alert('Please apply filters in the operation panel!');
+    if (openReport) alert('Please apply filters in the operation panel!');
     return;
   }
   if (!Array.isArray(_reportCache?.hotThemes) || !_reportCache.hotThemes.length ||
       !Array.isArray(_reportCache?.aiRecommendations) || !_reportCache.aiRecommendations.length) {
-    alert('Please wait until all the hot themes and recommendations are generated!');
     return;
   }
   resolveDateRange();
@@ -5331,6 +5336,10 @@ async function collectReportData(openReport = true) {
   }
 
   if (openReport) window.open('download_report.html', '_blank');
+}
+
+async function collectReportDataForAutoSave() {
+  return collectReportData(false);
 }
 
 </script>
