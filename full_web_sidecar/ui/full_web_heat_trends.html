@@ -7,10 +7,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/full-web-assets/full_web_heat.css?v=20260407s" />
+    <link rel="stylesheet" href="/full-web-assets/full_web_heat.css?v=20260409i" />
   </head>
   <body class="report-body">
     <div class="report-shell">
@@ -27,17 +27,40 @@
             <span class="status-dot"></span>
             <span id="trendDbPathLabel">Loading social media analytics database...</span>
           </div>
-          <a class="ghost-button-link" id="trendBackToMarketLink" href="/operation_panel.html">Operation Panel</a>
+          <a class="ghost-button-link" id="trendBackToMarketLink" href="/operation_panel.html">📊 Operation Panel</a>
         </div>
       </header>
 
       <main class="report-layout heat-layout">
         <aside class="filters-column">
           <section class="glass-panel filter-card heat-control-card">
+            <div class="control-busy-overlay hidden" id="trendControlBusyOverlay" aria-hidden="true">
+              <div class="control-busy-card">
+                <div class="busy-emoji-row">
+                  <span class="busy-emoji-pill" id="trendControlBusyEmoji" aria-hidden="true">⏳</span>
+                  <span class="busy-status-pill">Live update</span>
+                </div>
+                <div class="panel-busy-spinner" aria-hidden="true"></div>
+                <strong id="trendControlBusyTitle">Responding...</strong>
+                <p id="trendControlBusyDetail">Updating filters and refreshing the current view.</p>
+              </div>
+            </div>
             <div class="filter-group">
               <p class="filter-label">Platform</p>
-              <div class="tab-dropdown">
-                <select id="trendPlatformSelect">
+              <div class="platform-choice-list" id="trendPlatformChoiceList" role="radiogroup" aria-label="Platform">
+                <label class="platform-choice">
+                  <input type="radio" name="trendPlatformChoice" value="wb" checked />
+                  <span class="platform-choice-mark"></span>
+                  <span class="platform-choice-label">Weibo</span>
+                </label>
+                <label class="platform-choice">
+                  <input type="radio" name="trendPlatformChoice" value="fb" />
+                  <span class="platform-choice-mark"></span>
+                  <span class="platform-choice-label">Facebook</span>
+                </label>
+              </div>
+              <div class="native-control-hidden">
+                <select id="trendPlatformSelect" aria-hidden="true" tabindex="-1">
                   <option value="wb">Weibo</option>
                   <option value="fb">Facebook</option>
                 </select>
@@ -46,8 +69,13 @@
 
             <div class="filter-group">
               <p class="filter-label">Date Range</p>
-              <div class="tab-dropdown">
-                <select id="trendWindowModeSelect">
+              <div class="filter-segmented-control" id="trendWindowModeSegmentedControl" role="tablist" aria-label="Date Range">
+                <button class="filter-segment-button" data-window-mode="weekly" type="button">Weekly</button>
+                <button class="filter-segment-button" data-window-mode="monthly" type="button">Monthly</button>
+                <button class="filter-segment-button" data-window-mode="quarterly" type="button">Quarterly</button>
+              </div>
+              <div class="native-control-hidden">
+                <select id="trendWindowModeSelect" aria-hidden="true" tabindex="-1">
                   <option value="weekly">Weekly</option>
                   <option value="monthly">Monthly</option>
                   <option value="quarterly">Quarterly</option>
@@ -79,6 +107,10 @@
           <section class="glass-panel trend-page-panel">
             <div class="panel-busy-overlay hidden" id="trendBusyOverlay" aria-hidden="true">
               <div class="panel-busy-card">
+                <div class="busy-emoji-row">
+                  <span class="busy-emoji-pill" id="trendBusyEmoji" aria-hidden="true">⏳</span>
+                  <span class="busy-status-pill">Refreshing</span>
+                </div>
                 <div class="panel-busy-spinner" aria-hidden="true"></div>
                 <strong id="trendBusyTitle">Data is loading...</strong>
                 <p id="trendBusyDetail">Please wait while the trend charts refresh.</p>
@@ -90,11 +122,11 @@
               </div>
               <div class="page-switcher">
                 <button class="ghost-button-link control-button mini-control-button insight-button" id="openIndicatorGuideButton" type="button">
-                  <span>Metric Definitions</span>
+                  <span>📘 Metric Definitions</span>
                   <span class="info-button-mark">?</span>
                 </button>
-                <a class="tab-button secondary" id="backToLeaderboardLink" href="/full-web-heat-analysis">Leaderboard</a>
-                <button class="tab-button active" type="button">Trend Analysis</button>
+                <a class="tab-button secondary" id="backToLeaderboardLink" href="/full-web-heat-analysis">📊 Leaderboard</a>
+                <button class="tab-button active" type="button">📈 Trend Analysis</button>
               </div>
             </div>
 
@@ -211,6 +243,6 @@
       </section>
     </div>
 
-    <script type="module" src="/full-web-assets/full_web_heat_trends.js?v=20260407t"></script>
+    <script type="module" src="/full-web-assets/full_web_heat_trends.js?v=20260409i"></script>
   </body>
 </html>

@@ -398,9 +398,7 @@ body{font-family:var(--font);color:var(--text);min-height:100vh;
 
 <script>
 // ── Config ───────────────────────────────────────────────────────────────────
-const API_BASE       = (window.location.protocol==='http:'||window.location.protocol==='https:')
-  ? window.location.origin.replace(/\/$/,'')
-  : 'http://127.0.0.1:9038';
+const API_BASE       = 'http://127.0.0.1:9038';
 const API_AI         = `${API_BASE}/api/heat/leaderboard-ai`;
 const API_AI_REFRESH = `${API_BASE}/api/heat/leaderboard-ai/refresh`;
 const API_RAW        = `${API_BASE}/api/heat/leaderboard?top=10`;
@@ -421,8 +419,6 @@ function leaderNameForKey(e){
 function bridgeApiBase(){
   const p=new URLSearchParams(window.location.search).get('_bridge_port');
   if(p&&/^\d+$/.test(p)) return 'http://127.0.0.1:'+p;
-  if(window.location.protocol==='http:'||window.location.protocol==='https:')
-    return window.location.origin.replace(/\/$/,'');
   return API_BASE;
 }
 function escAttr(s){
@@ -580,12 +576,11 @@ async function fetchLeaderboard(){
     }
     if(!data.success) throw new Error(data.message||'API error');
     loadData(data);
-	}catch(err){
-	    console.error(err);
-	    const hostHint=(bridgeApiBase()||API_BASE).replace(/^https?:\/\//,'');
-	    document.getElementById('lb-list').innerHTML=
-	      `<div class="error-box">⚠️ Cannot reach API (${err.message})<br>Ensure bridge.py is running on ${hostHint}<br>
-	       <button onclick="loadDemo()" style="margin-top:10px;padding:5px 14px;border:1px solid #B91C1C;background:rgba(220,38,38,0.08);color:#B91C1C;border-radius:8px;cursor:pointer;font-size:12px;">Load Demo Data</button></div>`;
+  }catch(err){
+    console.error(err);
+    document.getElementById('lb-list').innerHTML=
+      `<div class="error-box">⚠️ Cannot reach API (${err.message})<br>Ensure bridge.py is running on :9038<br>
+       <button onclick="loadDemo()" style="margin-top:10px;padding:5px 14px;border:1px solid #B91C1C;background:rgba(220,38,38,0.08);color:#B91C1C;border-radius:8px;cursor:pointer;font-size:12px;">Load Demo Data</button></div>`;
     document.getElementById('cat-tabs').innerHTML='';
     document.getElementById('cat-panels').innerHTML=`<div class="error-box">API offline</div>`;
     document.getElementById('nav-meta').textContent='API Offline';

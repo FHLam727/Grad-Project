@@ -41,7 +41,9 @@ const STATUS_META = {
 const elements = {
   trendDbPathLabel: document.getElementById("trendDbPathLabel"),
   trendPlatformSelect: document.getElementById("trendPlatformSelect"),
+  trendPlatformChoiceInputs: Array.from(document.querySelectorAll('input[name="trendPlatformChoice"]')),
   trendWindowModeSelect: document.getElementById("trendWindowModeSelect"),
+  trendWindowModeButtons: Array.from(document.querySelectorAll("#trendWindowModeSegmentedControl .filter-segment-button")),
   trendWindowEyebrow: document.getElementById("trendWindowEyebrow"),
   trendWeekLabel: document.getElementById("trendWeekLabel"),
   trendWeekSubLabel: document.getElementById("trendWeekSubLabel"),
@@ -58,8 +60,13 @@ const elements = {
   trendPageTitle: document.getElementById("trendPageTitle"),
   trendPageSubtitlePrefix: document.getElementById("trendPageSubtitlePrefix"),
   trendBusyOverlay: document.getElementById("trendBusyOverlay"),
+  trendBusyEmoji: document.getElementById("trendBusyEmoji"),
   trendBusyTitle: document.getElementById("trendBusyTitle"),
   trendBusyDetail: document.getElementById("trendBusyDetail"),
+  trendControlBusyOverlay: document.getElementById("trendControlBusyOverlay"),
+  trendControlBusyEmoji: document.getElementById("trendControlBusyEmoji"),
+  trendControlBusyTitle: document.getElementById("trendControlBusyTitle"),
+  trendControlBusyDetail: document.getElementById("trendControlBusyDetail"),
   openIndicatorGuideButton: document.getElementById("openIndicatorGuideButton"),
   indicatorGuideModal: document.getElementById("indicatorGuideModal"),
   indicatorGuideBackdrop: document.getElementById("indicatorGuideBackdrop"),
@@ -97,6 +104,23 @@ const state = {
 
 const QUARTERLY_PENDING_COPY =
   "Quarterly reporting is not available yet. Full-Web collection started on 2026-03-01, and the first complete Q2 2026 report will be available after June 2026.";
+
+function syncPlatformControls() {
+  elements.trendPlatformSelect.value = state.platform;
+  elements.trendPlatformChoiceInputs.forEach((input) => {
+    input.checked = input.value === state.platform;
+  });
+}
+
+function syncWindowModeControls() {
+  elements.trendWindowModeSelect.value = state.windowMode;
+  elements.trendWindowModeButtons.forEach((button) => {
+    const isActive = button.dataset.windowMode === state.windowMode;
+    button.classList.toggle("active", isActive);
+    button.classList.toggle("secondary", !isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+  });
+}
 
 async function requestJson(url) {
   const response = await fetch(url);
@@ -221,15 +245,43 @@ function isQuarterlyMode() {
   return state.windowMode === "quarterly";
 }
 
+function resolveBusyEmoji(title = "", detail = "") {
+  const text = `${title} ${detail}`.toLowerCase();
+  if (text.includes("platform")) return "📡";
+  if (text.includes("date range") || text.includes("month") || text.includes("week") || text.includes("quarter")) return "🗓️";
+  if (text.includes("event")) return "📈";
+  if (text.includes("analysis")) return "🔥";
+  return "⏳";
+}
+
 function setPanelBusy(isBusy, title = "Data is loading...", detail = "Please wait while the trend charts refresh.") {
   elements.trendBusyOverlay?.classList.toggle("hidden", !isBusy);
   elements.trendBusyOverlay?.setAttribute("aria-hidden", isBusy ? "false" : "true");
+  elements.trendControlBusyOverlay?.classList.toggle("hidden", !isBusy);
+  elements.trendControlBusyOverlay?.setAttribute("aria-hidden", isBusy ? "false" : "true");
+  const busyEmoji = resolveBusyEmoji(title, detail);
   if (elements.trendBusyTitle) {
     elements.trendBusyTitle.textContent = title;
   }
   if (elements.trendBusyDetail) {
     elements.trendBusyDetail.textContent = detail;
   }
+  if (elements.trendBusyEmoji) {
+    elements.trendBusyEmoji.textContent = busyEmoji;
+  }
+  if (elements.trendControlBusyTitle) {
+    elements.trendControlBusyTitle.textContent = isBusy ? "Responding..." : "Ready";
+  }
+  if (elements.trendControlBusyDetail) {
+    elements.trendControlBusyDetail.textContent = detail;
+  }
+  if (elements.trendControlBusyEmoji) {
+    elements.trendControlBusyEmoji.textContent = busyEmoji;
+  }
+}
+
+function showInteractionBusy(title, detail) {
+  setPanelBusy(true, title, detail);
 }
 
 function getUrlState() {
@@ -369,6 +421,10 @@ function renderSnapshotWindowList() {
       </div>
     `;
     button.addEventListener("click", async () => {
+      showInteractionBusy(
+        isMonthlyMode() ? "Switching month..." : "Switching week...",
+        `Refreshing trend charts for ${isMonthlyMode() ? formatMonthLabel(item.month_key) : `${item.week_start} to ${item.week_end}`}.`
+      );
       state.currentWeek = item;
       renderSnapshotWindowList();
       syncTrendWindowCopy();
@@ -956,21 +1012,44 @@ async function bootstrap() {
   const urlState = getUrlState();
   state.platform = urlState.platform || "wb";
   state.windowMode = urlState.windowMode || "monthly";
-  elements.trendPlatformSelect.value = state.platform;
-  elements.trendWindowModeSelect.value = state.windowMode;
+  syncPlatformControls();
+  syncWindowModeControls();
   elements.trendDbPathLabel.textContent = "Loading analytics database...";
 
   elements.trendPlatformSelect.addEventListener("change", async (event) => {
+    const nextPlatform = event.target.value || "wb";
+    showInteractionBusy("Switching platform...", `Refreshing trend charts for ${PLATFORM_LABELS[nextPlatform]}.`);
     state.platform = event.target.value || "wb";
+    syncPlatformControls();
     state.selectedEvent = "";
     state.useInitialUrlEvent = false;
     state.currentWeek = { week_start: "", week_end: "", month_key: "", status: "" };
     await Promise.all([loadWindows(), refreshOverviewMeta(true)]);
     await loadPageData();
+  });
+
+  elements.trendPlatformChoiceInputs.forEach((input) => {
+    input.addEventListener("change", async (event) => {
+      if (!event.target.checked) {
+        return;
+      }
+      const nextPlatform = event.target.value || "wb";
+      showInteractionBusy("Switching platform...", `Refreshing trend charts for ${PLATFORM_LABELS[nextPlatform]}.`);
+      state.platform = event.target.value || "wb";
+      syncPlatformControls();
+      state.selectedEvent = "";
+      state.useInitialUrlEvent = false;
+      state.currentWeek = { week_start: "", week_end: "", month_key: "", status: "" };
+      await Promise.all([loadWindows(), refreshOverviewMeta(true)]);
+      await loadPageData();
+    });
   });
 
   elements.trendWindowModeSelect.addEventListener("change", async (event) => {
+    const nextMode = event.target.value || "monthly";
+    showInteractionBusy("Switching date range...", `Updating ${nextMode} filters and rebuilding the trend view.`);
     state.windowMode = event.target.value || "monthly";
+    syncWindowModeControls();
     state.selectedEvent = "";
     state.useInitialUrlEvent = false;
     state.currentWeek = { week_start: "", week_end: "", month_key: "", status: "" };
@@ -978,7 +1057,26 @@ async function bootstrap() {
     await loadPageData();
   });
 
+  elements.trendWindowModeButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const nextMode = button.dataset.windowMode || "monthly";
+      if (nextMode === state.windowMode) {
+        return;
+      }
+      showInteractionBusy("Switching date range...", `Updating ${nextMode} filters and rebuilding the trend view.`);
+      state.windowMode = nextMode;
+      syncWindowModeControls();
+      state.selectedEvent = "";
+      state.useInitialUrlEvent = false;
+      state.currentWeek = { week_start: "", week_end: "", month_key: "", status: "" };
+      await Promise.all([loadWindows(), refreshOverviewMeta(true)]);
+      await loadPageData();
+    });
+  });
+
   elements.trendEventSelect.addEventListener("change", async (event) => {
+    const nextEvent = event.target.value;
+    showInteractionBusy("Switching event...", nextEvent ? "Refreshing charts for the selected event." : "Refreshing charts for the current event selection.");
     state.selectedEvent = event.target.value;
     syncLeaderboardLink();
     await loadTrendData();
@@ -994,6 +1092,10 @@ async function bootstrap() {
     if (!state.calendarSelectedWindow) {
       return;
     }
+    showInteractionBusy(
+      isMonthlyMode() ? "Applying month filter..." : "Applying week filter...",
+      `Refreshing the trend page for ${formatSelectedWindowLabel(state.calendarSelectedWindow)}.`
+    );
     state.currentWeek = state.calendarSelectedWindow;
     renderSnapshotWindowList();
     syncTrendWindowCopy();

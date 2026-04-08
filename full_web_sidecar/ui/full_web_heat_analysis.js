@@ -117,8 +117,13 @@ const elements = {
   leaderboardCounter: document.getElementById("leaderboardCounter"),
   leaderboardLoadingHint: document.getElementById("leaderboardLoadingHint"),
   leaderboardBusyOverlay: document.getElementById("leaderboardBusyOverlay"),
+  leaderboardBusyEmoji: document.getElementById("leaderboardBusyEmoji"),
   leaderboardBusyTitle: document.getElementById("leaderboardBusyTitle"),
   leaderboardBusyDetail: document.getElementById("leaderboardBusyDetail"),
+  controlBusyOverlay: document.getElementById("controlBusyOverlay"),
+  controlBusyEmoji: document.getElementById("controlBusyEmoji"),
+  controlBusyTitle: document.getElementById("controlBusyTitle"),
+  controlBusyDetail: document.getElementById("controlBusyDetail"),
   openHeatFormulaButton: document.getElementById("openHeatFormulaButton"),
   heatFormulaModal: document.getElementById("heatFormulaModal"),
   heatFormulaBackdrop: document.getElementById("heatFormulaBackdrop"),
@@ -128,8 +133,10 @@ const elements = {
   eventTabButton: document.getElementById("eventTabButton"),
   topicTabButton: document.getElementById("topicTabButton"),
   platformSelect: document.getElementById("platformSelect"),
+  platformChoiceInputs: Array.from(document.querySelectorAll('input[name="platformChoice"]')),
   sortMetricSelect: document.getElementById("sortMetricSelect"),
   windowModeSelect: document.getElementById("windowModeSelect"),
+  windowModeButtons: Array.from(document.querySelectorAll("#windowModeSegmentedControl .filter-segment-button")),
   activeWindowEyebrow: document.getElementById("activeWindowEyebrow"),
   activeWeekLabel: document.getElementById("activeWeekLabel"),
   activeWeekSubLabel: document.getElementById("activeWeekSubLabel"),
@@ -182,6 +189,23 @@ const elements = {
   confirmClusterNoiseButton: document.getElementById("confirmClusterNoiseButton"),
   emptyTemplate: document.getElementById("leaderboardEmptyStateTemplate"),
 };
+
+function syncPlatformControls() {
+  elements.platformSelect.value = state.platform;
+  elements.platformChoiceInputs.forEach((input) => {
+    input.checked = input.value === state.platform;
+  });
+}
+
+function syncWindowModeControls() {
+  elements.windowModeSelect.value = state.windowMode;
+  elements.windowModeButtons.forEach((button) => {
+    const isActive = button.dataset.windowMode === state.windowMode;
+    button.classList.toggle("active", isActive);
+    button.classList.toggle("secondary", !isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+  });
+}
 
 async function requestJson(url, options = {}) {
   const response = await fetch(url, options);
@@ -397,15 +421,59 @@ function setLeaderboardLoading(isLoading, message = "Refreshing the leaderboard 
   elements.leaderboardLoadingHint.classList.toggle("hidden", !isLoading);
 }
 
+function resolveBusyEmoji(title = "", detail = "") {
+  const text = `${title} ${detail}`.toLowerCase();
+  if (text.includes("database")) return "🗂️";
+  if (text.includes("analysis")) return "🔥";
+  if (text.includes("platform")) return "📡";
+  if (text.includes("date range") || text.includes("month") || text.includes("week") || text.includes("quarter")) return "🗓️";
+  if (text.includes("topic")) return "🧭";
+  if (text.includes("event")) return "📈";
+  if (text.includes("reorder") || text.includes("sort")) return "↕️";
+  if (text.includes("feedback") || text.includes("cluster")) return "🛠️";
+  return "⏳";
+}
+
 function setPanelBusy(isBusy, title = "Data is loading...", detail = "Please wait while the leaderboard refreshes.") {
   elements.leaderboardBusyOverlay?.classList.toggle("hidden", !isBusy);
   elements.leaderboardBusyOverlay?.setAttribute("aria-hidden", isBusy ? "false" : "true");
+  elements.controlBusyOverlay?.classList.toggle("hidden", !isBusy);
+  elements.controlBusyOverlay?.setAttribute("aria-hidden", isBusy ? "false" : "true");
+  const busyEmoji = resolveBusyEmoji(title, detail);
   if (elements.leaderboardBusyTitle) {
     elements.leaderboardBusyTitle.textContent = title;
   }
   if (elements.leaderboardBusyDetail) {
     elements.leaderboardBusyDetail.textContent = detail;
   }
+  if (elements.leaderboardBusyEmoji) {
+    elements.leaderboardBusyEmoji.textContent = busyEmoji;
+  }
+  if (elements.controlBusyTitle) {
+    elements.controlBusyTitle.textContent = isBusy ? "Responding..." : "Ready";
+  }
+  if (elements.controlBusyDetail) {
+    elements.controlBusyDetail.textContent = detail;
+  }
+  if (elements.controlBusyEmoji) {
+    elements.controlBusyEmoji.textContent = busyEmoji;
+  }
+}
+
+function showInteractionBusy(title, detail) {
+  setPanelBusy(true, title, detail);
+}
+
+function getSortMetricLabel(metric) {
+  return (
+    {
+      heat_score: "heat score",
+      post_count: "post count",
+      engagement_total: "engagement count",
+      discussion_total: "discussion count",
+      unique_authors: "unique authors",
+    }[metric] || "the selected metric"
+  );
 }
 
 function syncTrendLink() {
@@ -535,6 +603,7 @@ function renderOverview(items) {
   const totalEngagement = items.reduce((sum, item) => sum + Number(item.total_engagement || 0), 0);
   const totalDiscussion = items.reduce((sum, item) => sum + Number(item.discussion_total || 0), 0);
   const totalPosts = items.reduce((sum, item) => sum + Number(item.post_count || 0), 0);
+  const averagePerPost = totalPosts > 0 ? Math.round(totalEngagement / totalPosts) : 0;
   const topItem = items[0];
   const cards = [
     {
@@ -581,6 +650,12 @@ function renderOverview(items) {
       key: "posts",
       label: "Posts",
       value: formatNumber(totalPosts),
+      sub: "",
+    },
+    {
+      key: "avg-per-post",
+      label: "Avg. Per Post",
+      value: formatNumber(averagePerPost),
       sub: "",
     },
   ];
@@ -731,6 +806,10 @@ function renderSnapshotWindowList() {
       </div>
     `;
     button.addEventListener("click", async () => {
+      showInteractionBusy(
+        isMonthlyMode() ? "Switching month..." : "Switching week...",
+        `Loading ${isMonthlyMode() ? formatMonthLabel(item.month_key) : `${item.week_start} to ${item.week_end}`} for the current leaderboard view.`
+      );
       setSelectedWeek(item);
       renderSnapshotWindowList();
       await fetchLeaderboardData();
@@ -1325,6 +1404,7 @@ async function runAnalysisForSelectedWeek() {
 
 function bindEvents() {
   elements.eventTabButton.addEventListener("click", async () => {
+    showInteractionBusy("Switching mode...", "Loading the event leaderboard for the current filters.");
     state.boardType = "event";
     elements.eventTabButton.classList.add("active");
     elements.eventTabButton.classList.remove("secondary");
@@ -1335,6 +1415,7 @@ function bindEvents() {
   });
 
   elements.topicTabButton.addEventListener("click", async () => {
+    showInteractionBusy("Switching mode...", "Loading the topic leaderboard for the current filters.");
     state.boardType = "topic";
     elements.topicTabButton.classList.add("active");
     elements.topicTabButton.classList.remove("secondary");
@@ -1345,14 +1426,35 @@ function bindEvents() {
   });
 
   elements.platformSelect.addEventListener("change", async (event) => {
+    const nextPlatform = event.target.value || "wb";
+    showInteractionBusy("Switching platform...", `Refreshing windows and leaderboard for ${PLATFORM_LABELS[nextPlatform]}.`);
     state.platform = event.target.value || "wb";
+    syncPlatformControls();
     state.selectedWeek = null;
     await Promise.all([loadUpdateWindows(), loadWindows(), refreshOverviewMeta(true)]);
     await fetchLeaderboardData();
   });
 
+  elements.platformChoiceInputs.forEach((input) => {
+    input.addEventListener("change", async (event) => {
+      if (!event.target.checked) {
+        return;
+      }
+      const nextPlatform = event.target.value || "wb";
+      showInteractionBusy("Switching platform...", `Refreshing windows and leaderboard for ${PLATFORM_LABELS[nextPlatform]}.`);
+      state.platform = event.target.value || "wb";
+      syncPlatformControls();
+      state.selectedWeek = null;
+      await Promise.all([loadUpdateWindows(), loadWindows(), refreshOverviewMeta(true)]);
+      await fetchLeaderboardData();
+    });
+  });
+
   elements.windowModeSelect.addEventListener("change", async (event) => {
+    const nextMode = event.target.value || "monthly";
+    showInteractionBusy("Switching date range...", `Updating ${nextMode} filters and refreshing the leaderboard.`);
     state.windowMode = event.target.value || "monthly";
+    syncWindowModeControls();
     state.selectedWeek = null;
     syncLeaderboardCopy();
     if (isMonthlyMode() || isQuarterlyMode()) {
@@ -1362,7 +1464,28 @@ function bindEvents() {
     await fetchLeaderboardData();
   });
 
+  elements.windowModeButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const nextMode = button.dataset.windowMode || "monthly";
+      if (nextMode === state.windowMode) {
+        return;
+      }
+      showInteractionBusy("Switching date range...", `Updating ${nextMode} filters and refreshing the leaderboard.`);
+      state.windowMode = nextMode;
+      syncWindowModeControls();
+      state.selectedWeek = null;
+      syncLeaderboardCopy();
+      if (isMonthlyMode() || isQuarterlyMode()) {
+        closeCalendar();
+      }
+      await Promise.all([loadUpdateWindows(), loadWindows(), refreshOverviewMeta(true)]);
+      await fetchLeaderboardData();
+    });
+  });
+
   elements.sortMetricSelect.addEventListener("change", async (event) => {
+    const nextMetric = event.target.value || "heat_score";
+    showInteractionBusy("Reordering leaderboard...", `Sorting current results by ${getSortMetricLabel(nextMetric)}.`);
     state.sortMetric = event.target.value;
     await fetchLeaderboardData();
   });
@@ -1415,8 +1538,8 @@ async function bootstrap() {
   const url = new URL(window.location.href);
   state.platform = url.searchParams.get("platform") || "wb";
   state.windowMode = url.searchParams.get("window_mode") || "monthly";
-  elements.platformSelect.value = state.platform;
-  elements.windowModeSelect.value = state.windowMode;
+  syncPlatformControls();
+  syncWindowModeControls();
   syncLeaderboardCopy();
   bindEvents();
   elements.heatDbPathLabel.textContent = "Loading analytics database...";
