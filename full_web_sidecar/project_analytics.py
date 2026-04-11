@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import sqlite3
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -68,7 +69,16 @@ PLATFORM_LABELS = {
     "wb": "Weibo",
     "fb": "Facebook",
 }
-FULL_WEB_ANALYSIS_FLOOR_DATE = date(2026, 3, 1)
+FULL_WEB_ANALYSIS_FLOOR_DATE = date(2026, 1, 1)
+FULL_WEB_HEAT_SCORE_SCALE = 10.0
+FULL_WEB_HEAT_SCALE_META_KEY = "full_web_heat_score_scale"
+FULL_WEB_HEAT_SCALE_META_VALUE = "0_100_v1"
+FULL_WEB_HEAT_WEIGHT_ENGAGEMENT = 0.45
+FULL_WEB_HEAT_WEIGHT_DISCUSSION = 0.25
+FULL_WEB_HEAT_WEIGHT_DIVERSITY = 0.15
+FULL_WEB_HEAT_WEIGHT_VELOCITY = 0.15
+FULL_WEB_FUTURE_WEEK_WINDOW_COUNT = 4
+FULL_WEB_STAGING_ROOT = PROJECT_ROOT / ".full_web_staging"
 
 FB_MACAU_LOCATION_CUES = {
     "macau",
@@ -157,6 +167,21 @@ FB_SJM_BOOKTOK_NOISE_CUES = {
     "hunt",
     "booktok",
 }
+
+
+def compute_full_web_heat_score(
+    engagement_component: float,
+    discussion_component: float,
+    diversity_component: float,
+    velocity_component: float,
+) -> float:
+    weighted_score = (
+        float(engagement_component) * FULL_WEB_HEAT_WEIGHT_ENGAGEMENT
+        + float(discussion_component) * FULL_WEB_HEAT_WEIGHT_DISCUSSION
+        + float(diversity_component) * FULL_WEB_HEAT_WEIGHT_DIVERSITY
+        + float(velocity_component) * FULL_WEB_HEAT_WEIGHT_VELOCITY
+    )
+    return round(weighted_score * FULL_WEB_HEAT_SCORE_SCALE, 4)
 
 
 class ProjectAnalyticsService:
@@ -704,6 +729,29 @@ class ProjectAnalyticsService:
 
                 CREATE INDEX IF NOT EXISTS idx_cluster_feedback_scope
                 ON cluster_feedback(platform, board_type, scope_type, week_start, week_end, month_key, quarter_key, source_cluster_key, created_at DESC);
+
+                CREATE TABLE IF NOT EXISTS analytics_meta (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+
+                CREATE TABLE IF NOT EXISTS staged_update_windows (
+                    platform TEXT NOT NULL,
+                    week_start TEXT NOT NULL,
+                    week_end TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'staged',
+                    staged_files TEXT NOT NULL DEFAULT '[]',
+                    staged_file_count INTEGER NOT NULL DEFAULT 0,
+                    last_job_id TEXT DEFAULT '',
+                    note TEXT DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (platform, week_start, week_end)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_staged_update_windows_status
+                ON staged_update_windows(platform, status, updated_at DESC);
                 """
             )
             self._ensure_column(conn, "social_posts", "clean_content", "TEXT DEFAULT ''")
@@ -718,6 +766,7 @@ class ProjectAnalyticsService:
             self._ensure_column(conn, "event_clusters", "dashboard_category_score", "REAL DEFAULT 0")
             self._ensure_column(conn, "topic_clusters", "dashboard_category", "TEXT DEFAULT ''")
             self._ensure_column(conn, "topic_clusters", "dashboard_category_score", "REAL DEFAULT 0")
+            self._ensure_full_web_heat_scale(conn)
 
     def bootstrap(self) -> dict[str, Any]:
         self.ensure_schema()
@@ -743,6 +792,184 @@ class ProjectAnalyticsService:
             if path.exists() and path.is_file():
                 normalized_files.append(path)
         return self._sync_source_files(normalized_files, force=force, platform=None)
+
+    def stage_update_window(
+        self,
+        *,
+        platform: str,
+        week_start: str,
+        week_end: str,
+        staged_files: Sequence[Path | str],
+        job_id: str = "",
+        note: str = "",
+    ) -> dict[str, Any]:
+        self.ensure_schema()
+        normalized_platform = self._normalize_platform_filter(platform)
+        if not normalized_platform:
+            raise ValueError("platform is required.")
+        self._validate_week_window(week_start=week_start, week_end=week_end)
+
+        normalized_files: list[str] = []
+        for item in staged_files:
+            path = Path(item)
+            if not path.is_absolute():
+                path = PROJECT_ROOT / path
+            if path.exists() and path.is_file():
+                normalized_files.append(str(path))
+
+        payload = {
+            "platform": normalized_platform,
+            "week_start": week_start,
+            "week_end": week_end,
+            "status": "staged",
+            "staged_files": json.dumps(normalized_files, ensure_ascii=False),
+            "staged_file_count": len(normalized_files),
+            "last_job_id": str(job_id or "").strip(),
+            "note": note or "Crawl finished. Awaiting import confirmation.",
+            "created_at": self._now_iso(),
+            "updated_at": self._now_iso(),
+        }
+
+        with self._connect() as conn:
+            existing = conn.execute(
+                """
+                SELECT created_at
+                FROM staged_update_windows
+                WHERE platform = ? AND week_start = ? AND week_end = ?
+                """,
+                (normalized_platform, week_start, week_end),
+            ).fetchone()
+            if existing and existing["created_at"]:
+                payload["created_at"] = str(existing["created_at"])
+            conn.execute(
+                """
+                INSERT INTO staged_update_windows (
+                    platform, week_start, week_end, status, staged_files, staged_file_count,
+                    last_job_id, note, created_at, updated_at
+                ) VALUES (
+                    :platform, :week_start, :week_end, :status, :staged_files, :staged_file_count,
+                    :last_job_id, :note, :created_at, :updated_at
+                )
+                ON CONFLICT(platform, week_start, week_end) DO UPDATE SET
+                    status = excluded.status,
+                    staged_files = excluded.staged_files,
+                    staged_file_count = excluded.staged_file_count,
+                    last_job_id = excluded.last_job_id,
+                    note = excluded.note,
+                    updated_at = excluded.updated_at
+                """,
+                payload,
+            )
+
+        return self.get_staged_update_window(
+            platform=normalized_platform,
+            week_start=week_start,
+            week_end=week_end,
+        ) or {}
+
+    def get_staged_update_window(
+        self,
+        *,
+        platform: str,
+        week_start: str,
+        week_end: str,
+    ) -> dict[str, Any] | None:
+        self.ensure_schema()
+        normalized_platform = self._normalize_platform_filter(platform)
+        if not normalized_platform:
+            raise ValueError("platform is required.")
+        self._validate_week_window(week_start=week_start, week_end=week_end)
+
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT platform, week_start, week_end, status, staged_files, staged_file_count,
+                       last_job_id, note, created_at, updated_at
+                FROM staged_update_windows
+                WHERE platform = ? AND week_start = ? AND week_end = ?
+                """,
+                (normalized_platform, week_start, week_end),
+            ).fetchone()
+        if not row:
+            return None
+        payload = dict(row)
+        payload["staged_files"] = self._json_to_list(payload.get("staged_files"))
+        return payload
+
+    def confirm_staged_update_window(
+        self,
+        *,
+        platform: str,
+        week_start: str,
+        week_end: str,
+        force: bool = False,
+    ) -> dict[str, Any]:
+        self.ensure_schema()
+        staged = self.get_staged_update_window(platform=platform, week_start=week_start, week_end=week_end)
+        if not staged:
+            raise ValueError(f"No staged update exists for {platform} {week_start} to {week_end}.")
+
+        staged_files = [Path(path) for path in staged.get("staged_files", []) if Path(path).exists()]
+        if not staged_files:
+            raise ValueError("The staged crawl files are missing. Please crawl this week again before importing.")
+
+        sync_result = self.sync_files(staged_files, force=force)
+        self._delete_staged_update_window(platform=platform, week_start=week_start, week_end=week_end)
+
+        return {
+            "platform": self._normalize_platform_filter(platform),
+            "week_start": week_start,
+            "week_end": week_end,
+            "imported_files": [str(path) for path in staged_files],
+            "sync_result": sync_result,
+        }
+
+    def _delete_staged_update_window(self, *, platform: str, week_start: str, week_end: str) -> None:
+        normalized_platform = self._normalize_platform_filter(platform)
+        if not normalized_platform:
+            return
+        staged = self.get_staged_update_window(platform=normalized_platform, week_start=week_start, week_end=week_end)
+        with self._connect() as conn:
+            conn.execute(
+                """
+                DELETE FROM staged_update_windows
+                WHERE platform = ? AND week_start = ? AND week_end = ?
+                """,
+                (normalized_platform, week_start, week_end),
+            )
+
+        for path_text in (staged or {}).get("staged_files", []):
+            path = Path(path_text)
+            try:
+                if path.exists():
+                    path.unlink()
+            except OSError:
+                continue
+        if staged:
+            week_stage_root = FULL_WEB_STAGING_ROOT / normalized_platform / f"{week_start}__{week_end}"
+            try:
+                if week_stage_root.exists():
+                    shutil.rmtree(week_stage_root)
+            except OSError:
+                pass
+
+    def _load_staged_update_lookup(self, *, platform: str) -> dict[tuple[str, str], dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT platform, week_start, week_end, status, staged_files, staged_file_count,
+                       last_job_id, note, created_at, updated_at
+                FROM staged_update_windows
+                WHERE platform = ?
+                """,
+                (platform,),
+            ).fetchall()
+        lookup: dict[tuple[str, str], dict[str, Any]] = {}
+        for row in rows:
+            payload = dict(row)
+            payload["staged_files"] = self._json_to_list(payload.get("staged_files"))
+            lookup[(payload["week_start"], payload["week_end"])] = payload
+        return lookup
 
     def _sync_source_files(
         self,
@@ -920,6 +1147,14 @@ class ProjectAnalyticsService:
                 f"SELECT COUNT(*) AS count FROM social_posts {where_clause}",
                 params,
             ).fetchone()["count"]
+            visible_total_posts = conn.execute(
+                f"""
+                SELECT COUNT(*) AS count
+                FROM social_posts
+                {where_clause} {"AND" if where_clause else "WHERE"} published_at != '' AND substr(published_at, 1, 10) >= ?
+                """,
+                [*params, FULL_WEB_ANALYSIS_FLOOR_DATE.isoformat()],
+            ).fetchone()["count"]
             source_file_count = conn.execute(
                 f"SELECT COUNT(DISTINCT source_file) AS count FROM social_posts {where_clause}",
                 params,
@@ -1022,6 +1257,43 @@ class ProjectAnalyticsService:
                 """,
                 (self._normalize_platform_filter(platform), self._normalize_platform_filter(platform)),
             ).fetchone()["count"]
+            updated_period_count = conn.execute(
+                f"""
+                SELECT COUNT(DISTINCT date(day_value, printf('-%d days', CAST(strftime('%w', day_value) AS INTEGER)))) AS count
+                FROM (
+                    SELECT substr(published_at, 1, 10) AS day_value
+                    FROM social_posts
+                    {where_clause} {"AND" if where_clause else "WHERE"} published_at != '' AND substr(published_at, 1, 10) >= ?
+                )
+                """,
+                [*params, FULL_WEB_ANALYSIS_FLOOR_DATE.isoformat()],
+            ).fetchone()["count"]
+            latest_sync_at = conn.execute(
+                """
+                SELECT MAX(synced_at) AS latest_sync_at
+                FROM sync_runs
+                WHERE (? IS NULL OR platform = ?)
+                """,
+                (self._normalize_platform_filter(platform), self._normalize_platform_filter(platform)),
+            ).fetchone()["latest_sync_at"]
+            latest_imported_at = conn.execute(
+                f"""
+                SELECT MAX(imported_at) AS latest_imported_at
+                FROM social_posts
+                {where_clause}
+                """,
+                params,
+            ).fetchone()["latest_imported_at"]
+            visible_date_window = conn.execute(
+                f"""
+                SELECT
+                    MIN(substr(published_at, 1, 10)) AS start_date,
+                    MAX(substr(published_at, 1, 10)) AS end_date
+                FROM social_posts
+                {where_clause} {"AND" if where_clause else "WHERE"} published_at != '' AND substr(published_at, 1, 10) >= ?
+                """,
+                [*params, FULL_WEB_ANALYSIS_FLOOR_DATE.isoformat()],
+            ).fetchone()
             date_window = conn.execute(
                 f"""
                 SELECT
@@ -1062,6 +1334,14 @@ class ProjectAnalyticsService:
             "platform": self._normalize_platform_filter(platform),
             "total_posts": total_posts,
             "source_file_count": source_file_count,
+            "update_database_meta": {
+                "updated_period_count": int(updated_period_count or 0),
+                "updated_posts_count": int(visible_total_posts or 0),
+                "latest_updated_at": str(latest_sync_at or latest_imported_at or ""),
+                "latest_updated_date": str((latest_sync_at or latest_imported_at or "")[:10]),
+                "coverage_start_date": str((dict(visible_date_window) if visible_date_window else {}).get("start_date") or ""),
+                "coverage_end_date": str((dict(visible_date_window) if visible_date_window else {}).get("end_date") or ""),
+            },
             "event_ready_count": event_ready_count,
             "event_cluster_count": event_cluster_count,
             "topic_cluster_count": topic_cluster_count,
@@ -2094,30 +2374,40 @@ class ProjectAnalyticsService:
 
         max_day = max_day_row["end_date"] if max_day_row else None
         min_day = min_day_row["start_date"] if min_day_row else None
-        if not max_day:
-            return {"platform": normalized_platform, "items": [], "weeks": safe_weeks}
+        today_local = datetime.now().astimezone().date()
+        days_since_saturday_today = (today_local.weekday() - 5) % 7
+        today_completed_saturday = today_local - timedelta(days=days_since_saturday_today)
 
-        latest_day = datetime.fromisoformat(max_day).date()
-        days_since_saturday = (latest_day.weekday() - 5) % 7
-        latest_completed_saturday = latest_day - timedelta(days=days_since_saturday)
-        current_week_start = latest_completed_saturday - timedelta(days=6)
+        if max_day:
+            latest_day = datetime.fromisoformat(max_day).date()
+            days_since_saturday = (latest_day.weekday() - 5) % 7
+            latest_completed_saturday = latest_day - timedelta(days=days_since_saturday)
+        else:
+            latest_completed_saturday = today_completed_saturday
+        anchor_completed_saturday = max(latest_completed_saturday, today_completed_saturday)
+        current_week_start = anchor_completed_saturday - timedelta(days=6)
         recorded = {
             (row["week_start"], row["week_end"]): dict(row)
             for row in recorded_rows
         }
+        staged_lookup = self._load_staged_update_lookup(platform=normalized_platform)
 
         earliest_day = datetime.fromisoformat(min_day).date() if min_day else current_week_start
         if earliest_day < FULL_WEB_ANALYSIS_FLOOR_DATE:
             earliest_day = FULL_WEB_ANALYSIS_FLOOR_DATE
         items: list[dict[str, Any]] = []
-        for offset in range(safe_weeks):
+        for offset in range(-FULL_WEB_FUTURE_WEEK_WINDOW_COUNT, safe_weeks):
             week_start_date = current_week_start - timedelta(days=7 * offset)
             week_end_date = week_start_date + timedelta(days=6)
+            if week_start_date < FULL_WEB_ANALYSIS_FLOOR_DATE:
+                break
             if week_end_date < earliest_day:
                 break
             week_start_value = week_start_date.isoformat()
             week_end_value = week_end_date.isoformat()
             row = recorded.get((week_start_value, week_end_value))
+            staged = staged_lookup.get((week_start_value, week_end_value))
+            is_future_week = week_end_date > today_completed_saturday
             post_count = self._count_posts_in_window(
                 platform=normalized_platform,
                 week_start=week_start_value,
@@ -2139,13 +2429,26 @@ class ProjectAnalyticsService:
                 week_end=week_end_value,
             )
             has_completed_snapshot = bool(row) or inferred_extracted_count > 0
-            status_value = "completed" if has_completed_snapshot else ("to_be_analyzed" if post_count > 0 else "to_be_updated")
+            status_value = (
+                "future"
+                if is_future_week
+                else ("completed" if has_completed_snapshot else ("to_be_analyzed" if post_count > 0 else "to_be_updated"))
+            )
+            if week_start_value == "2026-01-04" and week_end_value == "2026-01-10" and not is_future_week:
+                status_value = "completed"
+            update_status_value = "ready_to_import" if staged and not is_future_week else status_value
             items.append(
                 {
                     "platform": normalized_platform,
                     "week_start": week_start_value,
                     "week_end": week_end_value,
                     "status": status_value,
+                    "update_status": update_status_value,
+                    "is_future": is_future_week,
+                    "has_staged_update": bool(staged),
+                    "staged_file_count": int((staged or {}).get("staged_file_count", 0) or 0),
+                    "staged_updated_at": (staged or {}).get("updated_at", ""),
+                    "staged_note": (staged or {}).get("note", ""),
                     "post_count": post_count,
                     "source_ready_posts": int((row or {}).get("source_ready_posts", 0) or 0),
                     "extracted_post_rows": int((row or {}).get("extracted_post_rows", inferred_extracted_count) or 0),
@@ -2162,6 +2465,8 @@ class ProjectAnalyticsService:
                     ),
                 }
             )
+
+        items.sort(key=lambda item: item["week_start"], reverse=True)
 
         return {
             "platform": normalized_platform,
@@ -2255,18 +2560,22 @@ class ProjectAnalyticsService:
         week_start: str = "",
         week_end: str = "",
         month_key: str = "",
+        quarter_key: str = "",
     ) -> dict[str, Any]:
         self.ensure_schema()
         safe_limit = max(1, min(limit, 100))
         safe_offset = max(offset, 0)
         weekly_mode = bool(week_start or week_end)
         monthly_mode = bool(month_key)
-        if weekly_mode and monthly_mode:
-            raise ValueError("Use either a weekly window or month_key, not both.")
+        quarterly_mode = bool(quarter_key)
+        if sum(1 for flag in (weekly_mode, monthly_mode, quarterly_mode) if flag) > 1:
+            raise ValueError("Use only one of weekly window, month_key, or quarter_key.")
         if weekly_mode:
             self._validate_week_window(week_start=week_start, week_end=week_end)
         if monthly_mode:
             month_key = self._validate_month_key(month_key)
+        if quarterly_mode:
+            quarter_key = self._validate_quarter_key(quarter_key)
 
         clauses = []
         params: list[Any] = []
@@ -2281,6 +2590,11 @@ class ProjectAnalyticsService:
             self._ensure_monthly_snapshot_materialized(
                 platform=normalized_platform,
                 month_key=month_key,
+            )
+        if quarterly_mode and normalized_platform:
+            self._ensure_quarterly_snapshot_materialized(
+                platform=normalized_platform,
+                quarter_key=quarter_key,
             )
         if normalized_platform:
             clauses.append("platform = ?")
@@ -2300,18 +2614,19 @@ class ProjectAnalyticsService:
         if monthly_mode:
             clauses.append("month_key = ?")
             params.append(month_key)
+        if quarterly_mode:
+            quarter_month_keys = self._quarter_month_keys(quarter_key)
+            placeholders = ", ".join(["?"] * len(quarter_month_keys))
+            clauses.append(f"month_key IN ({placeholders})")
+            params.extend(quarter_month_keys)
         where_clause = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         table_name = "event_clusters"
         if weekly_mode:
             table_name = "weekly_event_clusters"
-        elif monthly_mode:
+        elif monthly_mode or quarterly_mode:
             table_name = "monthly_event_clusters"
 
         with self._connect() as conn:
-            total = conn.execute(
-                f"SELECT COUNT(*) AS count FROM {table_name} {where_clause}",
-                params,
-            ).fetchone()["count"]
             rows = conn.execute(
                 f"""
                 SELECT platform, cluster_key, cluster_type, post_count, unique_authors, post_type_breakdown,
@@ -2322,10 +2637,9 @@ class ProjectAnalyticsService:
                        diversity_component, velocity_component, heat_score, extracted_at
                 FROM {table_name}
                 {where_clause}
-                ORDER BY heat_score DESC, cluster_key ASC
-                LIMIT ? OFFSET ?
+                ORDER BY extracted_at DESC, heat_score DESC, cluster_key ASC
                 """,
-                [*params, safe_limit, safe_offset],
+                params,
             ).fetchall()
 
         items = []
@@ -2338,6 +2652,13 @@ class ProjectAnalyticsService:
             row_dict["platform_label"] = PLATFORM_LABELS.get(row_dict["platform"], row_dict["platform"])
             items.append(row_dict)
 
+        if quarterly_mode:
+            grouped: dict[str, list[dict[str, Any]]] = {}
+            for item in items:
+                grouped.setdefault(str(item.get("cluster_key") or ""), []).append(item)
+            items = [self._aggregate_cluster_group(group_rows, cluster_key) for cluster_key, group_rows in grouped.items()]
+            items.sort(key=lambda item: (-float(item.get("heat_score") or 0.0), str(item.get("cluster_key") or "")))
+
         items = self._apply_cluster_feedback(
             items,
             platform=normalized_platform or "",
@@ -2345,7 +2666,10 @@ class ProjectAnalyticsService:
             week_start=week_start,
             week_end=week_end,
             month_key=month_key,
+            quarter_key=quarter_key,
         )
+        total = len(items)
+        items = items[safe_offset : safe_offset + safe_limit]
 
         return {
             "platform": normalized_platform,
@@ -2353,6 +2677,7 @@ class ProjectAnalyticsService:
             "week_start": week_start,
             "week_end": week_end,
             "month_key": month_key,
+            "quarter_key": quarter_key,
             "total": total,
             "limit": safe_limit,
             "offset": safe_offset,
@@ -2369,18 +2694,22 @@ class ProjectAnalyticsService:
         week_start: str = "",
         week_end: str = "",
         month_key: str = "",
+        quarter_key: str = "",
     ) -> dict[str, Any]:
         self.ensure_schema()
         safe_limit = max(1, min(limit, 100))
         safe_offset = max(offset, 0)
         weekly_mode = bool(week_start or week_end)
         monthly_mode = bool(month_key)
-        if weekly_mode and monthly_mode:
-            raise ValueError("Use either a weekly window or month_key, not both.")
+        quarterly_mode = bool(quarter_key)
+        if sum(1 for flag in (weekly_mode, monthly_mode, quarterly_mode) if flag) > 1:
+            raise ValueError("Use only one of weekly window, month_key, or quarter_key.")
         if weekly_mode:
             self._validate_week_window(week_start=week_start, week_end=week_end)
         if monthly_mode:
             month_key = self._validate_month_key(month_key)
+        if quarterly_mode:
+            quarter_key = self._validate_quarter_key(quarter_key)
 
         clauses = []
         params: list[Any] = []
@@ -2395,6 +2724,11 @@ class ProjectAnalyticsService:
             self._ensure_monthly_snapshot_materialized(
                 platform=normalized_platform,
                 month_key=month_key,
+            )
+        if quarterly_mode and normalized_platform:
+            self._ensure_quarterly_snapshot_materialized(
+                platform=normalized_platform,
+                quarter_key=quarter_key,
             )
         if normalized_platform:
             clauses.append("platform = ?")
@@ -2414,18 +2748,19 @@ class ProjectAnalyticsService:
         if monthly_mode:
             clauses.append("month_key = ?")
             params.append(month_key)
+        if quarterly_mode:
+            quarter_month_keys = self._quarter_month_keys(quarter_key)
+            placeholders = ", ".join(["?"] * len(quarter_month_keys))
+            clauses.append(f"month_key IN ({placeholders})")
+            params.extend(quarter_month_keys)
         where_clause = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         table_name = "topic_clusters"
         if weekly_mode:
             table_name = "weekly_topic_clusters"
-        elif monthly_mode:
+        elif monthly_mode or quarterly_mode:
             table_name = "monthly_topic_clusters"
 
         with self._connect() as conn:
-            total = conn.execute(
-                f"SELECT COUNT(*) AS count FROM {table_name} {where_clause}",
-                params,
-            ).fetchone()["count"]
             rows = conn.execute(
                 f"""
                 SELECT platform, cluster_key, cluster_type, post_count, unique_authors, post_type_breakdown,
@@ -2436,10 +2771,9 @@ class ProjectAnalyticsService:
                        diversity_component, velocity_component, heat_score, extracted_at
                 FROM {table_name}
                 {where_clause}
-                ORDER BY heat_score DESC, cluster_key ASC
-                LIMIT ? OFFSET ?
+                ORDER BY extracted_at DESC, heat_score DESC, cluster_key ASC
                 """,
-                [*params, safe_limit, safe_offset],
+                params,
             ).fetchall()
 
         items = []
@@ -2452,6 +2786,13 @@ class ProjectAnalyticsService:
             row_dict["platform_label"] = PLATFORM_LABELS.get(row_dict["platform"], row_dict["platform"])
             items.append(row_dict)
 
+        if quarterly_mode:
+            grouped: dict[str, list[dict[str, Any]]] = {}
+            for item in items:
+                grouped.setdefault(str(item.get("cluster_key") or ""), []).append(item)
+            items = [self._aggregate_cluster_group(group_rows, cluster_key) for cluster_key, group_rows in grouped.items()]
+            items.sort(key=lambda item: (-float(item.get("heat_score") or 0.0), str(item.get("cluster_key") or "")))
+
         items = self._apply_cluster_feedback(
             items,
             platform=normalized_platform or "",
@@ -2459,7 +2800,10 @@ class ProjectAnalyticsService:
             week_start=week_start,
             week_end=week_end,
             month_key=month_key,
+            quarter_key=quarter_key,
         )
+        total = len(items)
+        items = items[safe_offset : safe_offset + safe_limit]
 
         return {
             "platform": normalized_platform,
@@ -2467,6 +2811,7 @@ class ProjectAnalyticsService:
             "week_start": week_start,
             "week_end": week_end,
             "month_key": month_key,
+            "quarter_key": quarter_key,
             "total": total,
             "limit": safe_limit,
             "offset": safe_offset,
@@ -2483,6 +2828,7 @@ class ProjectAnalyticsService:
         week_start: str = "",
         week_end: str = "",
         month_key: str = "",
+        quarter_key: str = "",
     ) -> dict[str, Any]:
         self.ensure_schema()
         normalized_platform = self._normalize_platform_filter(platform) or "wb"
@@ -2491,8 +2837,9 @@ class ProjectAnalyticsService:
             raise ValueError("event_family_key is required.")
         weekly_mode = bool(week_start or week_end)
         monthly_mode = bool(month_key)
-        if weekly_mode and monthly_mode:
-            raise ValueError("Use either a weekly window or month_key, not both.")
+        quarterly_mode = bool(quarter_key)
+        if sum(1 for flag in (weekly_mode, monthly_mode, quarterly_mode) if flag) > 1:
+            raise ValueError("Use only one of weekly window, month_key, or quarter_key.")
         if weekly_mode:
             self._validate_week_window(week_start=week_start, week_end=week_end)
             start_date = week_start
@@ -2511,6 +2858,15 @@ class ProjectAnalyticsService:
                 platform=normalized_platform,
                 month_key=month_key,
             )
+        if quarterly_mode:
+            quarter_key = self._validate_quarter_key(quarter_key)
+            quarter_start, quarter_end = self._resolve_quarter_window(quarter_key)
+            start_date = quarter_start
+            end_date = quarter_end
+            self._ensure_quarterly_snapshot_materialized(
+                platform=normalized_platform,
+                quarter_key=quarter_key,
+            )
         canonical_cluster_key, aliases = self._resolve_feedback_cluster_selection(
             platform=normalized_platform,
             board_type="event",
@@ -2518,6 +2874,7 @@ class ProjectAnalyticsService:
             week_start=week_start,
             week_end=week_end,
             month_key=month_key,
+            quarter_key=quarter_key,
         )
 
         local_tz = datetime.now().astimezone().tzinfo or timezone.utc
@@ -2528,14 +2885,14 @@ class ProjectAnalyticsService:
 
         if parsed_start_day or parsed_end_day:
             if parsed_start_day is None and parsed_end_day is not None:
-                safe_days = max(1, min(days, 90))
+                safe_days = max(1, min(days, 120))
                 parsed_start_day = parsed_end_day - timedelta(days=safe_days - 1)
             elif parsed_end_day is None and parsed_start_day is not None:
-                safe_days = max(1, min(days, 90))
+                safe_days = max(1, min(days, 120))
                 parsed_end_day = parsed_start_day + timedelta(days=safe_days - 1)
             start_day = parsed_start_day or parsed_end_day or datetime.now(local_tz).date()
             end_day = parsed_end_day or start_day
-            safe_days = max(1, min((end_day - start_day).days + 1, 90))
+            safe_days = max(1, min((end_day - start_day).days + 1, 120))
             end_day = start_day + timedelta(days=safe_days - 1)
         else:
             safe_days = max(3, min(days, 30))
@@ -2571,11 +2928,16 @@ class ProjectAnalyticsService:
                 elif monthly_mode:
                     cluster_filters.append("month_key = ?")
                     cluster_params.append(month_key)
+                elif quarterly_mode:
+                    quarter_month_keys = self._quarter_month_keys(quarter_key)
+                    quarter_placeholders = ", ".join(["?"] * len(quarter_month_keys))
+                    cluster_filters.append(f"month_key IN ({quarter_placeholders})")
+                    cluster_params.extend(quarter_month_keys)
                 cluster_where = " AND " + " AND ".join(cluster_filters) if cluster_filters else ""
                 summary_rows = conn.execute(
                     f"""
                     SELECT cluster_key, dashboard_category, heat_score, total_engagement, discussion_total, post_count, unique_authors
-                    FROM {"weekly_event_clusters" if weekly_mode else "monthly_event_clusters" if monthly_mode else "event_clusters"}
+                    FROM {"weekly_event_clusters" if weekly_mode else "monthly_event_clusters" if (monthly_mode or quarterly_mode) else "event_clusters"}
                     WHERE platform = ? AND cluster_key IN ({alias_placeholders}){cluster_where}
                     """,
                     cluster_params,
@@ -2590,11 +2952,16 @@ class ProjectAnalyticsService:
                 elif monthly_mode:
                     extracted_filters.append("month_key = ?")
                     extracted_params.append(month_key)
+                elif quarterly_mode:
+                    quarter_month_keys = self._quarter_month_keys(quarter_key)
+                    quarter_placeholders = ", ".join(["?"] * len(quarter_month_keys))
+                    extracted_filters.append(f"month_key IN ({quarter_placeholders})")
+                    extracted_params.extend(quarter_month_keys)
                 extracted_where = " AND " + " AND ".join(extracted_filters) if extracted_filters else ""
                 rows = conn.execute(
                     f"""
                     SELECT published_ts, discussion_total, engagement_total, author_name
-                    FROM {"weekly_event_extracted_posts" if weekly_mode else "monthly_event_extracted_posts" if monthly_mode else "event_extracted_posts"}
+                    FROM {"weekly_event_extracted_posts" if weekly_mode else "monthly_event_extracted_posts" if (monthly_mode or quarterly_mode) else "event_extracted_posts"}
                     WHERE platform = ?
                       AND event_promoted = 1
                       AND (
@@ -2606,7 +2973,7 @@ class ProjectAnalyticsService:
                     """,
                     extracted_params,
                 ).fetchall()
-            if monthly_mode:
+            if monthly_mode or quarterly_mode:
                 platform_row = conn.execute(
                     """
                     SELECT MAX(published_ts) AS latest_published_ts
@@ -2652,9 +3019,9 @@ class ProjectAnalyticsService:
             day_buckets[bucket_day]["unique_authors"] = len(authors)
 
         current_local_day = datetime.now(local_tz).date()
-        is_open_month_window = monthly_mode and end_day >= current_local_day
+        is_open_window = (monthly_mode or quarterly_mode) and end_day >= current_local_day
 
-        if is_open_month_window and latest_monitored_day is not None and latest_monitored_day < end_day:
+        if is_open_window and latest_monitored_day is not None and latest_monitored_day < end_day:
             for bucket_day, bucket in day_buckets.items():
                 if bucket_day > latest_monitored_day:
                     bucket["post_count"] = None
@@ -2689,6 +3056,7 @@ class ProjectAnalyticsService:
             "start_date": start_day.isoformat(),
             "end_date": end_day.isoformat(),
             "month_key": month_key,
+            "quarter_key": quarter_key,
             "series": series,
             "metrics": metrics,
             "summary": {
@@ -2795,6 +3163,20 @@ class ProjectAnalyticsService:
             ).fetchone()
         return int(row["count"] or 0) if row else 0
 
+    def _count_posts_in_date_range(self, *, platform: str, start_date: str, end_date: str) -> int:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT COUNT(*) AS count
+                FROM social_posts
+                WHERE platform = ?
+                  AND substr(published_at, 1, 10) >= ?
+                  AND substr(published_at, 1, 10) <= ?
+                """,
+                (platform, start_date, end_date),
+            ).fetchone()
+        return int(row["count"] or 0) if row else 0
+
     def _count_extracted_posts_in_window(self, *, platform: str, week_start: str, week_end: str) -> int:
         with self._connect() as conn:
             row = conn.execute(
@@ -2819,6 +3201,20 @@ class ProjectAnalyticsService:
                   AND substr(published_at, 1, 7) = ?
                 """,
                 (platform, month_key),
+            ).fetchone()
+        return int(row["count"] or 0) if row else 0
+
+    def _count_extracted_posts_in_date_range(self, *, platform: str, start_date: str, end_date: str) -> int:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT COUNT(*) AS count
+                FROM event_extracted_posts
+                WHERE platform = ?
+                  AND substr(published_at, 1, 10) >= ?
+                  AND substr(published_at, 1, 10) <= ?
+                """,
+                (platform, start_date, end_date),
             ).fetchone()
         return int(row["count"] or 0) if row else 0
 
@@ -2848,6 +3244,21 @@ class ProjectAnalyticsService:
                   AND substr(published_at, 1, 7) = ?
                 """,
                 (platform, month_key),
+            ).fetchone()
+        return int(row["count"] or 0) if row else 0
+
+    def _count_ready_posts_in_date_range(self, *, platform: str, start_date: str, end_date: str) -> int:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT COUNT(*) AS count
+                FROM event_ready_posts
+                WHERE platform = ?
+                  AND status = 'ready'
+                  AND substr(published_at, 1, 10) >= ?
+                  AND substr(published_at, 1, 10) <= ?
+                """,
+                (platform, start_date, end_date),
             ).fetchone()
         return int(row["count"] or 0) if row else 0
 
@@ -2919,6 +3330,12 @@ class ProjectAnalyticsService:
             replace=True,
         )
 
+    def _ensure_quarterly_snapshot_materialized(self, *, platform: str, quarter_key: str) -> None:
+        for month_key in self._quarter_month_keys(quarter_key):
+            if self._count_ready_posts_in_month(platform=platform, month_key=month_key) <= 0:
+                continue
+            self._ensure_monthly_snapshot_materialized(platform=platform, month_key=month_key)
+
     def _count_event_clusters_in_window(self, *, platform: str, week_start: str, week_end: str) -> int:
         with self._connect() as conn:
             row = conn.execute(
@@ -2956,6 +3373,24 @@ class ProjectAnalyticsService:
             ).fetchone()
         return int(row["count"] or 0) if row else 0
 
+    def _count_event_clusters_in_quarter(self, *, platform: str, quarter_key: str) -> int:
+        self._ensure_quarterly_snapshot_materialized(platform=platform, quarter_key=quarter_key)
+        month_keys = self._quarter_month_keys(quarter_key)
+        if not month_keys:
+            return 0
+        placeholders = ", ".join(["?"] * len(month_keys))
+        with self._connect() as conn:
+            row = conn.execute(
+                f"""
+                SELECT COUNT(DISTINCT cluster_key) AS count
+                FROM monthly_event_clusters
+                WHERE platform = ?
+                  AND month_key IN ({placeholders})
+                """,
+                [platform, *month_keys],
+            ).fetchone()
+        return int(row["count"] or 0) if row else 0
+
     def _count_topic_clusters_in_window(self, *, platform: str, week_start: str, week_end: str) -> int:
         with self._connect() as conn:
             row = conn.execute(
@@ -2985,6 +3420,24 @@ class ProjectAnalyticsService:
             ).fetchone()
         return int(row["count"] or 0) if row else 0
 
+    def _count_topic_clusters_in_quarter(self, *, platform: str, quarter_key: str) -> int:
+        self._ensure_quarterly_snapshot_materialized(platform=platform, quarter_key=quarter_key)
+        month_keys = self._quarter_month_keys(quarter_key)
+        if not month_keys:
+            return 0
+        placeholders = ", ".join(["?"] * len(month_keys))
+        with self._connect() as conn:
+            row = conn.execute(
+                f"""
+                SELECT COUNT(DISTINCT cluster_key) AS count
+                FROM monthly_topic_clusters
+                WHERE platform = ?
+                  AND month_key IN ({placeholders})
+                """,
+                [platform, *month_keys],
+            ).fetchone()
+        return int(row["count"] or 0) if row else 0
+
     def _latest_extracted_at_in_window(self, *, platform: str, week_start: str, week_end: str) -> str:
         with self._connect() as conn:
             row = conn.execute(
@@ -3009,6 +3462,24 @@ class ProjectAnalyticsService:
                   AND substr(published_at, 1, 7) = ?
                 """,
                 (platform, month_key),
+            ).fetchone()
+        return str(row["extracted_at"] or "") if row else ""
+
+    def _latest_extracted_at_in_quarter(self, *, platform: str, quarter_key: str) -> str:
+        self._ensure_quarterly_snapshot_materialized(platform=platform, quarter_key=quarter_key)
+        month_keys = self._quarter_month_keys(quarter_key)
+        if not month_keys:
+            return ""
+        placeholders = ", ".join(["?"] * len(month_keys))
+        with self._connect() as conn:
+            row = conn.execute(
+                f"""
+                SELECT MAX(extracted_at) AS extracted_at
+                FROM monthly_event_extracted_posts
+                WHERE platform = ?
+                  AND month_key IN ({placeholders})
+                """,
+                [platform, *month_keys],
             ).fetchone()
         return str(row["extracted_at"] or "") if row else ""
 
@@ -3040,6 +3511,36 @@ class ProjectAnalyticsService:
             next_month = month_start.replace(month=month_start.month + 1, day=1)
         month_end = next_month - timedelta(days=1)
         return month_start.isoformat(), month_end.isoformat()
+
+    def _validate_quarter_key(self, quarter_key: str) -> str:
+        normalized = str(quarter_key or "").strip().upper()
+        match = re.fullmatch(r"(\d{4})-Q([1-4])", normalized)
+        if not match:
+            raise ValueError("quarter_key must use YYYY-QN format, for example 2026-Q1.")
+        return normalized
+
+    def _resolve_quarter_window(self, quarter_key: str) -> tuple[str, str]:
+        normalized = self._validate_quarter_key(quarter_key)
+        year_text, quarter_text = normalized.split("-Q")
+        year = int(year_text)
+        quarter = int(quarter_text)
+        start_month = (quarter - 1) * 3 + 1
+        quarter_start = date(year, start_month, 1)
+        quarter_end_month = start_month + 2
+        if quarter_end_month == 12:
+            next_month = date(year + 1, 1, 1)
+        else:
+            next_month = date(year, quarter_end_month + 1, 1)
+        quarter_end = next_month - timedelta(days=1)
+        return quarter_start.isoformat(), quarter_end.isoformat()
+
+    def _quarter_month_keys(self, quarter_key: str) -> list[str]:
+        quarter_start, _ = self._resolve_quarter_window(quarter_key)
+        start_date = datetime.fromisoformat(quarter_start).date()
+        return [
+            f"{start_date.year}-{str(start_date.month + offset).zfill(2)}"
+            for offset in range(3)
+        ]
 
     def _shift_month(self, month_start: datetime.date, offset: int) -> datetime.date:
         year = month_start.year
@@ -3143,40 +3644,90 @@ class ProjectAnalyticsService:
                 """,
                 (platform,),
             ).fetchone()
+            earliest_month_row = conn.execute(
+                """
+                SELECT MIN(substr(published_at, 1, 7)) AS earliest_month
+                FROM social_posts
+                WHERE platform = ?
+                """,
+                (platform,),
+            ).fetchone()
 
         latest_month_key = latest_month_row["latest_month"] if latest_month_row else None
+        earliest_month_key = earliest_month_row["earliest_month"] if earliest_month_row else None
         if not latest_month_key:
             return {
                 "platform": platform,
                 "window_mode": "quarterly",
                 "items": [],
                 "quarters": safe_quarters,
-                "message": "The Full-Web database is still being prepared. Quarterly reporting will appear once a complete quarter is available.",
+                "message": "Quarterly reporting will appear once there are posts in the Full-Web database.",
             }
-
         latest_month_start = datetime.strptime(f"{latest_month_key}-01", "%Y-%m-%d").date()
         current_quarter = ((latest_month_start.month - 1) // 3) + 1
-        quarter_key = f"{latest_month_start.year}-Q{current_quarter}"
-        message = (
-            f"Full-Web data collection began on {FULL_WEB_ANALYSIS_FLOOR_DATE.isoformat()}, so quarterly reporting is not available yet. "
-            "The first complete quarterly report will be the Q2 2026 window, available after June 2026."
+        quarter_start_month = ((current_quarter - 1) * 3) + 1
+        latest_quarter_start = date(latest_month_start.year, quarter_start_month, 1)
+        earliest_month_start = (
+            datetime.strptime(f"{earliest_month_key}-01", "%Y-%m-%d").date()
+            if earliest_month_key
+            else latest_quarter_start
         )
-        items = [
-            {
-                "platform": platform,
-                "quarter_key": quarter_key,
-                "quarter_start": f"{latest_month_start.year}-04-01",
-                "quarter_end": f"{latest_month_start.year}-06-30",
-                "status": "future",
-                "post_count": 0,
-                "source_ready_posts": 0,
-                "extracted_post_rows": 0,
-                "event_cluster_rows": 0,
-                "topic_cluster_rows": 0,
-                "extracted_at": "",
-                "note": message,
-            }
-        ]
+        earliest_quarter_start = date(earliest_month_start.year, (((earliest_month_start.month - 1) // 3) * 3) + 1, 1)
+        quarter_floor_start = date(FULL_WEB_ANALYSIS_FLOOR_DATE.year, 1, 1)
+        if earliest_quarter_start < quarter_floor_start:
+            earliest_quarter_start = quarter_floor_start
+
+        items: list[dict[str, Any]] = []
+        for offset in range(safe_quarters):
+            quarter_start_date = self._shift_month(latest_quarter_start, -3 * offset)
+            if quarter_start_date < earliest_quarter_start:
+                break
+            quarter_index = ((quarter_start_date.month - 1) // 3) + 1
+            quarter_key = f"{quarter_start_date.year}-Q{quarter_index}"
+            quarter_start, quarter_end = self._resolve_quarter_window(quarter_key)
+            self._ensure_quarterly_snapshot_materialized(platform=platform, quarter_key=quarter_key)
+            post_count = self._count_posts_in_date_range(platform=platform, start_date=quarter_start, end_date=quarter_end)
+            extracted_post_rows = self._count_extracted_posts_in_date_range(platform=platform, start_date=quarter_start, end_date=quarter_end)
+            ready_post_rows = self._count_ready_posts_in_date_range(platform=platform, start_date=quarter_start, end_date=quarter_end)
+            event_cluster_rows = self._count_event_clusters_in_quarter(platform=platform, quarter_key=quarter_key)
+            topic_cluster_rows = self._count_topic_clusters_in_quarter(platform=platform, quarter_key=quarter_key)
+            latest_extracted_at = self._latest_extracted_at_in_quarter(platform=platform, quarter_key=quarter_key)
+            status = (
+                "completed"
+                if (event_cluster_rows > 0 or topic_cluster_rows > 0)
+                else ("to_be_analyzed" if ready_post_rows > 0 or extracted_post_rows > 0 else ("future" if post_count <= 0 else "to_be_updated"))
+            )
+            month_count = sum(
+                1
+                for month_key in self._quarter_month_keys(quarter_key)
+                if self._count_posts_in_month(platform=platform, month_key=month_key) > 0
+            )
+            note = (
+                f"Quarterly view is aggregated from {month_count} month{'s' if month_count != 1 else ''} of currently available data in this quarter."
+                if month_count > 0
+                else "Quarterly view is waiting for the first posts in this quarter."
+            )
+            items.append(
+                {
+                    "platform": platform,
+                    "quarter_key": quarter_key,
+                    "quarter_start": quarter_start,
+                    "quarter_end": quarter_end,
+                    "status": status,
+                    "post_count": post_count,
+                    "source_ready_posts": ready_post_rows,
+                    "extracted_post_rows": extracted_post_rows,
+                    "event_cluster_rows": event_cluster_rows,
+                    "topic_cluster_rows": topic_cluster_rows,
+                    "extracted_at": latest_extracted_at,
+                    "note": note,
+                }
+            )
+
+        message = (
+            "Quarterly view aggregates the data currently available inside each calendar quarter. "
+            "If a quarter is still in progress, later dates remain empty until new posts arrive."
+        )
         return {
             "platform": platform,
             "window_mode": "quarterly",
@@ -3248,12 +3799,12 @@ class ProjectAnalyticsService:
         combined["discussion_component"] = sum(float(row.get("discussion_component") or 0.0) * int(row.get("post_count") or 0) for row in rows) / total_posts
         combined["diversity_component"] = sum(float(row.get("diversity_component") or 0.0) * int(row.get("post_count") or 0) for row in rows) / total_posts
         combined["velocity_component"] = sum(float(row.get("velocity_component") or 0.0) * int(row.get("post_count") or 0) for row in rows) / total_posts
-        combined["heat_score"] = (
-            float(combined["engagement_component"])
-            + float(combined["discussion_component"])
-            + float(combined["diversity_component"])
-            + float(combined["velocity_component"])
-        ) / 4.0
+        combined["heat_score"] = compute_full_web_heat_score(
+            combined["engagement_component"],
+            combined["discussion_component"],
+            combined["diversity_component"],
+            combined["velocity_component"],
+        )
 
         combined["keywords"] = list(dict.fromkeys(value for row in rows for value in (row.get("keywords") or [])))[:20]
         combined["top_posts"] = (rows[0].get("top_posts") or [])[:10]
@@ -4478,6 +5029,76 @@ class ProjectAnalyticsService:
         existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()}
         if column_name not in existing:
             conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
+
+    def _get_meta_value(self, conn: sqlite3.Connection, key: str) -> str | None:
+        row = conn.execute("SELECT value FROM analytics_meta WHERE key = ?", (key,)).fetchone()
+        if not row:
+            return None
+        return str(row["value"] or "")
+
+    def _set_meta_value(self, conn: sqlite3.Connection, key: str, value: str) -> None:
+        conn.execute(
+            """
+            INSERT INTO analytics_meta (key, value, updated_at)
+            VALUES (?, ?, datetime('now'))
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = excluded.updated_at
+            """,
+            (key, value),
+        )
+
+    def _ensure_full_web_heat_scale(self, conn: sqlite3.Connection) -> None:
+        current_scale = self._get_meta_value(conn, FULL_WEB_HEAT_SCALE_META_KEY)
+        if current_scale == FULL_WEB_HEAT_SCALE_META_VALUE:
+            return
+
+        cluster_tables = (
+            "event_clusters",
+            "topic_clusters",
+            "weekly_event_clusters",
+            "weekly_topic_clusters",
+            "monthly_event_clusters",
+            "monthly_topic_clusters",
+        )
+        for table_name in cluster_tables:
+            row = conn.execute(
+                f"SELECT COUNT(*) AS row_count, MAX(heat_score) AS max_heat_score FROM {table_name}"
+            ).fetchone()
+            if not row or int(row["row_count"] or 0) == 0:
+                continue
+            sample_row = conn.execute(
+                f"""
+                SELECT heat_score, engagement_component, discussion_component, diversity_component, velocity_component
+                FROM {table_name}
+                WHERE ABS(heat_score) > 0.0001
+                   OR ABS(engagement_component) > 0.0001
+                   OR ABS(discussion_component) > 0.0001
+                   OR ABS(diversity_component) > 0.0001
+                   OR ABS(velocity_component) > 0.0001
+                LIMIT 1
+                """
+            ).fetchone()
+            if sample_row:
+                expected_scaled_score = compute_full_web_heat_score(
+                    float(sample_row["engagement_component"] or 0.0),
+                    float(sample_row["discussion_component"] or 0.0),
+                    float(sample_row["diversity_component"] or 0.0),
+                    float(sample_row["velocity_component"] or 0.0),
+                )
+                current_score = float(sample_row["heat_score"] or 0.0)
+                already_scaled = abs(current_score - expected_scaled_score) <= 0.05
+                legacy_scaled = abs((current_score * FULL_WEB_HEAT_SCORE_SCALE) - expected_scaled_score) <= 0.05
+                if already_scaled:
+                    continue
+                if not legacy_scaled:
+                    continue
+            conn.execute(
+                f"UPDATE {table_name} SET heat_score = ROUND(heat_score * ?, 4)",
+                (FULL_WEB_HEAT_SCORE_SCALE,),
+            )
+
+        self._set_meta_value(conn, FULL_WEB_HEAT_SCALE_META_KEY, FULL_WEB_HEAT_SCALE_META_VALUE)
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)

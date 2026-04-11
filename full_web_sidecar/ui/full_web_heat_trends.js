@@ -97,13 +97,15 @@ const state = {
     week_start: "",
     week_end: "",
     month_key: "",
+    quarter_key: "",
     status: "",
   },
   overviewCache: {},
+  quarterlyMessage: "",
 };
 
 const QUARTERLY_PENDING_COPY =
-  "Quarterly reporting is not available yet. Full-Web collection started on 2026-03-01, and the first complete Q2 2026 report will be available after June 2026.";
+  "Quarterly reporting aggregates the monthly snapshots already available inside that quarter.";
 
 function syncPlatformControls() {
   elements.trendPlatformSelect.value = state.platform;
@@ -180,7 +182,7 @@ function formatNumber(value) {
 }
 
 function formatScore(value) {
-  return Number(value || 0).toFixed(2);
+  return Number(value || 0).toFixed(1);
 }
 
 function formatAxisDateLabel(value) {
@@ -237,6 +239,14 @@ function clipOptionLabel(value, maxLength = 34) {
   return `${text.slice(0, maxLength - 3)}...`;
 }
 
+function getClusterDisplayText(item, fallback = "") {
+  return String(item?.cluster_key_display || item?.cluster_key || fallback).trim();
+}
+
+function shouldHideFutureWeeklyWindow(item) {
+  return !isMonthlyMode() && !isQuarterlyMode() && Boolean(item?.status === "future" || item?.is_future);
+}
+
 function isMonthlyMode() {
   return state.windowMode === "monthly";
 }
@@ -290,6 +300,7 @@ function getUrlState() {
     event: url.searchParams.get("event") || "",
     platform: url.searchParams.get("platform") || "wb",
     windowMode: url.searchParams.get("window_mode") || "monthly",
+    quarterKey: url.searchParams.get("quarter_key") || "",
     weekStart: url.searchParams.get("week_start") || "",
     weekEnd: url.searchParams.get("week_end") || "",
     monthKey: url.searchParams.get("month_key") || "",
@@ -377,6 +388,7 @@ function syncLeaderboardLink() {
     event: state.selectedEvent,
     platform: state.platform,
     window_mode: state.windowMode,
+    quarter_key: isQuarterlyMode() ? state.currentWeek.quarter_key : "",
     month_key: isMonthlyMode() ? state.currentWeek.month_key : "",
     week_start: !isQuarterlyMode() ? state.currentWeek.week_start : "",
     week_end: !isQuarterlyMode() ? state.currentWeek.week_end : "",
@@ -388,27 +400,24 @@ function syncLeaderboardLink() {
 
 function renderSnapshotWindowList() {
   clearNode(elements.trendSnapshotWindowList);
-  if (isQuarterlyMode()) {
+  const visibleWindows = state.windows.filter((item) => !shouldHideFutureWeeklyWindow(item));
+  if (!visibleWindows.length) {
     const empty = document.createElement("div");
     empty.className = "snapshot-window-empty";
-    empty.textContent =
-      "Quarterly reporting is not available yet. Full-Web collection starts on 2026-03-01, so the first complete Q2 2026 report will be available after June 2026.";
-    elements.trendSnapshotWindowList.appendChild(empty);
-    return;
-  }
-  if (!state.windows.length) {
-    const empty = document.createElement("div");
-    empty.className = "snapshot-window-empty";
-    empty.textContent = isMonthlyMode()
+    empty.textContent = isQuarterlyMode()
+      ? "No quarterly windows were found for the selected platform."
+      : isMonthlyMode()
       ? "No monthly windows were found for the selected platform."
       : "No weekly windows were found for the selected platform.";
     elements.trendSnapshotWindowList.appendChild(empty);
     return;
   }
 
-  state.windows.forEach((item) => {
+  visibleWindows.forEach((item) => {
     const statusMeta = STATUS_META[item.status] || STATUS_META.to_be_updated;
-    const isSelected = isMonthlyMode()
+    const isSelected = isQuarterlyMode()
+      ? state.currentWeek?.quarter_key === item.quarter_key
+      : isMonthlyMode()
       ? state.currentWeek?.month_key === item.month_key
       : state.currentWeek?.week_start === item.week_start && state.currentWeek?.week_end === item.week_end;
     const button = document.createElement("button");
@@ -416,14 +425,14 @@ function renderSnapshotWindowList() {
     button.className = `snapshot-window-card ${statusMeta.className}${isSelected ? " selected" : ""}`;
     button.innerHTML = `
       <div class="snapshot-window-head">
-        <strong>${isMonthlyMode() ? formatMonthLabel(item.month_key) : `${item.week_start.slice(5)} to ${item.week_end.slice(5)}`}</strong>
+        <strong>${isQuarterlyMode() ? item.quarter_key : isMonthlyMode() ? formatMonthLabel(item.month_key) : `${item.week_start.slice(5)} to ${item.week_end.slice(5)}`}</strong>
         <span class="snapshot-status-badge ${statusMeta.className}">${statusMeta.label}</span>
       </div>
     `;
     button.addEventListener("click", async () => {
       showInteractionBusy(
-        isMonthlyMode() ? "Switching month..." : "Switching week...",
-        `Refreshing trend charts for ${isMonthlyMode() ? formatMonthLabel(item.month_key) : `${item.week_start} to ${item.week_end}`}.`
+        isQuarterlyMode() ? "Switching quarter..." : isMonthlyMode() ? "Switching month..." : "Switching week...",
+        `Refreshing trend charts for ${isQuarterlyMode() ? item.quarter_key : isMonthlyMode() ? formatMonthLabel(item.month_key) : `${item.week_start} to ${item.week_end}`}.`
       );
       state.currentWeek = item;
       renderSnapshotWindowList();
@@ -445,10 +454,10 @@ function syncTrendWindowCopy() {
   elements.openTrendCalendarButton.textContent = isQuarterlyMode() ? "Pick Quarter" : isMonthlyMode() ? "Pick Month" : "Pick Week";
   if (isQuarterlyMode()) {
     if (elements.trendWeekLabel) {
-      elements.trendWeekLabel.textContent = state.currentWeek?.quarter_key || "2026-Q2";
+      elements.trendWeekLabel.textContent = state.currentWeek?.quarter_key || "No analyzed quarter yet";
     }
     if (elements.trendWeekSubLabel) {
-      elements.trendWeekSubLabel.textContent = "";
+      elements.trendWeekSubLabel.textContent = state.currentWeek?.note || "";
     }
     return;
   }
@@ -471,12 +480,13 @@ function syncTrendWindowCopy() {
 
 function renderTrendCalendarLegend() {
   clearNode(elements.trendCalendarLegend);
-  [
+  const legendItems = [
     { label: "To Be Updated", className: "swatch-available" },
     { label: "To Be Analyzed", className: "swatch-updated" },
     { label: "Completed", className: "swatch-imported" },
     { label: "Future", className: "swatch-future" },
-  ].forEach((item) => {
+  ].filter((item) => !(!isMonthlyMode() && !isQuarterlyMode() && item.label === "Future"));
+  legendItems.forEach((item) => {
     const node = document.createElement("span");
     node.className = "calendar-legend-item";
     node.innerHTML = `<span class="calendar-swatch ${item.className}"></span>${item.label}`;
@@ -487,36 +497,60 @@ function renderTrendCalendarLegend() {
 function syncTrendCalendarSelectionSummary() {
   elements.trendCalendarSelectionLabel.textContent = state.calendarSelectedWindow
     ? formatSelectedWindowLabel(state.calendarSelectedWindow)
-    : (isMonthlyMode() ? "No month selected" : "No week selected");
+    : (isQuarterlyMode() ? "No quarter selected" : isMonthlyMode() ? "No month selected" : "No week selected");
   if (elements.trendCalendarSelectionDetail) {
-    elements.trendCalendarSelectionDetail.textContent = "";
+    elements.trendCalendarSelectionDetail.textContent = isQuarterlyMode() ? state.calendarSelectedWindow?.note || QUARTERLY_PENDING_COPY : "";
   }
   elements.confirmTrendCalendarButton.disabled = !state.calendarSelectedWindow;
-  elements.confirmTrendCalendarButton.textContent = isMonthlyMode() ? "Use This Month" : "Use This Week";
+  elements.confirmTrendCalendarButton.textContent = isQuarterlyMode() ? "Use This Quarter" : isMonthlyMode() ? "Use This Month" : "Use This Week";
 }
 
 function renderTrendCalendar() {
   clearNode(elements.trendCalendarGrid);
   elements.trendCalendarGrid.classList.add("calendar-scroll-grid");
   if (isQuarterlyMode()) {
-    elements.trendCalendarMonthLabel.textContent = "Quarterly Reporting";
+    elements.trendCalendarMonthLabel.textContent = "Available Quarters";
     elements.trendCalendarEyebrow.textContent = "Quarterly Trend Filter";
     elements.trendCalendarTitle.textContent = "Pick Quarter";
     if (elements.trendCalendarHelper) {
-      elements.trendCalendarHelper.textContent = "";
+      elements.trendCalendarHelper.textContent = "Choose one calendar quarter to inspect the aggregated trend metrics for that period.";
     }
-    const empty = document.createElement("div");
-    empty.className = "snapshot-window-empty";
-    empty.textContent =
-      "Full-Web collection only starts on 2026-03-01. Please wait until after June 2026 for the first complete Q2 2026 quarterly report.";
-    elements.trendCalendarGrid.appendChild(empty);
-    clearNode(elements.trendCalendarLegend);
-    elements.trendCalendarSelectionLabel.textContent = "2026-Q2";
-    if (elements.trendCalendarSelectionDetail) {
-      elements.trendCalendarSelectionDetail.textContent = "";
+    if (!state.windows.length) {
+      const empty = document.createElement("div");
+      empty.className = "snapshot-window-empty";
+      empty.textContent = "No quarterly windows are available for this platform.";
+      elements.trendCalendarGrid.appendChild(empty);
+      clearNode(elements.trendCalendarLegend);
+      syncTrendCalendarSelectionSummary();
+      return;
     }
-    elements.confirmTrendCalendarButton.disabled = true;
-    elements.confirmTrendCalendarButton.textContent = "Use This Quarter";
+    const section = document.createElement("section");
+    section.className = "calendar-month-section";
+    section.innerHTML = `<h3 class="calendar-section-title">Calendar Quarters</h3>`;
+    const grid = document.createElement("div");
+    grid.className = "calendar-section-grid calendar-section-grid-months";
+    state.windows.forEach((item) => {
+      const statusMeta = STATUS_META[item.status] || STATUS_META.to_be_updated;
+      const isSelected = state.calendarSelectedWindow?.quarter_key === item.quarter_key;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `calendar-day ${statusMeta.className}${isSelected ? " selected-week" : ""}`;
+      button.innerHTML = `
+        <span class="calendar-day-month">${item.quarter_key}</span>
+        <span class="calendar-day-status-text">${statusMeta.label}</span>
+        ${item.note ? `<span class="calendar-day-helper">${item.note}</span>` : ""}
+      `;
+      button.addEventListener("click", () => {
+        state.calendarSelectedWindow = item;
+        syncTrendCalendarSelectionSummary();
+        renderTrendCalendar();
+      });
+      grid.appendChild(button);
+    });
+    section.appendChild(grid);
+    elements.trendCalendarGrid.appendChild(section);
+    renderTrendCalendarLegend();
+    syncTrendCalendarSelectionSummary();
     return;
   }
   const monthKeys = getWindowMonthKeys(state.windows);
@@ -553,7 +587,9 @@ function renderTrendCalendar() {
     elements.trendCalendarGrid.appendChild(section);
   } else {
     monthKeys.forEach((monthKey) => {
-      const visibleWeeks = state.windows.filter((item) => monthOverlapsWindow(monthKey, item));
+      const visibleWeeks = state.windows.filter(
+        (item) => monthOverlapsWindow(monthKey, item) && !shouldHideFutureWeeklyWindow(item)
+      );
       if (!visibleWeeks.length) {
         return;
       }
@@ -616,30 +652,30 @@ function renderIndicatorCards(summary) {
   if (isQuarterlyMode()) {
     const cards = [
       {
-        label: "Quarterly Status",
-        value: "Not Available Yet",
-        sub: "Quarterly reports require one complete calendar quarter of data.",
+        label: "Selected Range",
+        value: state.currentWeek?.quarter_key || "No quarter selected",
+        sub: state.currentWeek?.note || "",
         wide: true,
       },
       {
-        label: "Collection Start",
-        value: "2026-03-01",
-        sub: "Full-Web collection began in March 2026.",
+        label: "Discussion",
+        value: formatNumber(summary.discussion_total || 0),
+        sub: "Conversation volume in the selected quarter.",
       },
       {
-        label: "Selected Range",
-        value: state.currentWeek?.quarter_key || "2026-Q2",
-        sub: "Quarterly target currently in view.",
+        label: "Engagement",
+        value: formatNumber(summary.total_engagement || 0),
+        sub: "Likes, comments, and shares in the selected quarter.",
       },
       {
-        label: "First Report",
-        value: "2026-Q2",
-        sub: "The first complete quarterly report becomes available after June 2026.",
+        label: "Unique Authors",
+        value: formatNumber(summary.unique_authors || 0),
+        sub: "Distinct authors contributing to the selected quarter.",
       },
       {
-        label: "Scope",
-        value: PLATFORM_LABELS[state.platform] || "Platform",
-        sub: "Quarterly planning view for the selected platform.",
+        label: "Velocity",
+        value: formatNumber(summary.post_count || 0),
+        sub: "Posting speed across the selected quarter.",
       },
     ];
     cards.forEach((card) => {
@@ -694,22 +730,12 @@ function renderIndicatorCards(summary) {
 }
 
 function renderHeatFocusCard(summary) {
-  if (isQuarterlyMode()) {
-    elements.trendHeatFocusCard.classList.add("pending");
-    elements.trendHeatFocusCard.innerHTML = `
-      <p class="eyebrow">Quarterly Status</p>
-      <span class="quarterly-status-pill">Not Available Yet</span>
-      <h3>Quarterly report pending</h3>
-      <div class="trend-heat-score">--</div>
-      <p class="helper-copy">${QUARTERLY_PENDING_COPY}</p>
-    `;
-    return;
-  }
   elements.trendHeatFocusCard.classList.remove("pending");
   elements.trendHeatFocusCard.innerHTML = `
-    <p class="eyebrow">Final Heat</p>
-    <h3>${summary.cluster_key || "-"}</h3>
+    <p class="eyebrow">${isQuarterlyMode() ? "Quarter Heat Score" : "Final Heat Score"}</p>
+    <h3>${getClusterDisplayText(summary, "-")}</h3>
     <div class="trend-heat-score">${formatScore(summary.heat_score || 0)}</div>
+    <p class="helper-copy">Normalized to a 0-100 scale for easier comparison across windows.</p>
   `;
 }
 
@@ -732,7 +758,7 @@ function renderMetricChart(metricSeries, meta) {
   const chartStage = wrapper.querySelector(".chart-stage");
   const validSeries = metricSeries.filter((item) => item.value !== null && item.value !== undefined);
   if (!validSeries.length) {
-    svg.innerHTML = `<text class="metric-label" x="260" y="126" text-anchor="middle">No ${isMonthlyMode() ? "monthly" : "weekly"} data</text>`;
+    svg.innerHTML = `<text class="metric-label" x="260" y="126" text-anchor="middle">No ${isQuarterlyMode() ? "quarterly" : isMonthlyMode() ? "monthly" : "weekly"} data</text>`;
     return wrapper;
   }
 
@@ -816,26 +842,6 @@ function renderMetricChart(metricSeries, meta) {
 
 function renderCharts(metrics) {
   clearNode(elements.chartGrid);
-  if (isQuarterlyMode()) {
-    METRIC_META.forEach((meta) => {
-      const wrapper = document.createElement("article");
-      wrapper.className = "chart-card quarterly-empty-card";
-      wrapper.innerHTML = `
-        <div class="chart-card-head">
-          <div>
-            <h3>${meta.subtitle}</h3>
-          </div>
-          <span class="pill-badge ${meta.accent}">${meta.label}</span>
-        </div>
-        <div>
-          <h4>Quarterly report not available</h4>
-          <p>${QUARTERLY_PENDING_COPY}</p>
-        </div>
-      `;
-      elements.chartGrid.appendChild(wrapper);
-    });
-    return;
-  }
   METRIC_META.forEach((meta) => {
     elements.chartGrid.appendChild(renderMetricChart(metrics?.[meta.key] || [], meta));
   });
@@ -846,19 +852,20 @@ function populateEventSelect(items) {
   if (!items.length) {
     const option = document.createElement("option");
     option.value = "";
-    option.textContent = isQuarterlyMode() ? "Quarterly report not available" : "No event available";
+    option.textContent = "No event available";
     elements.trendEventSelect.appendChild(option);
     state.selectedEvent = "";
-    elements.trendEventSelect.disabled = isQuarterlyMode();
+    elements.trendEventSelect.disabled = true;
     return;
   }
 
   elements.trendEventSelect.disabled = false;
   items.forEach((item) => {
     const option = document.createElement("option");
+    const displayLabel = getClusterDisplayText(item, item.cluster_key || "");
     option.value = item.cluster_key;
-    option.textContent = clipOptionLabel(item.cluster_key);
-    option.title = item.cluster_key;
+    option.textContent = clipOptionLabel(displayLabel);
+    option.title = displayLabel;
     elements.trendEventSelect.appendChild(option);
   });
 
@@ -875,16 +882,10 @@ function populateEventSelect(items) {
 
 async function loadTrendData() {
   setPanelBusy(true, "Data is loading...", "Refreshing the trend charts for the selected platform, window, and event.");
-  if (isQuarterlyMode()) {
-    renderIndicatorCards({});
-    renderHeatFocusCard({});
-    renderCharts({});
-    setPanelBusy(false);
-    return;
-  }
   if (
     !state.selectedEvent ||
-    (!isMonthlyMode() && (!state.currentWeek.week_start || !state.currentWeek.week_end)) ||
+    (isQuarterlyMode() && !state.currentWeek.quarter_key) ||
+    (!isQuarterlyMode() && !isMonthlyMode() && (!state.currentWeek.week_start || !state.currentWeek.week_end)) ||
     (isMonthlyMode() && !state.currentWeek.month_key)
   ) {
     renderIndicatorCards({});
@@ -900,7 +901,9 @@ async function loadTrendData() {
     days: "7",
     window_mode: state.windowMode,
   });
-  if (isMonthlyMode()) {
+  if (isQuarterlyMode()) {
+    params.set("quarter_key", state.currentWeek.quarter_key);
+  } else if (isMonthlyMode()) {
     params.set("month_key", state.currentWeek.month_key);
   } else {
     params.set("week_start", state.currentWeek.week_start);
@@ -918,21 +921,41 @@ async function loadTrendData() {
 
 function resolveSnapshot() {
   const urlState = getUrlState();
+  const todayKey = new Date().toISOString().slice(0, 10);
   const requestedWeek = state.windows.find((item) =>
-    isMonthlyMode()
+    isQuarterlyMode()
+      ? item.quarter_key === urlState.quarterKey
+      : isMonthlyMode()
       ? item.month_key === urlState.monthKey
       : item.week_start === urlState.weekStart && item.week_end === urlState.weekEnd
   );
   const currentMatched = state.windows.find((item) =>
-    isMonthlyMode()
+    isQuarterlyMode()
+      ? item.quarter_key === state.currentWeek.quarter_key
+      : isMonthlyMode()
       ? item.month_key === state.currentWeek.month_key
       : item.week_start === state.currentWeek.week_start && item.week_end === state.currentWeek.week_end
+  );
+  const latestClosedCompleted = state.windows.find(
+    (item) => item.quarter_end && item.quarter_end < todayKey && item.status === "completed"
+  );
+  const latestClosedAnalyzable = state.windows.find(
+    (item) => item.quarter_end && item.quarter_end < todayKey && item.status === "to_be_analyzed"
+  );
+  const latestClosedUpdate = state.windows.find(
+    (item) => item.quarter_end && item.quarter_end < todayKey && item.status === "to_be_updated"
   );
   const latestCompleted = state.windows.find((item) => item.status === "completed");
   const latestAnalyzable = state.windows.find((item) => item.status === "to_be_analyzed");
   const latestUpdate = state.windows.find((item) => item.status === "to_be_updated");
   state.currentWeek =
-    currentMatched || requestedWeek || latestCompleted || latestAnalyzable || latestUpdate || { week_start: "", week_end: "", month_key: "", status: "" };
+    (shouldHideFutureWeeklyWindow(currentMatched) ? null : currentMatched) ||
+    (shouldHideFutureWeeklyWindow(requestedWeek) ? null : requestedWeek) ||
+    (isQuarterlyMode() ? latestClosedCompleted || latestClosedAnalyzable || latestClosedUpdate : null) ||
+    latestCompleted ||
+    latestAnalyzable ||
+    latestUpdate ||
+    { week_start: "", week_end: "", month_key: "", quarter_key: "", status: "" };
 }
 
 async function loadWindows() {
@@ -967,7 +990,9 @@ async function loadPageData() {
       platform: state.platform,
       limit: "60",
     });
-    if (isMonthlyMode() && state.currentWeek.month_key) {
+    if (isQuarterlyMode() && state.currentWeek.quarter_key) {
+      query.set("quarter_key", state.currentWeek.quarter_key);
+    } else if (isMonthlyMode() && state.currentWeek.month_key) {
       query.set("month_key", state.currentWeek.month_key);
     } else if (state.currentWeek.week_start && state.currentWeek.week_end) {
       query.set("week_start", state.currentWeek.week_start);
@@ -977,7 +1002,7 @@ async function loadPageData() {
     elements.trendDbPathLabel.textContent = state.overviewCache[state.platform]?.db_path || "Loading analytics database...";
     const [overview, leaderboard] = await Promise.all([
       refreshOverviewMeta(),
-      isQuarterlyMode() ? Promise.resolve({ items: [] }) : requestJson(`${API_BASE}/event-clusters?${query.toString()}`),
+      requestJson(`${API_BASE}/event-clusters?${query.toString()}`),
     ]);
 
     elements.trendPageTitle.textContent = isQuarterlyMode()
@@ -1023,7 +1048,7 @@ async function bootstrap() {
     syncPlatformControls();
     state.selectedEvent = "";
     state.useInitialUrlEvent = false;
-    state.currentWeek = { week_start: "", week_end: "", month_key: "", status: "" };
+    state.currentWeek = { week_start: "", week_end: "", month_key: "", quarter_key: "", status: "" };
     await Promise.all([loadWindows(), refreshOverviewMeta(true)]);
     await loadPageData();
   });
@@ -1039,7 +1064,7 @@ async function bootstrap() {
       syncPlatformControls();
       state.selectedEvent = "";
       state.useInitialUrlEvent = false;
-      state.currentWeek = { week_start: "", week_end: "", month_key: "", status: "" };
+      state.currentWeek = { week_start: "", week_end: "", month_key: "", quarter_key: "", status: "" };
       await Promise.all([loadWindows(), refreshOverviewMeta(true)]);
       await loadPageData();
     });
@@ -1052,7 +1077,7 @@ async function bootstrap() {
     syncWindowModeControls();
     state.selectedEvent = "";
     state.useInitialUrlEvent = false;
-    state.currentWeek = { week_start: "", week_end: "", month_key: "", status: "" };
+    state.currentWeek = { week_start: "", week_end: "", month_key: "", quarter_key: "", status: "" };
     await Promise.all([loadWindows(), refreshOverviewMeta(true)]);
     await loadPageData();
   });
@@ -1068,7 +1093,7 @@ async function bootstrap() {
       syncWindowModeControls();
       state.selectedEvent = "";
       state.useInitialUrlEvent = false;
-      state.currentWeek = { week_start: "", week_end: "", month_key: "", status: "" };
+      state.currentWeek = { week_start: "", week_end: "", month_key: "", quarter_key: "", status: "" };
       await Promise.all([loadWindows(), refreshOverviewMeta(true)]);
       await loadPageData();
     });
@@ -1093,7 +1118,7 @@ async function bootstrap() {
       return;
     }
     showInteractionBusy(
-      isMonthlyMode() ? "Applying month filter..." : "Applying week filter...",
+      isQuarterlyMode() ? "Applying quarter filter..." : isMonthlyMode() ? "Applying month filter..." : "Applying week filter...",
       `Refreshing the trend page for ${formatSelectedWindowLabel(state.calendarSelectedWindow)}.`
     );
     state.currentWeek = state.calendarSelectedWindow;

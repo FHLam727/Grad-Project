@@ -25,6 +25,8 @@ _crawling_lock = threading.Lock()
 
 _neg_monitor_crawl_lock = threading.Lock()
 _neg_monitor_crawl_running = False
+_startup_backfill_started = False
+_startup_backfill_lock = threading.Lock()
 BRIDGE_ROOT = Path(__file__).resolve().parent
 FULL_WEB_UI_ROOT = BRIDGE_ROOT / "full_web_sidecar" / "ui"
 
@@ -300,10 +302,6 @@ def _set_report_insights(from_date: str, to_date: str, keyword: str = "", hot_th
         raise
     finally:
         conn.close()
-try:
-    backfill_event_dates()
-except Exception as exc:
-    print(f"⚠️ skipped import-time backfill_event_dates: {exc}")
 app = FastAPI()
 
 # ── Custom CORS middleware：處理本地 HTML file 嘅 null origin ──────────────
@@ -338,6 +336,33 @@ app.add_middleware(
 )
 app.mount("/full-web-assets", StaticFiles(directory=FULL_WEB_UI_ROOT), name="full-web-assets")
 app.include_router(full_web_router)
+
+
+def _run_startup_backfill() -> None:
+    global _startup_backfill_started
+    with _startup_backfill_lock:
+        if _startup_backfill_started:
+            return
+        _startup_backfill_started = True
+
+    def _worker() -> None:
+        try:
+            print("🔧 running startup backfill_event_dates in background...")
+            backfill_event_dates()
+            print("✅ startup backfill_event_dates finished")
+        except Exception as exc:
+            print(f"⚠️ startup backfill_event_dates failed: {exc}")
+
+    threading.Thread(
+        target=_worker,
+        name="startup-backfill-event-dates",
+        daemon=True,
+    ).start()
+
+
+@app.on_event("startup")
+async def schedule_startup_backfill() -> None:
+    _run_startup_backfill()
 
 @app.get("/")
 @app.get("/operation-panel")

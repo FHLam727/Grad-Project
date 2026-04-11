@@ -1757,7 +1757,7 @@ def compute_cluster_heat(rows: list[dict[str, Any]], latest_ts: int) -> dict[str
         + discussion_component * 0.25
         + diversity_component * 0.15
         + velocity_component * 0.15
-    )
+    ) * 10
     return {
         "engagement_component": engagement_component,
         "discussion_component": discussion_component,

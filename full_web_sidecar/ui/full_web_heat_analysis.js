@@ -35,6 +35,24 @@ const STATUS_META = {
   },
 };
 
+const FILTER_STATUS_META = {
+  completed: {
+    label: "Completed",
+    className: "status-completed",
+    detail: "Imported data already exists in the database for this window.",
+  },
+  to_be_updated: {
+    label: "To Be Updated",
+    className: "status-available",
+    detail: "No imported posts exist in the database for this window yet.",
+  },
+  future: {
+    label: "Future",
+    className: "status-future",
+    detail: "Future windows stay visible but cannot be selected yet.",
+  },
+};
+
 const UPDATE_CALENDAR_META = {
   future: {
     label: "Future",
@@ -42,11 +60,19 @@ const UPDATE_CALENDAR_META = {
   },
   to_be_updated: {
     label: "To Be Updated",
-    className: "status-available",
+    className: "status-updated",
   },
-  updated: {
+  to_be_analyzed: {
     label: "Updated",
     className: "status-completed",
+  },
+  completed: {
+    label: "Updated",
+    className: "status-completed",
+  },
+  ready_to_import: {
+    label: "Ready to Import",
+    className: "status-available",
   },
 };
 
@@ -55,15 +81,14 @@ const CALENDAR_MODE_CONFIG = {
     eyebrow: "Weekly Heat Filter",
     title: "Pick Week",
     helper:
-      "Choose one fixed Sunday to Saturday window for the leaderboard filter. Pick Week shows To Be Updated, To Be Analyzed, Completed, and Future weeks.",
+      "Choose one fixed Sunday to Saturday window for the leaderboard filter. Date statuses below reflect whether imported database data already exists for that window.",
     confirmLabel: "Use This Week",
     emptyLabel: "No week selected",
     emptyDetail: "Choose one fixed Sunday to Saturday week to refresh the leaderboard and heat overview.",
     selectableStatuses: new Set(["to_be_updated", "to_be_analyzed", "completed"]),
     legend: [
-      { label: "To Be Updated", className: "swatch-available" },
-      { label: "To Be Analyzed", className: "swatch-updated" },
       { label: "Completed", className: "swatch-imported" },
+      { label: "To Be Updated", className: "swatch-available" },
       { label: "Future", className: "swatch-future" },
     ],
   },
@@ -71,34 +96,39 @@ const CALENDAR_MODE_CONFIG = {
     eyebrow: "Weekly Heat Analysis",
     title: "Update Database",
     helper:
-      "Choose one fixed Sunday to Saturday window to crawl and ingest raw posts. Update Database only distinguishes Future, To Be Updated, and Updated weeks.",
-    confirmLabel: "Update This Week",
+      "Choose any finished Sunday to Saturday week to crawl again or for the first time. New crawl results are staged first and only enter the database after you confirm import.",
+    confirmLabel: "Start Crawl",
     emptyLabel: "No week selected",
-    emptyDetail: "Click a blue fixed week to trigger crawling and ingest for that platform.",
-    selectableStatuses: new Set(["to_be_updated"]),
+    emptyDetail: "Choose one finished week to stage a fresh crawl for this platform. Future weeks stay visible but cannot be selected.",
+    selectableStatuses: new Set(["to_be_updated", "to_be_analyzed", "completed", "ready_to_import"]),
     legend: [
-      { label: "To Be Updated", className: "swatch-available" },
       { label: "Updated", className: "swatch-imported" },
+      { label: "To Be Updated", className: "swatch-updated" },
+      { label: "Ready to Import", className: "swatch-available" },
       { label: "Future", className: "swatch-future" },
     ],
   },
 };
 
 const QUARTERLY_PENDING_COPY =
-  "Quarterly reporting is not available yet. Full-Web collection started on 2026-03-01, and the first complete Q2 2026 report will be available after June 2026.";
+  "Quarterly reporting aggregates the monthly snapshots already available inside that quarter.";
 
 const state = {
   boardType: "event",
   platform: "wb",
+  updatePlatform: "wb",
   windowMode: "monthly",
   sortMetric: "heat_score",
   selectedEvent: "",
   selectedWeek: null,
   calendarMode: "filter",
   calendarSelectedWeek: null,
+  lastUpdateSelection: null,
+  crawlMonitorMinimized: false,
   calendarNotice: "",
   windows: [],
   updateWindows: [],
+  calendarScrollTop: 0,
   monthCursor: new Date(),
   latestJob: null,
   pollingJobId: "",
@@ -106,6 +136,7 @@ const state = {
   contextRow: null,
   lastRenderedItems: [],
   overviewCache: {},
+  updateOverviewCache: {},
 };
 
 const elements = {
@@ -134,6 +165,16 @@ const elements = {
   topicTabButton: document.getElementById("topicTabButton"),
   platformSelect: document.getElementById("platformSelect"),
   platformChoiceInputs: Array.from(document.querySelectorAll('input[name="platformChoice"]')),
+  updatePlatformSelect: document.getElementById("updatePlatformSelect"),
+  updatePlatformRow: document.getElementById("updatePlatformRow"),
+  updatePlatformChoiceInputs: Array.from(document.querySelectorAll('input[name="updatePlatformChoice"]')),
+  updatePlatformStateCard: document.getElementById("updatePlatformStateCard"),
+  updatePlatformStatePill: document.getElementById("updatePlatformStatePill"),
+  updatePlatformStateCopy: document.getElementById("updatePlatformStateCopy"),
+  updatePlatformLatestWeek: document.getElementById("updatePlatformLatestWeek"),
+  updatePlatformCrawlableCount: document.getElementById("updatePlatformCrawlableCount"),
+  updatePlatformReadyCount: document.getElementById("updatePlatformReadyCount"),
+  updatePlatformFutureCount: document.getElementById("updatePlatformFutureCount"),
   sortMetricSelect: document.getElementById("sortMetricSelect"),
   windowModeSelect: document.getElementById("windowModeSelect"),
   windowModeButtons: Array.from(document.querySelectorAll("#windowModeSegmentedControl .filter-segment-button")),
@@ -147,8 +188,26 @@ const elements = {
   updateDatabaseButton: document.getElementById("updateDatabaseButton"),
   openSnapshotCalendarButton: document.getElementById("openSnapshotCalendarButton"),
   sidebarRunAnalysisButton: document.getElementById("sidebarRunAnalysisButton"),
+  cancelUpdateJobButton: document.getElementById("cancelUpdateJobButton"),
+  confirmImportButton: document.getElementById("confirmImportButton"),
   confirmUpdateButton: document.getElementById("confirmUpdateButton"),
+  crawlMonitorShell: document.getElementById("crawlMonitorShell"),
+  crawlMonitorChip: document.getElementById("crawlMonitorChip"),
+  crawlMonitorChipLabel: document.getElementById("crawlMonitorChipLabel"),
+  crawlMonitorPanel: document.getElementById("crawlMonitorPanel"),
+  crawlMonitorBody: document.getElementById("crawlMonitorBody"),
+  crawlMonitorTitle: document.getElementById("crawlMonitorTitle"),
+  crawlMonitorStatusBadge: document.getElementById("crawlMonitorStatusBadge"),
+  crawlMonitorPlatform: document.getElementById("crawlMonitorPlatform"),
+  crawlMonitorWeek: document.getElementById("crawlMonitorWeek"),
+  crawlMonitorDetail: document.getElementById("crawlMonitorDetail"),
+  crawlMonitorUpdatedAt: document.getElementById("crawlMonitorUpdatedAt"),
+  crawlMonitorLog: document.getElementById("crawlMonitorLog"),
+  crawlMonitorToggleButton: document.getElementById("crawlMonitorToggleButton"),
+  crawlMonitorStopButton: document.getElementById("crawlMonitorStopButton"),
+  crawlMonitorImportButton: document.getElementById("crawlMonitorImportButton"),
   updateCalendarModal: document.getElementById("updateCalendarModal"),
+  updateCalendarPanel: document.querySelector("#updateCalendarModal .modal-panel"),
   updateCalendarBackdrop: document.getElementById("updateCalendarBackdrop"),
   closeCalendarButton: document.getElementById("closeCalendarButton"),
   previousMonthButton: document.getElementById("previousMonthButton"),
@@ -194,6 +253,15 @@ function syncPlatformControls() {
   elements.platformSelect.value = state.platform;
   elements.platformChoiceInputs.forEach((input) => {
     input.checked = input.value === state.platform;
+  });
+}
+
+function syncUpdatePlatformControls() {
+  if (elements.updatePlatformSelect) {
+    elements.updatePlatformSelect.value = state.updatePlatform;
+  }
+  elements.updatePlatformChoiceInputs.forEach((input) => {
+    input.checked = input.value === state.updatePlatform;
   });
 }
 
@@ -269,7 +337,7 @@ function formatNumber(value) {
 }
 
 function formatScore(value) {
-  return Number(value || 0).toFixed(2);
+  return Number(value || 0).toFixed(1);
 }
 
 function clipText(value, maxLength = 132) {
@@ -278,6 +346,10 @@ function clipText(value, maxLength = 132) {
     return text;
   }
   return `${text.slice(0, maxLength - 1)}...`;
+}
+
+function getClusterDisplayText(item, fallback = "") {
+  return String(item?.cluster_key_display || item?.cluster_key || fallback).trim();
 }
 
 function isMonthlyMode() {
@@ -330,12 +402,196 @@ function formatSelectedWindowLabel(windowValue) {
     : formatWeekLabel(windowValue.week_start, windowValue.week_end);
 }
 
+function formatCalendarSelectedWindowLabel(windowValue) {
+  if (state.calendarMode === "update") {
+    return windowValue?.week_start && windowValue?.week_end
+      ? formatWeekLabel(windowValue.week_start, windowValue.week_end)
+      : "No week selected";
+  }
+  return formatSelectedWindowLabel(windowValue);
+}
+
+function formatDatabaseUpdatedDateLabel(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return "--";
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return text;
+  }
+  const dateValue = new Date(text);
+  if (Number.isNaN(dateValue.getTime())) {
+    return text.slice(0, 10) || "--";
+  }
+  return `${dateValue.getFullYear()}-${String(dateValue.getMonth() + 1).padStart(2, "0")}-${String(dateValue.getDate()).padStart(2, "0")}`;
+}
+
+function formatDatabaseUpdatedAtLabel(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return "";
+  }
+  const dateValue = new Date(text);
+  if (Number.isNaN(dateValue.getTime())) {
+    return text;
+  }
+  return dateValue.toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function formatCoverageLabel(startDate, endDate) {
+  const start = String(startDate || "").trim();
+  const end = String(endDate || "").trim();
+  if (!start && !end) {
+    return "--";
+  }
+  if (start && end) {
+    return `${start} to ${end}`;
+  }
+  return start || end;
+}
+
+function formatCoverageLabelMarkup(startDate, endDate) {
+  const start = String(startDate || "").trim();
+  const end = String(endDate || "").trim();
+  if (!start && !end) {
+    return '<span class="metric-coverage-line">--</span>';
+  }
+  if (start && end) {
+    return [
+      `<span class="metric-coverage-line"><span class="metric-coverage-date">${escapeHtml(start)}</span><span class="metric-coverage-separator">to</span></span>`,
+      `<span class="metric-coverage-line">${escapeHtml(end)}</span>`,
+    ].join("");
+  }
+  if (start) {
+    return `<span class="metric-coverage-line">${escapeHtml(start)}</span>`;
+  }
+  return `<span class="metric-coverage-line">${escapeHtml(end)}</span>`;
+}
+
 function getBoardTypeLabel() {
   return state.boardType === "topic" ? "Topic" : "Event";
 }
 
 function getCurrentStatusMeta() {
   return STATUS_META[state.selectedWeek?.status] || STATUS_META.to_be_updated;
+}
+
+function hasWindowDatabaseData(windowValue) {
+  if (!windowValue) {
+    return false;
+  }
+  return (
+    Number(windowValue.post_count || 0) > 0 ||
+    Number(windowValue.source_ready_posts || 0) > 0 ||
+    Number(windowValue.extracted_post_rows || 0) > 0 ||
+    Number(windowValue.event_cluster_rows || 0) > 0 ||
+    Number(windowValue.topic_cluster_rows || 0) > 0
+  );
+}
+
+function getFilterWindowStatus(windowValue) {
+  if (!windowValue) {
+    return "to_be_updated";
+  }
+  if (windowValue.status === "future" || windowValue.is_future) {
+    return "future";
+  }
+  return hasWindowDatabaseData(windowValue) ? "completed" : "to_be_updated";
+}
+
+function getFilterStatusMeta(windowValue) {
+  return FILTER_STATUS_META[getFilterWindowStatus(windowValue)] || FILTER_STATUS_META.to_be_updated;
+}
+
+function getUpdateWindowStatus(windowValue) {
+  return windowValue?.update_status || windowValue?.status || "";
+}
+
+function getUpdateWindowForWeek(week) {
+  if (!week?.week_start || !week?.week_end) {
+    return null;
+  }
+  return (
+    state.updateWindows.find(
+      (item) => item.week_start === week.week_start && item.week_end === week.week_end
+    ) || null
+  );
+}
+
+function getSelectedWeeklyUpdateWindow() {
+  if (isMonthlyMode() || isQuarterlyMode()) {
+    return null;
+  }
+  return getUpdateWindowForWeek(state.selectedWeek);
+}
+
+function getImportCandidateWindow() {
+  const selectedWeekly = getSelectedWeeklyUpdateWindow();
+  if (selectedWeekly && getUpdateWindowStatus(selectedWeekly) === "ready_to_import") {
+    return selectedWeekly;
+  }
+  if (
+    state.calendarMode === "update" &&
+    state.calendarSelectedWeek &&
+    getUpdateWindowStatus(state.calendarSelectedWeek) === "ready_to_import"
+  ) {
+    return state.calendarSelectedWeek;
+  }
+  const latestJob = getLatestPlatformJob();
+  if (latestJob?.payload?.week_start && latestJob?.payload?.week_end) {
+    const latestWindow = state.updateWindows.find(
+      (item) =>
+        item.week_start === latestJob.payload.week_start &&
+        item.week_end === latestJob.payload.week_end
+    );
+    if (latestWindow && getUpdateWindowStatus(latestWindow) === "ready_to_import") {
+      return latestWindow;
+    }
+  }
+  return null;
+}
+
+function getLatestPlatformJob() {
+  const job = state.latestJob;
+  if (!job || job.job_type !== "update_week") {
+    return null;
+  }
+  if ((job.payload?.platform || "") !== state.updatePlatform) {
+    return null;
+  }
+  return job;
+}
+
+function getAnyActiveUpdateJob() {
+  const job = state.latestJob;
+  if (!job || job.job_type !== "update_week") {
+    return null;
+  }
+  return new Set(["queued", "running", "cancelling"]).has(job.status || "") ? job : null;
+}
+
+function formatJobWeekLabel(job) {
+  const weekStart = job?.payload?.week_start || "";
+  const weekEnd = job?.payload?.week_end || "";
+  if (!weekStart || !weekEnd) {
+    return "the selected week";
+  }
+  return formatWeekLabel(weekStart, weekEnd);
 }
 
 function getCalendarModeConfig() {
@@ -346,15 +602,14 @@ function getCalendarModeConfig() {
     return {
       eyebrow: "Monthly Heat Filter",
       title: "Pick Month",
-      helper: "Choose one calendar month for the leaderboard filter. Pick Month shows To Be Updated, To Be Analyzed, Completed, and Future monthly windows.",
+      helper: "Choose one calendar month for the leaderboard filter. Date statuses below reflect whether imported database data already exists for that month.",
       confirmLabel: "Use This Month",
       emptyLabel: "No month selected",
       emptyDetail: "Choose one calendar month to refresh the leaderboard and heat overview.",
       selectableStatuses: new Set(["to_be_updated", "to_be_analyzed", "completed"]),
       legend: [
-        { label: "To Be Updated", className: "swatch-available" },
-        { label: "To Be Analyzed", className: "swatch-updated" },
         { label: "Completed", className: "swatch-imported" },
+        { label: "To Be Updated", className: "swatch-available" },
         { label: "Future", className: "swatch-future" },
       ],
     };
@@ -364,12 +619,16 @@ function getCalendarModeConfig() {
       eyebrow: "Quarterly Heat Filter",
       title: "Pick Quarter",
       helper:
-        "Quarterly reporting is reserved for complete calendar quarters. Full-Web collection begins on 2026-03-01, so the first complete quarterly report will be available after June 2026.",
+        "Choose one calendar quarter for an aggregated leaderboard. Quarterly panels combine the monthly snapshots already available inside that quarter.",
       confirmLabel: "Use This Quarter",
       emptyLabel: "No quarter selected",
-      emptyDetail: "Quarterly reporting is not available yet because there is not yet a complete quarter of Full-Web data.",
-      selectableStatuses: new Set(),
-      legend: [{ label: "Quarterly report pending", className: "swatch-future" }],
+      emptyDetail: "Choose one calendar quarter to refresh the aggregated leaderboard and heat overview.",
+      selectableStatuses: new Set(["to_be_updated", "to_be_analyzed", "completed"]),
+      legend: [
+        { label: "Completed", className: "swatch-imported" },
+        { label: "To Be Updated", className: "swatch-available" },
+        { label: "Future", className: "swatch-future" },
+      ],
     };
   }
   return CALENDAR_MODE_CONFIG.filter;
@@ -381,9 +640,10 @@ function setStatus(status, detail) {
 }
 
 function getHeatTone(value) {
-  if (value >= 4) return { flames: "🔥🔥🔥", className: "heat-hot" };
-  if (value >= 3) return { flames: "🔥🔥", className: "heat-warm" };
-  return { flames: "🔥", className: "heat-mild" };
+  if (value >= 85) return { flames: "🔥🔥🔥", className: "heat-hot" };
+  if (value >= 70) return { flames: "🔥🔥", className: "heat-warm" };
+  if (value >= 50) return { flames: "🔥", className: "heat-mild" };
+  return { flames: "", className: "heat-mild" };
 }
 
 function getSortMetricValue(item, metric) {
@@ -434,11 +694,18 @@ function resolveBusyEmoji(title = "", detail = "") {
   return "⏳";
 }
 
-function setPanelBusy(isBusy, title = "Data is loading...", detail = "Please wait while the leaderboard refreshes.") {
+function setPanelBusy(
+  isBusy,
+  title = "Data is loading...",
+  detail = "Please wait while the leaderboard refreshes.",
+  options = {}
+) {
+  const { blockControls = true } = options;
   elements.leaderboardBusyOverlay?.classList.toggle("hidden", !isBusy);
   elements.leaderboardBusyOverlay?.setAttribute("aria-hidden", isBusy ? "false" : "true");
-  elements.controlBusyOverlay?.classList.toggle("hidden", !isBusy);
-  elements.controlBusyOverlay?.setAttribute("aria-hidden", isBusy ? "false" : "true");
+  const showControlOverlay = isBusy && blockControls;
+  elements.controlBusyOverlay?.classList.toggle("hidden", !showControlOverlay);
+  elements.controlBusyOverlay?.setAttribute("aria-hidden", showControlOverlay ? "false" : "true");
   const busyEmoji = resolveBusyEmoji(title, detail);
   if (elements.leaderboardBusyTitle) {
     elements.leaderboardBusyTitle.textContent = title;
@@ -464,6 +731,202 @@ function showInteractionBusy(title, detail) {
   setPanelBusy(true, title, detail);
 }
 
+function hasActiveUpdateJob() {
+  return Boolean(getAnyActiveUpdateJob());
+}
+
+function shouldShowCrawlMonitor(job = state.latestJob) {
+  if (!job || job.job_type !== "update_week") {
+    return false;
+  }
+  return new Set(["queued", "running", "cancelling", "awaiting_confirmation", "failed", "cancelled", "completed"]).has(job.status || "");
+}
+
+function formatRelativeMonitorTime(timestampText) {
+  if (!timestampText) {
+    return "Waiting for updates...";
+  }
+  const parsed = new Date(timestampText);
+  if (Number.isNaN(parsed.getTime())) {
+    return "Updated just now";
+  }
+  return `Updated ${parsed.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  })}`;
+}
+
+function getMonitorStatusCopy(job) {
+  const status = job?.status || "";
+  if (status === "queued") {
+    return {
+      title: "Crawl queued",
+      badge: "Queued",
+      detail: `The crawler is queued for ${formatJobWeekLabel(job)} and will start shortly.`,
+    };
+  }
+  if (status === "running") {
+    return {
+      title: "Crawl in progress",
+      badge: "Running",
+      detail: `The crawler is running for ${formatJobWeekLabel(job)}. You can keep browsing and open this panel any time.`,
+    };
+  }
+  if (status === "cancelling") {
+    return {
+      title: "Stopping crawl",
+      badge: "Stopping",
+      detail: `Stopping the active crawl for ${formatJobWeekLabel(job)}. The task is shutting down now.`,
+    };
+  }
+  if (status === "awaiting_confirmation") {
+    return {
+      title: "Ready to import",
+      badge: "Ready",
+      detail: `Crawl files were staged for ${formatJobWeekLabel(job)}. Review the output below, then confirm import when ready.`,
+    };
+  }
+  if (status === "failed") {
+    return {
+      title: "Crawl failed",
+      badge: "Failed",
+      detail: job.error || `The crawl for ${formatJobWeekLabel(job)} failed. Review the output below for details.`,
+    };
+  }
+  if (status === "cancelled") {
+    return {
+      title: "Crawl cancelled",
+      badge: "Cancelled",
+      detail: `The crawl for ${formatJobWeekLabel(job)} was stopped before import. Existing database data was not changed.`,
+    };
+  }
+  if (status === "completed") {
+    return {
+      title: "Import completed",
+      badge: "Done",
+      detail: `The staged files for ${formatJobWeekLabel(job)} were imported successfully.`,
+    };
+  }
+  return {
+    title: "Background crawl",
+    badge: "Active",
+    detail: "The crawler is running in the background.",
+  };
+}
+
+function renderCrawlMonitor() {
+  const job = state.latestJob;
+  const shouldShow = shouldShowCrawlMonitor(job);
+  elements.crawlMonitorShell?.classList.toggle("hidden", !shouldShow);
+  if (!shouldShow) {
+    return;
+  }
+
+  const copy = getMonitorStatusCopy(job);
+  const isMinimized = state.crawlMonitorMinimized;
+  elements.crawlMonitorChip?.classList.toggle("hidden", !isMinimized);
+  elements.crawlMonitorPanel?.classList.toggle("hidden", isMinimized);
+  if (elements.crawlMonitorToggleButton) {
+    elements.crawlMonitorToggleButton.textContent = isMinimized ? "Expand" : "Minimize";
+  }
+  if (elements.crawlMonitorChipLabel) {
+    elements.crawlMonitorChipLabel.textContent = `${copy.badge}: ${formatJobWeekLabel(job)}`;
+  }
+  if (elements.crawlMonitorTitle) {
+    elements.crawlMonitorTitle.textContent = copy.title;
+  }
+  if (elements.crawlMonitorStatusBadge) {
+    elements.crawlMonitorStatusBadge.textContent = copy.badge;
+    elements.crawlMonitorStatusBadge.dataset.status = job?.status || "";
+  }
+  if (elements.crawlMonitorPlatform) {
+    elements.crawlMonitorPlatform.textContent = PLATFORM_LABELS[job?.payload?.platform] || PLATFORM_LABELS[state.platform] || "Unknown";
+  }
+  if (elements.crawlMonitorWeek) {
+    elements.crawlMonitorWeek.textContent = formatJobWeekLabel(job);
+  }
+  if (elements.crawlMonitorDetail) {
+    elements.crawlMonitorDetail.textContent = copy.detail;
+  }
+  if (elements.crawlMonitorUpdatedAt) {
+    elements.crawlMonitorUpdatedAt.textContent = formatRelativeMonitorTime(job?.finished_at || job?.started_at || job?.created_at);
+  }
+  if (elements.crawlMonitorLog) {
+    const logText = (job?.log_tail || job?.error || "").trim();
+    elements.crawlMonitorLog.textContent = logText || "Waiting for crawl output...";
+    elements.crawlMonitorLog.scrollTop = elements.crawlMonitorLog.scrollHeight;
+  }
+  if (elements.crawlMonitorStopButton) {
+    elements.crawlMonitorStopButton.disabled = !new Set(["queued", "running", "cancelling"]).has(job?.status || "");
+  }
+  if (elements.crawlMonitorImportButton) {
+    elements.crawlMonitorImportButton.disabled = !(job?.status === "awaiting_confirmation");
+  }
+}
+
+function getUpdatePlatformLabel() {
+  return PLATFORM_LABELS[state.updatePlatform] || PLATFORM_LABELS[state.platform] || "Unknown";
+}
+
+function getJobPlatformLabel(job) {
+  return PLATFORM_LABELS[job?.payload?.platform] || getUpdatePlatformLabel();
+}
+
+function renderUpdatePlatformState() {
+  if (!elements.updatePlatformStateCard) {
+    return;
+  }
+  const isUpdateMode = state.calendarMode === "update";
+  const label = isUpdateMode ? getUpdatePlatformLabel() : (PLATFORM_LABELS[state.platform] || "Unknown");
+  const sourceWindows = isUpdateMode ? state.updateWindows : state.windows;
+  const latestFinishedWeek = sourceWindows.find((item) => (isUpdateMode ? getUpdateWindowStatus(item) : item.status) !== "future") || null;
+
+  elements.updatePlatformStateCard.dataset.platform = isUpdateMode ? state.updatePlatform : state.platform;
+  elements.updatePlatformStateCard.dataset.mode = isUpdateMode ? "update" : "filter";
+
+  if (isUpdateMode) {
+    const updateOverview = state.updateOverviewCache[state.updatePlatform] || {};
+    const databaseMeta = updateOverview.update_database_meta || {};
+    elements.updatePlatformCrawlableCount.classList.add("metric-value-coverage");
+    elements.updatePlatformReadyCount.classList.remove("metric-value-coverage");
+    elements.updatePlatformFutureCount.classList.remove("metric-value-coverage");
+    elements.updatePlatformStatePill.textContent = `${label} database metadata`;
+    elements.updatePlatformStateCopy.textContent = "";
+    elements.updatePlatformLatestWeek.textContent = databaseMeta.metadata_fetched_at
+      ? `Metadata loaded: ${formatDatabaseUpdatedAtLabel(databaseMeta.metadata_fetched_at)}`
+      : "";
+    elements.updatePlatformCrawlableCount.previousElementSibling.textContent = "Update Period Coverage";
+    elements.updatePlatformReadyCount.previousElementSibling.textContent = "Updated Posts in Database";
+    elements.updatePlatformFutureCount.previousElementSibling.textContent = "Latest Updated Date";
+    elements.updatePlatformCrawlableCount.innerHTML = formatCoverageLabelMarkup(
+      databaseMeta.coverage_start_date || "",
+      databaseMeta.coverage_end_date || ""
+    );
+    elements.updatePlatformReadyCount.textContent = formatNumber(databaseMeta.updated_posts_count || 0);
+    elements.updatePlatformFutureCount.textContent = formatDatabaseUpdatedDateLabel(databaseMeta.latest_updated_date || "");
+    return;
+  }
+
+  const completedCount = sourceWindows.filter((item) => getFilterWindowStatus(item) === "completed").length;
+  const updateCount = sourceWindows.filter((item) => getFilterWindowStatus(item) === "to_be_updated").length;
+  const futureCount = sourceWindows.filter((item) => getFilterWindowStatus(item) === "future").length;
+  elements.updatePlatformCrawlableCount.classList.remove("metric-value-coverage");
+  elements.updatePlatformReadyCount.classList.remove("metric-value-coverage");
+  elements.updatePlatformFutureCount.classList.remove("metric-value-coverage");
+  elements.updatePlatformStatePill.textContent = `${label} filter overview`;
+  elements.updatePlatformStateCopy.textContent = `Pick one ${isMonthlyMode() ? "month" : "week"} from ${label}. Date badges here only show whether imported database data already exists for that window.`;
+  elements.updatePlatformLatestWeek.textContent = latestFinishedWeek
+    ? `Latest available window: ${formatSelectedWindowLabel(latestFinishedWeek)}`
+    : "Latest available window: none yet";
+  elements.updatePlatformCrawlableCount.previousElementSibling.textContent = "Completed";
+  elements.updatePlatformReadyCount.previousElementSibling.textContent = "To Update";
+  elements.updatePlatformFutureCount.previousElementSibling.textContent = "Future";
+  elements.updatePlatformCrawlableCount.textContent = formatNumber(completedCount);
+  elements.updatePlatformReadyCount.textContent = formatNumber(updateCount);
+  elements.updatePlatformFutureCount.textContent = formatNumber(futureCount);
+}
+
 function getSortMetricLabel(metric) {
   return (
     {
@@ -481,6 +944,7 @@ function syncTrendLink() {
     event: state.selectedEvent,
     platform: state.platform,
     window_mode: state.windowMode,
+    quarter_key: isQuarterlyMode() ? state.selectedWeek?.quarter_key : "",
     month_key: isMonthlyMode() ? state.selectedWeek?.month_key : "",
     week_start: !isQuarterlyMode() ? state.selectedWeek?.week_start : "",
     week_end: !isQuarterlyMode() ? state.selectedWeek?.week_end : "",
@@ -505,23 +969,71 @@ function setSelectedWeek(week) {
 function updateActionButtons() {
   const status = state.selectedWeek?.status || "";
   const selectedWeekLabel = formatSelectedWindowLabel(state.selectedWeek);
+  const latestJob = getLatestPlatformJob() || getAnyActiveUpdateJob();
+  const latestJobStatus = latestJob?.status || "";
+  const latestJobActive = hasActiveUpdateJob();
+  const importCandidateWindow = getImportCandidateWindow();
+  const selectedUpdateWindow = getSelectedWeeklyUpdateWindow() || importCandidateWindow;
+  const selectedUpdateStatus = getUpdateWindowStatus(importCandidateWindow);
   if (isQuarterlyMode()) {
+    const quarterlyStatus = state.selectedWeek?.status || "";
     elements.sidebarRunAnalysisButton.disabled = true;
-    elements.updateDatabaseButton.disabled = true;
+    elements.updateDatabaseButton.disabled = latestJobActive;
+    elements.cancelUpdateJobButton.disabled = !latestJobActive;
+    elements.confirmImportButton.disabled = !(
+      !latestJobActive &&
+      importCandidateWindow &&
+      selectedUpdateStatus === "ready_to_import"
+    );
     elements.openSnapshotCalendarButton.disabled = false;
     elements.openSnapshotCalendarButton.textContent = "Pick Quarter";
     elements.snapshotFilterLabel.textContent = "Date Range";
     if (elements.snapshotFilterCopy) {
       elements.snapshotFilterCopy.textContent = "";
     }
-    setStatus(
-      "Quarterly report pending",
-      state.calendarNotice || QUARTERLY_PENDING_COPY
-    );
+    if (!state.selectedWeek) {
+      setStatus("Select a quarter", "Choose one calendar quarter to load the aggregated leaderboard.");
+    } else if (quarterlyStatus === "completed") {
+      setStatus(
+        "Quarterly view ready",
+        `${selectedWeekLabel} is aggregated from the monthly snapshots already available in this quarter.`
+      );
+    } else if (quarterlyStatus === "to_be_analyzed") {
+      setStatus(
+        "Quarterly data is partial",
+        `${selectedWeekLabel} already has raw or extracted posts, but not every month inside this quarter has a completed cluster snapshot yet.`
+      );
+    } else if (quarterlyStatus === "to_be_updated") {
+      setStatus(
+        "Quarterly data is waiting",
+        `${selectedWeekLabel} does not yet have imported posts inside this quarter, so the quarterly leaderboard is still empty.`
+      );
+    } else {
+      setStatus("Quarterly view", state.calendarNotice || "Quarterly panels aggregate the monthly snapshots available in this quarter.");
+    }
+    if (latestJobStatus === "queued" || latestJobStatus === "running" || latestJobStatus === "cancelling") {
+      setStatus(
+        latestJobStatus === "cancelling" ? "Stopping crawl" : "Crawling in progress",
+        `${formatJobWeekLabel(latestJob)} is currently reserved for a weekly crawl. Quarterly cards stay available while the crawl runs in the background.`
+      );
+    } else if (selectedUpdateStatus === "ready_to_import") {
+      setStatus(
+        "Ready to import",
+        `${formatWeekLabel(importCandidateWindow.week_start, importCandidateWindow.week_end)} has staged crawl files waiting for confirmation before they enter the database.`
+      );
+    }
+    renderCrawlMonitor();
     return;
   }
-  elements.sidebarRunAnalysisButton.disabled = !state.selectedWeek || !new Set(["to_be_analyzed", "completed"]).has(status);
-  elements.updateDatabaseButton.disabled = false;
+  elements.sidebarRunAnalysisButton.disabled =
+    latestJobActive || !state.selectedWeek || !new Set(["to_be_analyzed", "completed"]).has(status);
+  elements.updateDatabaseButton.disabled = latestJobActive;
+  elements.cancelUpdateJobButton.disabled = !latestJobActive;
+  elements.confirmImportButton.disabled = !(
+    !latestJobActive &&
+    importCandidateWindow &&
+    selectedUpdateStatus === "ready_to_import"
+  );
   elements.openSnapshotCalendarButton.disabled = false;
   elements.openSnapshotCalendarButton.textContent = isMonthlyMode() ? "Pick Month" : "Pick Week";
   elements.snapshotFilterLabel.textContent = "Date Range";
@@ -530,12 +1042,84 @@ function updateActionButtons() {
   }
 
   if (!state.selectedWeek) {
+    if (latestJobStatus === "awaiting_confirmation") {
+      const summaryWindow = latestJob?.summary?.window || null;
+      const stagedCount = Number(summaryWindow?.staged_file_count || 0);
+      setStatus(
+        "Ready to import",
+        `${formatJobWeekLabel(latestJob)} finished crawling for ${getJobPlatformLabel(latestJob)}. ${formatNumber(
+          stagedCount
+        )} staged file${stagedCount === 1 ? "" : "s"} are waiting for confirmation.`
+      );
+      renderCrawlMonitor();
+      return;
+    }
     setStatus(
       isMonthlyMode() ? "Select a month" : "Select a week",
       isMonthlyMode()
         ? "Choose one monthly snapshot from the left-side date filter."
         : "Choose one weekly snapshot from the left-side date filter."
     );
+    renderCrawlMonitor();
+    return;
+  }
+
+  if (latestJobStatus === "queued") {
+    setStatus(
+      "Crawl queued",
+      `${formatJobWeekLabel(latestJob)} is queued for ${getJobPlatformLabel(latestJob)}.`
+    );
+    renderCrawlMonitor();
+    return;
+  }
+  if (latestJobStatus === "running") {
+    setStatus(
+      "Crawling in progress",
+      `${formatJobWeekLabel(latestJob)} is currently crawling ${getJobPlatformLabel(latestJob)}. You can stop this crawl before import.`
+    );
+    renderCrawlMonitor();
+    return;
+  }
+  if (latestJobStatus === "cancelling") {
+    setStatus(
+      "Stopping crawl",
+      `Cancelling the active ${getJobPlatformLabel(latestJob)} crawl for ${formatJobWeekLabel(latestJob)}.`
+    );
+    renderCrawlMonitor();
+    return;
+  }
+  if (latestJobStatus === "awaiting_confirmation") {
+    const summaryWindow = latestJob?.summary?.window || selectedUpdateWindow;
+    const stagedCount = Number(summaryWindow?.staged_file_count || 0);
+    setStatus(
+      "Ready to import",
+      `${formatJobWeekLabel(latestJob)} finished crawling. ${formatNumber(stagedCount)} staged file${
+        stagedCount === 1 ? "" : "s"
+      } are waiting for confirmation before they enter the database.`
+    );
+    renderCrawlMonitor();
+    return;
+  }
+  if (latestJobStatus === "cancelled") {
+    setStatus(
+      "Crawl cancelled",
+      `${formatJobWeekLabel(latestJob)} was stopped before import confirmation. Existing database data was not changed.`
+    );
+    renderCrawlMonitor();
+    return;
+  }
+  if (selectedUpdateStatus === "ready_to_import") {
+    const stagedCount = Number(importCandidateWindow?.staged_file_count || 0);
+    const readyWeekLabel = importCandidateWindow
+      ? formatWeekLabel(importCandidateWindow.week_start, importCandidateWindow.week_end)
+      : selectedWeekLabel;
+    setStatus(
+      "Ready to import",
+      `${readyWeekLabel} already has ${formatNumber(stagedCount)} staged file${
+        stagedCount === 1 ? "" : "s"
+      } waiting for confirmation. Click Confirm Import when you want them written into the database.`
+    );
+    renderCrawlMonitor();
     return;
   }
 
@@ -561,40 +1145,78 @@ function updateActionButtons() {
         : `${selectedWeekLabel} has no stored raw posts yet. Click Update Database to crawl and ingest this fixed weekly window first.`
     );
   }
+  renderCrawlMonitor();
 }
 
 function renderOverview(items) {
   clearNode(elements.heatOverviewGrid);
   if (isQuarterlyMode()) {
+    const totalEngagement = items.reduce((sum, item) => sum + Number(item.total_engagement || 0), 0);
+    const totalDiscussion = items.reduce((sum, item) => sum + Number(item.discussion_total || 0), 0);
+    const totalPosts = items.reduce((sum, item) => sum + Number(item.post_count || 0), 0);
+    const averagePerPost = totalPosts > 0 ? Math.round(totalEngagement / totalPosts) : 0;
+    const topItem = items[0];
     const cards = [
       {
+        key: "platform",
         label: "Platform",
         value: PLATFORM_LABELS[state.platform] || "Unknown",
-        sub: "Quarterly planning view",
+        sub: "",
       },
       {
-        label: "Quarterly Status",
-        value: "Not Available Yet",
-        sub: "Quarterly reporting starts once a complete quarter is available.",
+        key: "selected-range",
+        label: "Selected Range",
+        value: state.selectedWeek?.quarter_key || "No quarter selected",
+        sub: "",
       },
       {
-        label: "Current Quarter",
-        value: state.selectedWeek?.quarter_key || "2026-Q2",
-        sub: "Target quarter for the first full report",
+        key: "monthly-posts",
+        label: "Quarter Posts",
+        value: formatNumber(state.selectedWeek?.post_count || totalPosts),
+        sub: "",
       },
       {
-        label: "Collection Start",
-        value: "2026-03-01",
-        sub: "Full-Web collection began in March 2026.",
+        key: "top-title",
+        label: state.boardType === "topic" ? "Top Topic" : "Top Event",
+        value: clipText(getClusterDisplayText(topItem, "No cluster"), 34),
+        subHtml: topItem
+          ? `<span class="overview-heat-flames">${getHeatTone(Number(topItem.heat_score || 0)).flames}</span><span>Heat ${formatScore(
+              topItem.heat_score
+            )} / 100</span>`
+          : "",
+      },
+      {
+        key: "engagement",
+        label: "Engagement",
+        value: formatNumber(totalEngagement),
+        sub: "",
+      },
+      {
+        key: "discussion",
+        label: "Discussion",
+        value: formatNumber(totalDiscussion),
+        sub: "",
+      },
+      {
+        key: "posts",
+        label: "Posts",
+        value: formatNumber(totalPosts),
+        sub: "",
+      },
+      {
+        key: "avg-per-post",
+        label: "Avg. Per Post",
+        value: formatNumber(averagePerPost),
+        sub: "",
       },
     ];
     cards.forEach((card) => {
       const node = document.createElement("article");
-      node.className = "overview-card";
+      node.className = `overview-card overview-card-${card.key}`;
       node.innerHTML = `
         <span>${card.label}</span>
         <strong>${card.value}</strong>
-        ${card.sub ? `<small>${card.sub}</small>` : ""}
+        ${card.subHtml ? `<small class="overview-rich-sub">${card.subHtml}</small>` : card.sub ? `<small>${card.sub}</small>` : ""}
       `;
       elements.heatOverviewGrid.appendChild(node);
     });
@@ -627,11 +1249,11 @@ function renderOverview(items) {
     {
       key: "top-title",
       label: state.boardType === "topic" ? "Top Topic" : "Top Event",
-      value: clipText(topItem?.cluster_key || "No cluster", 34),
+      value: clipText(getClusterDisplayText(topItem, "No cluster"), 34),
       subHtml: topItem
         ? `<span class="overview-heat-flames">${getHeatTone(Number(topItem.heat_score || 0)).flames}</span><span>Heat ${formatScore(
             topItem.heat_score
-          )}</span>`
+          )} / 100</span>`
         : "",
     },
     {
@@ -676,20 +1298,6 @@ function renderLeaderboard(items) {
   clearNode(elements.leaderboardTableBody);
   state.lastRenderedItems = items;
   hideClusterContextMenu();
-  if (isQuarterlyMode()) {
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td colspan="8">
-        <div class="empty-state quarterly-empty-card">
-          <h4>Quarterly leaderboard not available yet</h4>
-          <p>${state.calendarNotice || QUARTERLY_PENDING_COPY}</p>
-        </div>
-      </td>
-    `;
-    elements.leaderboardTableBody.appendChild(row);
-    elements.leaderboardCounter.textContent = "Quarterly pending";
-    return;
-  }
   if (!items.length) {
     elements.leaderboardTableBody.appendChild(elements.emptyTemplate.content.cloneNode(true));
     elements.leaderboardCounter.textContent = "0 rows";
@@ -705,7 +1313,7 @@ function renderLeaderboard(items) {
     row.innerHTML = `
       <td class="leaderboard-rank-cell"><span class="rank-pill">${index + 1}</span></td>
       <td class="heat-title-cell">
-        <strong>${item.cluster_key}</strong>
+        <strong>${getClusterDisplayText(item, item.cluster_key || "")}</strong>
       </td>
       <td class="leaderboard-metric-cell">${PLATFORM_LABELS[item.platform] || item.platform || "-"}</td>
       <td class="leaderboard-metric-cell">${formatNumber(item.post_count)}</td>
@@ -713,8 +1321,10 @@ function renderLeaderboard(items) {
       <td class="leaderboard-metric-cell">${formatNumber(item.discussion_total)}</td>
       <td class="leaderboard-metric-cell">${formatNumber(item.unique_authors)}</td>
       <td class="heat-score-cell ${tone.className}">
-        <span class="heat-flames">${tone.flames}</span>
-        <strong>${formatScore(item.heat_score)}</strong>
+        <div class="heat-score-shell">
+          <strong>${formatScore(item.heat_score)}</strong>
+          <span class="heat-flames ${tone.flames ? "has-flames" : "no-flames"}" aria-hidden="true">${tone.flames || ""}</span>
+        </div>
       </td>
     `;
     row.addEventListener("click", () => {
@@ -770,45 +1380,44 @@ function syncLeaderboardCopy() {
 
 function renderSnapshotWindowList() {
   clearNode(elements.snapshotWindowList);
-  if (isQuarterlyMode()) {
+  const visibleWindows = state.windows.filter((item) => {
+    if (!isMonthlyMode() && !isQuarterlyMode() && getFilterWindowStatus(item) === "future") {
+      return false;
+    }
+    return true;
+  });
+  if (!visibleWindows.length) {
     const empty = document.createElement("div");
     empty.className = "snapshot-window-empty";
-    empty.textContent =
-      state.calendarNotice || QUARTERLY_PENDING_COPY;
-    elements.snapshotWindowList.appendChild(empty);
-    return;
-  }
-  if (!state.windows.length) {
-    const empty = document.createElement("div");
-    empty.className = "snapshot-window-empty";
-    empty.textContent = isMonthlyMode()
+    empty.textContent = isQuarterlyMode()
+      ? "No quarterly windows were found for the selected platform."
+      : isMonthlyMode()
       ? "No monthly windows were found for the selected platform."
       : "No weekly windows were found for the selected platform.";
     elements.snapshotWindowList.appendChild(empty);
     return;
   }
 
-  state.windows.forEach((item) => {
-    const statusMeta = STATUS_META[item.status] || STATUS_META.to_be_updated;
+  visibleWindows.forEach((item) => {
+    const statusMeta = getFilterStatusMeta(item);
+    const isSelected = isQuarterlyMode()
+      ? state.selectedWeek?.quarter_key === item.quarter_key
+      : isMonthlyMode()
+      ? state.selectedWeek?.month_key === item.month_key
+      : state.selectedWeek?.week_start === item.week_start && state.selectedWeek?.week_end === item.week_end;
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `snapshot-window-card ${statusMeta.className}${
-      (
-        isMonthlyMode()
-          ? state.selectedWeek?.month_key === item.month_key
-          : state.selectedWeek?.week_start === item.week_start && state.selectedWeek?.week_end === item.week_end
-      ) ? " selected" : ""
-    }`;
+    button.className = `snapshot-window-card ${statusMeta.className}${isSelected ? " selected" : ""}`;
     button.innerHTML = `
       <div class="snapshot-window-head">
-        <strong>${isMonthlyMode() ? formatMonthLabel(item.month_key) : `${item.week_start.slice(5)} to ${item.week_end.slice(5)}`}</strong>
+        <strong>${isQuarterlyMode() ? item.quarter_key : isMonthlyMode() ? formatMonthLabel(item.month_key) : `${item.week_start.slice(5)} to ${item.week_end.slice(5)}`}</strong>
         <span class="snapshot-status-badge ${statusMeta.className}">${statusMeta.label}</span>
       </div>
     `;
     button.addEventListener("click", async () => {
       showInteractionBusy(
-        isMonthlyMode() ? "Switching month..." : "Switching week...",
-        `Loading ${isMonthlyMode() ? formatMonthLabel(item.month_key) : `${item.week_start} to ${item.week_end}`} for the current leaderboard view.`
+        isQuarterlyMode() ? "Switching quarter..." : isMonthlyMode() ? "Switching month..." : "Switching week...",
+        `Loading ${isQuarterlyMode() ? item.quarter_key : isMonthlyMode() ? formatMonthLabel(item.month_key) : `${item.week_start} to ${item.week_end}`} for the current leaderboard view.`
       );
       setSelectedWeek(item);
       renderSnapshotWindowList();
@@ -884,16 +1493,19 @@ function openClusterMergeModal() {
     return;
   }
   syncFeedbackCopy();
-  elements.clusterMergeSourceLabel.textContent = state.contextRow.cluster_key || "No event selected";
+  elements.clusterMergeSourceLabel.textContent = getClusterDisplayText(state.contextRow, "No event selected");
   clearNode(elements.clusterMergeTargetSelect);
   const options = state.lastRenderedItems
     .filter((item) => item.cluster_key !== state.contextRow.cluster_key)
-    .map((item) => item.cluster_key);
+    .map((item) => ({
+      value: item.cluster_key || "",
+      label: getClusterDisplayText(item, item.cluster_key || ""),
+    }));
   options.forEach((item) => {
     const option = document.createElement("option");
-    option.value = item;
-    option.textContent = clipText(item, 48);
-    option.title = item;
+    option.value = item.value;
+    option.textContent = clipText(item.label, 48);
+    option.title = item.label;
     elements.clusterMergeTargetSelect.appendChild(option);
   });
   elements.confirmClusterMergeButton.disabled = options.length === 0;
@@ -912,7 +1524,7 @@ function openClusterNoiseModal() {
   }
   syncFeedbackCopy();
   if (elements.clusterNoiseSourceLabel) {
-    elements.clusterNoiseSourceLabel.textContent = state.contextRow.cluster_key || "No selection";
+    elements.clusterNoiseSourceLabel.textContent = getClusterDisplayText(state.contextRow, "No selection");
   }
   elements.clusterNoiseModal.classList.remove("hidden");
   elements.clusterNoiseModal.setAttribute("aria-hidden", "false");
@@ -980,12 +1592,28 @@ function formatCalendarSelectionDetail(week) {
   }
 
   if (state.calendarMode === "update") {
-    return week.status === "to_be_updated"
-      ? `This fixed Sunday-Saturday week is ready to crawl for ${PLATFORM_LABELS[state.platform]}.`
-      : `${formatWeekLabel(week.week_start, week.week_end)} is already updated for ${PLATFORM_LABELS[state.platform]}.`;
+    const updateStatus = getUpdateWindowStatus(week);
+    if (updateStatus === "future") {
+      return `${formatWeekLabel(week.week_start, week.week_end)} is still in the future and cannot be crawled yet.`;
+    }
+    if (updateStatus === "ready_to_import") {
+      return `${formatWeekLabel(week.week_start, week.week_end)} already has staged crawl files. Confirm import when you are ready to write them into the database.`;
+    }
+    if (updateStatus === "to_be_updated") {
+      return `${formatWeekLabel(week.week_start, week.week_end)} has not been imported yet for ${getUpdatePlatformLabel()}. Start Crawl to fetch this fixed week into staging first.`;
+    }
+    if (new Set(["to_be_analyzed", "completed"]).has(updateStatus)) {
+      return `${formatWeekLabel(week.week_start, week.week_end)} already has database data for ${getUpdatePlatformLabel()}. You can crawl again if you want to refresh that week.`;
+    }
+    return `${formatWeekLabel(week.week_start, week.week_end)} can be crawled again for ${getUpdatePlatformLabel()}.`;
   }
 
-  const statusMeta = STATUS_META[week.status] || STATUS_META.to_be_updated;
+  if (isQuarterlyMode()) {
+    const statusMeta = STATUS_META[week.status] || STATUS_META.to_be_updated;
+    return week.note || `${statusMeta.label}. Quarterly view aggregates the months that currently belong to this quarter.`;
+  }
+
+  const statusMeta = getFilterStatusMeta(week);
   return `${statusMeta.label}. ${statusMeta.detail}`;
 }
 
@@ -1024,17 +1652,26 @@ function getWindowMonthKeys(sourceWindows) {
       listMonthKeysForWindow(item).forEach((key) => keys.add(key));
     });
   }
-  return [...keys].sort((left, right) => right.localeCompare(left));
+  const sorted = [...keys].sort((left, right) => left.localeCompare(right));
+  const useAscending = state.calendarMode === "update" || (state.calendarMode === "filter" && !isMonthlyMode());
+  return useAscending ? sorted : [...sorted].reverse();
 }
 
 function syncCalendarSelectionSummary() {
   const config = getCalendarModeConfig();
   elements.calendarSelectionLabel.textContent = state.calendarSelectedWeek
-    ? formatSelectedWindowLabel(state.calendarSelectedWeek)
+    ? formatCalendarSelectedWindowLabel(state.calendarSelectedWeek)
     : config.emptyLabel;
-  elements.calendarSelectionDetail.textContent = formatCalendarSelectionDetail(state.calendarSelectedWeek);
+  elements.calendarSelectionDetail.textContent =
+    state.calendarMode === "update" ? "" : formatCalendarSelectionDetail(state.calendarSelectedWeek);
+  const selectedStatus =
+    state.calendarMode === "update"
+      ? getUpdateWindowStatus(state.calendarSelectedWeek)
+      : state.calendarSelectedWeek?.status;
   elements.confirmUpdateButton.disabled = !(
-    state.calendarSelectedWeek && config.selectableStatuses.has(state.calendarSelectedWeek.status)
+    state.calendarSelectedWeek &&
+    config.selectableStatuses.has(selectedStatus) &&
+    !(state.calendarMode === "update" && hasActiveUpdateJob())
   );
 }
 
@@ -1050,25 +1687,43 @@ function renderCalendarLegend() {
 
 function syncCalendarModal() {
   const config = getCalendarModeConfig();
+  const isUpdateMode = state.calendarMode === "update";
+  elements.updateCalendarPanel?.setAttribute("data-mode", isUpdateMode ? "update" : "filter");
+  elements.updatePlatformRow?.classList.toggle("hidden", !isUpdateMode);
   elements.calendarModeEyebrow.textContent = config.eyebrow;
   elements.calendarModeTitle.textContent = config.title;
-  elements.calendarModeHelper.textContent = config.helper;
+  elements.calendarModeHelper.textContent = isUpdateMode ? "" : config.helper;
   elements.confirmUpdateButton.textContent = config.confirmLabel;
   if (elements.calendarToolbar) {
     elements.calendarToolbar.classList.add("hidden");
   }
   elements.calendarWeekdayRow.classList.add("hidden");
+  renderUpdatePlatformState();
   renderCalendarLegend();
   syncCalendarSelectionSummary();
 }
 
 function setCalendarMode(mode) {
+  const previousMode = state.calendarMode;
+  const previousUpdateSelection =
+    previousMode === "update" ? getUpdateWindowForWeek(state.calendarSelectedWeek) || getUpdateWindowForWeek(state.lastUpdateSelection) : null;
   state.calendarMode = mode;
+  state.calendarScrollTop = 0;
   const sourceWindows = mode === "update" ? state.updateWindows : state.windows;
   if (mode === "update") {
-    state.calendarSelectedWeek =
-      sourceWindows.find((item) => item.status === "to_be_updated") ||
+    const selectedMatch =
+      previousUpdateSelection ||
+      getUpdateWindowForWeek(state.lastUpdateSelection) ||
+      getUpdateWindowForWeek(state.selectedWeek) ||
       null;
+    state.calendarSelectedWeek =
+      selectedMatch ||
+      sourceWindows.find((item) => getUpdateWindowStatus(item) === "ready_to_import") ||
+      sourceWindows.find((item) => getUpdateWindowStatus(item) !== "future") ||
+      null;
+    state.lastUpdateSelection = state.calendarSelectedWeek
+      ? { week_start: state.calendarSelectedWeek.week_start, week_end: state.calendarSelectedWeek.week_end }
+      : state.lastUpdateSelection;
   } else {
     state.calendarSelectedWeek = state.selectedWeek;
   }
@@ -1076,43 +1731,42 @@ function setCalendarMode(mode) {
 }
 
 function renderCalendar() {
+  const preservedScrollTop = elements.calendarGrid?.scrollTop || state.calendarScrollTop || 0;
   clearNode(elements.calendarWeekdayRow);
   clearNode(elements.calendarGrid);
-  if (isQuarterlyMode()) {
-    const empty = document.createElement("div");
-    empty.className = "snapshot-window-empty";
-    empty.textContent =
-      state.calendarNotice || QUARTERLY_PENDING_COPY;
-    elements.calendarGrid.appendChild(empty);
-    syncCalendarSelectionSummary();
-    return;
-  }
-  const useMonthPicker = state.calendarMode === "filter" && isMonthlyMode();
-  const sourceWindows = state.calendarMode === "update" ? state.updateWindows : state.windows;
-  const monthKeys = getWindowMonthKeys(sourceWindows);
-  elements.calendarGrid.classList.toggle("calendar-month-grid", false);
-  elements.calendarGrid.classList.toggle("calendar-week-grid", false);
-  elements.calendarGrid.classList.add("calendar-scroll-grid");
-  elements.calendarMonthLabel.textContent = useMonthPicker ? "Available Months" : "Available Weeks";
-
-  if (useMonthPicker) {
+  const isFilterQuarterly = state.calendarMode === "filter" && isQuarterlyMode();
+  if (isFilterQuarterly) {
+    elements.calendarGrid.classList.toggle("calendar-month-grid", false);
+    elements.calendarGrid.classList.toggle("calendar-week-grid", false);
+    elements.calendarGrid.classList.add("calendar-scroll-grid");
+    elements.calendarMonthLabel.textContent = "Available Quarters";
+    if (!state.windows.length) {
+      const empty = document.createElement("div");
+      empty.className = "snapshot-window-empty";
+      empty.textContent = "No quarterly windows are available for this platform.";
+      elements.calendarGrid.appendChild(empty);
+      syncCalendarSelectionSummary();
+      return;
+    }
     const section = document.createElement("section");
     section.className = "calendar-month-section";
-    section.innerHTML = `<h3 class="calendar-section-title">Calendar Months</h3>`;
+    section.innerHTML = `<h3 class="calendar-section-title">Calendar Quarters</h3>`;
     const grid = document.createElement("div");
     grid.className = "calendar-section-grid calendar-section-grid-months";
     state.windows.forEach((item) => {
-      const statusMeta = STATUS_META[item.status] || STATUS_META.to_be_updated;
-      const isSelected = state.calendarSelectedWeek?.month_key === item.month_key;
-      const isSelectable = getCalendarModeConfig().selectableStatuses.has(item.status);
+      const statusMeta = getFilterStatusMeta(item);
+      const isSelected = state.calendarSelectedWeek?.quarter_key === item.quarter_key;
       const button = document.createElement("button");
       button.type = "button";
       button.className = `calendar-day ${statusMeta.className}${isSelected ? " selected-week" : ""}`;
-      button.innerHTML = `
-        <span class="calendar-day-month">${formatMonthLabel(item.month_key)}</span>
+        button.innerHTML = `
+        <span class="calendar-day-month">${item.quarter_key}</span>
+        <span class="calendar-day-status-text">${statusMeta.label}</span>
+        ${item.note ? `<span class="calendar-day-helper">${item.note}</span>` : ""}
       `;
-      if (isSelectable) {
+      if (getCalendarModeConfig().selectableStatuses.has(item.status)) {
         button.addEventListener("click", () => {
+          state.calendarScrollTop = elements.calendarGrid?.scrollTop || 0;
           state.calendarSelectedWeek = item;
           syncCalendarSelectionSummary();
           renderCalendar();
@@ -1125,6 +1779,169 @@ function renderCalendar() {
     section.appendChild(grid);
     elements.calendarGrid.appendChild(section);
     syncCalendarSelectionSummary();
+    elements.calendarGrid.scrollTop = preservedScrollTop;
+    return;
+  }
+  const useMonthPicker = state.calendarMode === "filter" && isMonthlyMode();
+  const useDailyWeekPicker = state.calendarMode === "filter" && !isMonthlyMode();
+  const sourceWindows = state.calendarMode === "update" ? state.updateWindows : state.windows;
+  const monthKeys = getWindowMonthKeys(sourceWindows);
+  elements.calendarGrid.classList.toggle("calendar-month-grid", false);
+  elements.calendarGrid.classList.toggle("calendar-week-grid", false);
+  elements.calendarGrid.classList.add("calendar-scroll-grid");
+  elements.calendarMonthLabel.textContent = useMonthPicker ? "Available Months" : "Available Weeks";
+
+  if (state.calendarMode === "update" || useDailyWeekPicker) {
+    elements.calendarMonthLabel.textContent = state.calendarMode === "update" ? `${getUpdatePlatformLabel()} Crawl Calendar` : "Weekly Snapshot Calendar";
+    if (!monthKeys.length) {
+      const empty = document.createElement("div");
+      empty.className = "snapshot-window-empty";
+      empty.textContent = state.calendarMode === "update"
+        ? `No weekly windows are available for ${getUpdatePlatformLabel()}.`
+        : "No weekly windows are available for this platform.";
+      elements.calendarGrid.appendChild(empty);
+      syncCalendarSelectionSummary();
+      return;
+    }
+
+    monthKeys.forEach((monthKey) => {
+      const [yearText, monthText] = String(monthKey).split("-");
+      const year = Number(yearText);
+      const month = Number(monthText);
+      if (!year || !month) {
+        return;
+      }
+
+      const section = document.createElement("section");
+      section.className = "calendar-month-section calendar-month-section-daily";
+      section.innerHTML = `
+        ${state.calendarMode === "update" ? "" : `<p class="calendar-section-kicker">Showing ${PLATFORM_LABELS[state.platform] || "Unknown"} weekly windows</p>`}
+        <h3 class="calendar-section-title">${formatMonthHeading(monthKey)}</h3>
+      `;
+
+      const weekdayRow = document.createElement("div");
+      weekdayRow.className = "calendar-month-weekday-row";
+      WEEKDAY_LABELS.forEach((label) => {
+        const node = document.createElement("span");
+        node.className = "calendar-month-weekday";
+        node.textContent = label;
+        weekdayRow.appendChild(node);
+      });
+      section.appendChild(weekdayRow);
+
+      const grid = document.createElement("div");
+      grid.className = "calendar-date-grid";
+
+      const firstDay = new Date(year, month - 1, 1);
+      const leadingBlanks = firstDay.getDay();
+      for (let index = 0; index < leadingBlanks; index += 1) {
+        const blank = document.createElement("div");
+        blank.className = "calendar-day-blank";
+        grid.appendChild(blank);
+      }
+
+      const lastDay = new Date(year, month, 0).getDate();
+      for (let day = 1; day <= lastDay; day += 1) {
+        const dateValue = new Date(year, month - 1, day);
+        const dateKey = toIsoDate(dateValue);
+        const week = sourceWindows.find((item) => item.week_start <= dateKey && item.week_end >= dateKey) || null;
+        const forcedFirstWeekUpdated =
+          state.calendarMode === "update" && !week && dateKey >= "2026-01-01" && dateKey <= "2026-01-03";
+        const calendarStatus = forcedFirstWeekUpdated
+          ? "completed"
+          : week
+          ? (state.calendarMode === "update" ? getUpdateWindowStatus(week) : getFilterWindowStatus(week))
+          : "future";
+        const statusMeta = state.calendarMode === "update"
+          ? (UPDATE_CALENDAR_META[calendarStatus] || UPDATE_CALENDAR_META.future)
+          : (FILTER_STATUS_META[calendarStatus] || FILTER_STATUS_META.future);
+        const isSelected =
+          week &&
+          state.calendarSelectedWeek?.week_start === week.week_start &&
+          state.calendarSelectedWeek?.week_end === week.week_end;
+        const isSelectable =
+          week &&
+          getCalendarModeConfig().selectableStatuses.has(calendarStatus) &&
+          !(state.calendarMode === "update" && hasActiveUpdateJob());
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `calendar-day calendar-day-compact ${statusMeta.className}${isSelected ? " selected-week" : ""}${state.calendarMode === "filter" ? " calendar-day-filter" : ""}`;
+        button.innerHTML = `
+          <span class="calendar-day-number">${String(day)}</span>
+          <span class="calendar-day-status-text">${statusMeta.label}</span>
+        `;
+        button.title = week
+          ? `${formatWeekLabel(week.week_start, week.week_end)} • ${statusMeta.label}`
+          : forcedFirstWeekUpdated
+          ? `${dateKey} • Updated`
+          : `${dateKey} • Future`;
+
+        if (isSelectable) {
+          button.addEventListener("click", () => {
+            state.calendarScrollTop = elements.calendarGrid?.scrollTop || 0;
+            state.calendarSelectedWeek = week;
+            if (state.calendarMode === "update") {
+              state.lastUpdateSelection = { week_start: week.week_start, week_end: week.week_end };
+            }
+            syncCalendarSelectionSummary();
+            renderCalendar();
+          });
+        } else {
+          button.disabled = true;
+        }
+        grid.appendChild(button);
+      }
+
+      const totalCells = leadingBlanks + lastDay;
+      const trailingBlanks = (7 - (totalCells % 7)) % 7;
+      for (let index = 0; index < trailingBlanks; index += 1) {
+        const blank = document.createElement("div");
+        blank.className = "calendar-day-blank";
+        grid.appendChild(blank);
+      }
+
+      section.appendChild(grid);
+      elements.calendarGrid.appendChild(section);
+    });
+
+    syncCalendarSelectionSummary();
+    elements.calendarGrid.scrollTop = preservedScrollTop;
+    return;
+  }
+
+  if (useMonthPicker) {
+    const section = document.createElement("section");
+    section.className = "calendar-month-section";
+    section.innerHTML = `<h3 class="calendar-section-title">Calendar Months</h3>`;
+    const grid = document.createElement("div");
+    grid.className = "calendar-section-grid calendar-section-grid-months";
+    state.windows.forEach((item) => {
+      const statusMeta = getFilterStatusMeta(item);
+      const isSelected = state.calendarSelectedWeek?.month_key === item.month_key;
+      const isSelectable = getCalendarModeConfig().selectableStatuses.has(item.status);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `calendar-day ${statusMeta.className}${isSelected ? " selected-week" : ""}`;
+      button.innerHTML = `
+        <span class="calendar-day-month">${formatMonthLabel(item.month_key)}</span>
+      `;
+      if (isSelectable) {
+        button.addEventListener("click", () => {
+          state.calendarScrollTop = elements.calendarGrid?.scrollTop || 0;
+          state.calendarSelectedWeek = item;
+          syncCalendarSelectionSummary();
+          renderCalendar();
+        });
+      } else {
+        button.disabled = true;
+      }
+      grid.appendChild(button);
+    });
+    section.appendChild(grid);
+    elements.calendarGrid.appendChild(section);
+    syncCalendarSelectionSummary();
+    elements.calendarGrid.scrollTop = preservedScrollTop;
     return;
   }
 
@@ -1151,33 +1968,43 @@ function renderCalendar() {
     visibleWeeks.forEach((week) => {
       const calendarStatus =
         state.calendarMode === "update"
-          ? week.status === "to_be_updated"
-            ? "to_be_updated"
-            : week.status === "future"
-              ? "future"
-              : "updated"
-          : week.status;
+          ? getUpdateWindowStatus(week)
+          : getFilterWindowStatus(week);
       const statusMeta =
         state.calendarMode === "update"
           ? UPDATE_CALENDAR_META[calendarStatus] || UPDATE_CALENDAR_META.future
-          : STATUS_META[calendarStatus] || STATUS_META.future;
+          : FILTER_STATUS_META[calendarStatus] || FILTER_STATUS_META.future;
       const isSelected =
         state.calendarSelectedWeek?.week_start === week.week_start && state.calendarSelectedWeek?.week_end === week.week_end;
-      const isSelectable = getCalendarModeConfig().selectableStatuses.has(week.status);
+      const isSelectable = getCalendarModeConfig().selectableStatuses.has(calendarStatus);
 
       const button = document.createElement("button");
       button.type = "button";
       button.className = `calendar-day ${statusMeta.className}${isSelected ? " selected-week" : ""}`;
-        button.innerHTML = `
+      const selectedPill = isSelected ? '<span class="calendar-selected-pill">Selected</span>' : "";
+      const statusPill = `<span class="calendar-status-pill ${statusMeta.className}">${statusMeta.label}</span>`;
+      button.innerHTML = `
+          <div class="calendar-week-card-head">
+            ${statusPill}
+            ${selectedPill}
+          </div>
           <span class="calendar-week-range">${week.week_start} to ${week.week_end}</span>
         `;
+      const updateModeLocked = state.calendarMode === "update" && hasActiveUpdateJob();
       if (isSelectable) {
         button.addEventListener("click", () => {
+          state.calendarScrollTop = elements.calendarGrid?.scrollTop || 0;
           state.calendarSelectedWeek = week;
+          if (state.calendarMode === "update") {
+            state.lastUpdateSelection = { week_start: week.week_start, week_end: week.week_end };
+          }
           syncCalendarSelectionSummary();
           renderCalendar();
         });
       } else {
+        button.disabled = true;
+      }
+      if (updateModeLocked) {
         button.disabled = true;
       }
       grid.appendChild(button);
@@ -1188,6 +2015,7 @@ function renderCalendar() {
   });
 
   syncCalendarSelectionSummary();
+  elements.calendarGrid.scrollTop = preservedScrollTop;
 }
 
 async function loadWindows() {
@@ -1201,7 +2029,9 @@ async function loadWindows() {
 
   if (state.selectedWeek) {
     const matched = state.windows.find((item) =>
-      isMonthlyMode()
+      isQuarterlyMode()
+        ? item.quarter_key === state.selectedWeek.quarter_key
+        : isMonthlyMode()
         ? item.month_key === state.selectedWeek.month_key
         : item.week_start === state.selectedWeek.week_start && item.week_end === state.selectedWeek.week_end
     );
@@ -1211,16 +2041,30 @@ async function loadWindows() {
   }
 
   if (!state.selectedWeek) {
+    const todayKey = toIsoDate(new Date());
+    const latestClosedCompleted = state.windows.find(
+      (item) => item.quarter_end && item.quarter_end < todayKey && item.status === "completed"
+    );
+    const latestClosedAnalyzable = state.windows.find(
+      (item) => item.quarter_end && item.quarter_end < todayKey && item.status === "to_be_analyzed"
+    );
+    const latestClosedUpdate = state.windows.find(
+      (item) => item.quarter_end && item.quarter_end < todayKey && item.status === "to_be_updated"
+    );
     const latestCompleted = state.windows.find((item) => item.status === "completed");
     const latestAnalyzable = state.windows.find((item) => item.status === "to_be_analyzed");
     const latestUpdate = state.windows.find((item) => item.status === "to_be_updated");
-    setSelectedWeek(latestCompleted || latestAnalyzable || latestUpdate || null);
+    setSelectedWeek(
+      (isQuarterlyMode()
+        ? latestClosedCompleted || latestClosedAnalyzable || latestClosedUpdate
+        : null) ||
+        latestCompleted ||
+        latestAnalyzable ||
+        latestUpdate ||
+        null
+    );
   } else {
     setSelectedWeek(state.selectedWeek);
-  }
-
-  if (isQuarterlyMode() && state.windows.length) {
-    setSelectedWeek(state.windows[0]);
   }
 
   renderSnapshotWindowList();
@@ -1230,12 +2074,50 @@ async function loadWindows() {
   updateActionButtons();
 }
 
-async function loadUpdateWindows() {
-  const payload = await requestJson(
-    `${API_BASE}/analysis-windows?platform=${encodeURIComponent(state.platform)}&weeks=24&window_mode=weekly`
-  );
+async function loadUpdateWindows(forceOverview = false) {
+  const [payload] = await Promise.all([
+    requestJson(`${API_BASE}/analysis-windows?platform=${encodeURIComponent(state.updatePlatform)}&weeks=24&window_mode=weekly`),
+    refreshUpdateOverviewMeta(forceOverview),
+  ]);
   state.updateWindows = payload.items || [];
+  renderUpdatePlatformState();
+  if (state.calendarMode === "update") {
+    const previousSelection = state.calendarSelectedWeek;
+    state.calendarSelectedWeek =
+      getUpdateWindowForWeek(previousSelection) ||
+      getUpdateWindowForWeek(state.lastUpdateSelection) ||
+      sourceWindowsFallback(state.updateWindows) ||
+      null;
+    state.lastUpdateSelection = state.calendarSelectedWeek
+      ? { week_start: state.calendarSelectedWeek.week_start, week_end: state.calendarSelectedWeek.week_end }
+      : state.lastUpdateSelection;
+    syncCalendarModal();
+    renderCalendar();
+  }
   updateActionButtons();
+}
+
+async function refreshUpdateOverviewMeta(force = false) {
+  if (!force && state.updateOverviewCache[state.updatePlatform]) {
+    return state.updateOverviewCache[state.updatePlatform];
+  }
+  const overview = await requestJson(`${API_BASE}/overview?platform=${encodeURIComponent(state.updatePlatform)}&auto_sync=false`);
+  const fetchedAt = new Date().toISOString();
+  overview.metadata_fetched_at = fetchedAt;
+  overview.update_database_meta = {
+    ...(overview.update_database_meta || {}),
+    metadata_fetched_at: fetchedAt,
+  };
+  state.updateOverviewCache[state.updatePlatform] = overview;
+  return overview;
+}
+
+function sourceWindowsFallback(items) {
+  return (
+    items.find((item) => getUpdateWindowStatus(item) === "ready_to_import") ||
+    items.find((item) => getUpdateWindowStatus(item) !== "future") ||
+    null
+  );
 }
 
 async function refreshOverviewMeta(force = false) {
@@ -1259,13 +2141,6 @@ async function fetchLeaderboardData() {
       elements.heatDbPathLabel.textContent = `Overview unavailable: ${error.message}`;
     });
 
-    if (isQuarterlyMode()) {
-      renderOverview([]);
-      renderLeaderboard([]);
-      elements.leaderboardCounter.textContent = "Quarterly pending";
-      return;
-    }
-
     if (!state.selectedWeek) {
       renderOverview([]);
       renderLeaderboard([]);
@@ -1276,7 +2151,9 @@ async function fetchLeaderboardData() {
       platform: state.platform,
       limit: "120",
     });
-    if (isMonthlyMode()) {
+    if (isQuarterlyMode()) {
+      query.set("quarter_key", state.selectedWeek.quarter_key || "");
+    } else if (isMonthlyMode()) {
       query.set("month_key", state.selectedWeek.month_key);
     } else {
       query.set("week_start", state.selectedWeek.week_start);
@@ -1304,41 +2181,134 @@ async function pollProjectJob(jobId) {
   const tick = async () => {
     const job = await requestJson(`${API_BASE}/jobs/${jobId}`);
     state.latestJob = job;
-    if (job.status === "queued" || job.status === "running") {
-      setStatus("Updating Database", `Background job is crawling and syncing ${PLATFORM_LABELS[state.platform]} for the selected week.`);
-      setPanelBusy(true, "Updating database...", `Crawling and ingesting ${PLATFORM_LABELS[state.platform]} posts for the selected weekly window.`);
+    if (job.status === "queued" || job.status === "running" || job.status === "cancelling") {
+      const isCancelling = job.status === "cancelling";
+      setStatus(
+        isCancelling ? "Stopping crawl" : "Updating Database",
+        isCancelling
+          ? `Stopping the active ${getJobPlatformLabel(job)} crawl for ${formatJobWeekLabel(job)}.`
+          : `Background job is crawling ${getJobPlatformLabel(job)} for ${formatJobWeekLabel(job)}. New results will be staged before import.`
+      );
+      setPanelBusy(false);
+      updateActionButtons();
+      renderCrawlMonitor();
       window.setTimeout(tick, 2000);
       return;
     }
     state.pollingJobId = "";
     if (job.status === "failed") {
+      await loadUpdateWindows();
       setPanelBusy(false);
       setStatus("Update failed", job.error || "The update job failed.");
+      updateActionButtons();
+      renderCrawlMonitor();
       return;
     }
-    await loadUpdateWindows();
+    if (job.status === "cancelled") {
+      await loadUpdateWindows();
+      setPanelBusy(false);
+      setStatus("Crawl cancelled", "The crawl stopped before import confirmation. Existing database data was not changed.");
+      updateActionButtons();
+      renderCrawlMonitor();
+      return;
+    }
+    if (job.status === "awaiting_confirmation") {
+      await loadUpdateWindows(true);
+      setPanelBusy(false);
+      updateActionButtons();
+      renderCrawlMonitor();
+      return;
+    }
+    await loadUpdateWindows(true);
     await loadWindows();
     await fetchLeaderboardData();
     setStatus("Update completed", "This week is now in the database. If the status is To Be Analyzed, click Run Analysis next.");
     setPanelBusy(false);
+    renderCrawlMonitor();
   };
   await tick();
 }
 
 async function startUpdateForSelectedWeek() {
-  const week = state.calendarSelectedWeek || state.updateWindows.find((item) => item.status === "to_be_updated") || null;
-  if (!week || week.status !== "to_be_updated") {
-    setStatus("Nothing to update", `No weekly window is currently available to update for ${PLATFORM_LABELS[state.platform]}.`);
+  if (hasActiveUpdateJob()) {
+    setStatus("Crawl already running", "A weekly crawl is already in progress. Stop it first or wait until it finishes staging.");
+    return;
+  }
+  const week =
+    state.calendarSelectedWeek ||
+    getSelectedWeeklyUpdateWindow() ||
+    sourceWindowsFallback(state.updateWindows) ||
+    null;
+  if (!week || getUpdateWindowStatus(week) === "future") {
+    setStatus("Nothing to update", `No finished weekly window is currently available to crawl for ${getUpdatePlatformLabel()}.`);
     return;
   }
   const query = new URLSearchParams({
-    platform: state.platform,
+    platform: week.platform || state.updatePlatform,
     week_start: week.week_start,
     week_end: week.week_end,
   });
+  state.lastUpdateSelection = { week_start: week.week_start, week_end: week.week_end };
   const job = await postJson(`${API_BASE}/update-week?${query.toString()}`);
+  state.latestJob = job;
+  state.crawlMonitorMinimized = false;
+  updateActionButtons();
+  syncCalendarSelectionSummary();
+  renderCalendar();
   closeCalendar();
   await pollProjectJob(job.job_id);
+}
+
+async function cancelLatestUpdateJob() {
+  const latestJob = getAnyActiveUpdateJob();
+  if (!latestJob || !latestJob.job_id || !new Set(["queued", "running", "cancelling"]).has(latestJob.status)) {
+    updateActionButtons();
+    return;
+  }
+  setPanelBusy(true, "Stopping crawl...", `Requesting cancellation for ${formatJobWeekLabel(latestJob)}.`);
+  try {
+    await postJson(`${API_BASE}/jobs/${encodeURIComponent(latestJob.job_id)}/cancel`);
+    state.latestJob = { ...latestJob, status: "cancelling" };
+    updateActionButtons();
+    renderCrawlMonitor();
+    await pollProjectJob(latestJob.job_id);
+  } catch (error) {
+    setPanelBusy(false);
+    setStatus("Cancel failed", error.message);
+  }
+}
+
+async function confirmImportForSelectedWeek() {
+  const week = getImportCandidateWindow();
+  if (!week || getUpdateWindowStatus(week) !== "ready_to_import") {
+    updateActionButtons();
+    return;
+  }
+  const query = new URLSearchParams({
+    platform: week.platform || state.updatePlatform,
+    week_start: week.week_start,
+    week_end: week.week_end,
+  });
+  setPanelBusy(true, "Importing staged files...", `Writing staged ${PLATFORM_LABELS[week.platform] || getUpdatePlatformLabel()} files for ${formatWeekLabel(week.week_start, week.week_end)} into the analytics database.`);
+  try {
+    const result = await postJson(`${API_BASE}/confirm-week-import?${query.toString()}`);
+    if (
+      state.latestJob?.payload?.platform === state.updatePlatform &&
+      state.latestJob?.payload?.week_start === week.week_start &&
+      state.latestJob?.payload?.week_end === week.week_end
+    ) {
+      state.latestJob = { ...state.latestJob, status: "completed", summary: result };
+    }
+    await Promise.all([loadUpdateWindows(true), loadWindows(), refreshOverviewMeta(true)]);
+    await fetchLeaderboardData();
+    setStatus("Import completed", `${formatWeekLabel(week.week_start, week.week_end)} has been imported. If needed, run analysis next.`);
+  } catch (error) {
+    setStatus("Import failed", error.message);
+  } finally {
+    setPanelBusy(false);
+    updateActionButtons();
+    renderCrawlMonitor();
+  }
 }
 
 async function confirmCalendarSelection() {
@@ -1431,8 +2401,36 @@ function bindEvents() {
     state.platform = event.target.value || "wb";
     syncPlatformControls();
     state.selectedWeek = null;
-    await Promise.all([loadUpdateWindows(), loadWindows(), refreshOverviewMeta(true)]);
+    await Promise.all([loadWindows(), refreshOverviewMeta(true)]);
     await fetchLeaderboardData();
+  });
+
+  const handleUpdatePlatformChange = async (nextPlatform) => {
+    if (nextPlatform === state.updatePlatform) {
+      return;
+    }
+    state.updatePlatform = nextPlatform;
+    window.sessionStorage?.setItem("fullweb_update_platform", state.updatePlatform);
+    syncUpdatePlatformControls();
+    state.calendarSelectedWeek = null;
+    state.lastUpdateSelection = null;
+    if (state.calendarMode === "update") {
+      await loadUpdateWindows(true);
+    }
+  };
+
+  elements.updatePlatformSelect?.addEventListener("change", async (event) => {
+    const nextPlatform = event.target.value || "wb";
+    await handleUpdatePlatformChange(nextPlatform);
+  });
+
+  elements.updatePlatformChoiceInputs.forEach((input) => {
+    input.addEventListener("change", async (event) => {
+      if (!event.target.checked) {
+        return;
+      }
+      await handleUpdatePlatformChange(event.target.value || "wb");
+    });
   });
 
   elements.platformChoiceInputs.forEach((input) => {
@@ -1445,7 +2443,7 @@ function bindEvents() {
       state.platform = event.target.value || "wb";
       syncPlatformControls();
       state.selectedWeek = null;
-      await Promise.all([loadUpdateWindows(), loadWindows(), refreshOverviewMeta(true)]);
+      await Promise.all([loadWindows(), refreshOverviewMeta(true)]);
       await fetchLeaderboardData();
     });
   });
@@ -1460,7 +2458,7 @@ function bindEvents() {
     if (isMonthlyMode() || isQuarterlyMode()) {
       closeCalendar();
     }
-    await Promise.all([loadUpdateWindows(), loadWindows(), refreshOverviewMeta(true)]);
+    await Promise.all([loadWindows(), refreshOverviewMeta(true)]);
     await fetchLeaderboardData();
   });
 
@@ -1478,7 +2476,7 @@ function bindEvents() {
       if (isMonthlyMode() || isQuarterlyMode()) {
         closeCalendar();
       }
-      await Promise.all([loadUpdateWindows(), loadWindows(), refreshOverviewMeta(true)]);
+      await Promise.all([loadWindows(), refreshOverviewMeta(true)]);
       await fetchLeaderboardData();
     });
   });
@@ -1490,9 +2488,26 @@ function bindEvents() {
     await fetchLeaderboardData();
   });
 
-  elements.updateDatabaseButton.addEventListener("click", () => {
+  elements.updateDatabaseButton.addEventListener("click", async () => {
+    if (hasActiveUpdateJob()) {
+      setStatus("Crawl already running", "Stop the active crawl before starting another weekly crawl.");
+      return;
+    }
     setCalendarMode("update");
     openCalendar();
+    try {
+      await loadUpdateWindows(true);
+    } catch (error) {
+      setStatus("Update workspace unavailable", error.message);
+    }
+  });
+  elements.crawlMonitorToggleButton?.addEventListener("click", () => {
+    state.crawlMonitorMinimized = !state.crawlMonitorMinimized;
+    renderCrawlMonitor();
+  });
+  elements.crawlMonitorChip?.addEventListener("click", () => {
+    state.crawlMonitorMinimized = false;
+    renderCrawlMonitor();
   });
   elements.openSnapshotCalendarButton.addEventListener("click", () => {
     setCalendarMode("filter");
@@ -1501,6 +2516,10 @@ function bindEvents() {
   elements.closeCalendarButton.addEventListener("click", closeCalendar);
   elements.updateCalendarBackdrop.addEventListener("click", closeCalendar);
   elements.confirmUpdateButton.addEventListener("click", confirmCalendarSelection);
+  elements.cancelUpdateJobButton.addEventListener("click", cancelLatestUpdateJob);
+  elements.confirmImportButton.addEventListener("click", confirmImportForSelectedWeek);
+  elements.crawlMonitorStopButton?.addEventListener("click", cancelLatestUpdateJob);
+  elements.crawlMonitorImportButton?.addEventListener("click", confirmImportForSelectedWeek);
   elements.sidebarRunAnalysisButton.addEventListener("click", runAnalysisForSelectedWeek);
   elements.openHeatFormulaButton?.addEventListener("click", openHeatFormulaModal);
   elements.closeHeatFormulaButton?.addEventListener("click", closeHeatFormulaModal);
@@ -1537,13 +2556,38 @@ async function bootstrap() {
   requireSession();
   const url = new URL(window.location.href);
   state.platform = url.searchParams.get("platform") || "wb";
+  state.updatePlatform = window.sessionStorage?.getItem("fullweb_update_platform") || state.platform;
   state.windowMode = url.searchParams.get("window_mode") || "monthly";
+  if (state.windowMode === "quarterly" && url.searchParams.get("quarter_key")) {
+    state.selectedWeek = { quarter_key: url.searchParams.get("quarter_key") };
+  } else if (state.windowMode === "monthly" && url.searchParams.get("month_key")) {
+    state.selectedWeek = { month_key: url.searchParams.get("month_key") };
+  } else if (url.searchParams.get("week_start") && url.searchParams.get("week_end")) {
+    state.selectedWeek = {
+      week_start: url.searchParams.get("week_start"),
+      week_end: url.searchParams.get("week_end"),
+    };
+  }
   syncPlatformControls();
+  syncUpdatePlatformControls();
   syncWindowModeControls();
   syncLeaderboardCopy();
   bindEvents();
   elements.heatDbPathLabel.textContent = "Loading analytics database...";
   await Promise.all([loadUpdateWindows(), loadWindows(), refreshOverviewMeta()]);
+  const latestJobs = await requestJson(`${API_BASE}/jobs?limit=5`);
+  state.latestJob =
+    (latestJobs.items || []).find(
+      (job) =>
+        job.job_type === "update_week" &&
+        new Set(["queued", "running", "cancelling"]).has(job.status)
+    ) ||
+    (latestJobs.items || []).find(
+      (job) =>
+        job.job_type === "update_week" &&
+        job.payload?.platform === state.updatePlatform &&
+        new Set(["queued", "running", "cancelling", "awaiting_confirmation", "cancelled"]).has(job.status)
+    ) || null;
   if (isMonthlyMode() ? url.searchParams.get("month_key") : url.searchParams.get("week_start") && url.searchParams.get("week_end")) {
     const matched = state.windows.find((item) =>
       isMonthlyMode()
@@ -1555,6 +2599,11 @@ async function bootstrap() {
       renderSnapshotWindowList();
     }
   }
+  if (state.latestJob && new Set(["queued", "running", "cancelling"]).has(state.latestJob.status)) {
+    await pollProjectJob(state.latestJob.job_id);
+    return;
+  }
+  updateActionButtons();
   await fetchLeaderboardData();
 }
 

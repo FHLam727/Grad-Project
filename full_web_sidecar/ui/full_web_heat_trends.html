@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/full-web-assets/full_web_heat.css?v=20260409i" />
+    <link rel="stylesheet" href="/full-web-assets/full_web_heat.css?v=20260411n" />
   </head>
   <body class="report-body">
     <div class="report-shell">
@@ -151,7 +151,7 @@
                 Choose one fixed Sunday to Saturday window for trend analysis. The time selector matches the leaderboard snapshot logic.
               </p>
             </div>
-            <button class="ghost-button-link control-button" id="closeTrendCalendarButton" type="button">Close</button>
+            <button class="ghost-button-link control-button modal-close-button" id="closeTrendCalendarButton" type="button" aria-label="Close trend dialog">×</button>
           </div>
 
           <div class="calendar-toolbar hidden" id="trendCalendarToolbar">
@@ -234,7 +234,7 @@
                 </div>
                 <div class="info-card info-card-compact">
                   <strong>How This Relates To Heat Score</strong>
-                  <p>Trend charts show raw daily values. The leaderboard heat score uses the same inputs, but converts them into weighted factors before calculating the final result. Use the Heat Analysis explanation panel to review the full factor-based formula and scoring logic.</p>
+                  <p>Trend charts show raw daily values. The leaderboard heat score uses the same inputs, converts them into weighted factors, and then normalizes the final result onto a 0-100 scale. Use the Heat Analysis explanation panel to review the full scoring logic.</p>
                 </div>
               </div>
             </section>
@@ -243,6 +243,6 @@
       </section>
     </div>
 
-    <script type="module" src="/full-web-assets/full_web_heat_trends.js?v=20260409i"></script>
+    <script type="module" src="/full-web-assets/full_web_heat_trends.js?v=20260411n"></script>
   </body>
 </html>

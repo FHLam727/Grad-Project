@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/full-web-assets/full_web_heat.css?v=20260409i" />
+    <link rel="stylesheet" href="/full-web-assets/full_web_heat.css?v=20260411p" />
   </head>
   <body class="report-body">
     <div class="report-shell">
@@ -121,7 +121,9 @@
               <p class="helper-copy" id="heatJobDetailLabel">
                 Choose one week or month, then run analysis to rebuild clusters from the Full-Web analytics database.
               </p>
-              <div class="sidebar-action-row">
+              <div class="sidebar-action-row sidebar-action-row-wrap">
+                <button class="ghost-button-link control-button" id="cancelUpdateJobButton" type="button" disabled>Stop Crawl</button>
+                <button class="ghost-button-link control-button" id="confirmImportButton" type="button" disabled>Confirm Import</button>
                 <button class="primary-button-link control-button" id="sidebarRunAnalysisButton" type="button">🔥 Run Analysis</button>
               </div>
             </div>
@@ -183,17 +185,58 @@
 
       <section class="modal-shell hidden" id="updateCalendarModal" aria-hidden="true">
         <div class="modal-backdrop" id="updateCalendarBackdrop"></div>
-        <div class="modal-panel">
-          <div class="modal-header">
-            <div>
+        <div class="modal-panel calendar-modal-panel">
+          <div class="modal-header calendar-modal-header">
+            <div class="calendar-modal-copy">
               <p class="eyebrow" id="calendarModeEyebrow">Weekly Heat Analysis</p>
               <h2 class="panel-title" id="calendarModeTitle">Update Database</h2>
-              <p class="helper-copy" id="calendarModeHelper">
-                Choose one fixed Sunday to Saturday window. This update calendar only distinguishes weeks that are still in the future,
-                weeks that still need updating, and weeks that are already updated.
-              </p>
+              <p class="helper-copy" id="calendarModeHelper"></p>
+              <div class="update-platform-row" id="updatePlatformRow">
+                <p class="filter-label update-platform-label">Crawl Platform</p>
+                <div class="platform-choice-list update-platform-choice-list" id="updatePlatformControl" role="radiogroup" aria-label="Crawl Platform">
+                  <label class="platform-choice update-platform-choice">
+                    <input type="radio" name="updatePlatformChoice" value="wb" checked />
+                    <span class="platform-choice-mark"></span>
+                    <span class="platform-choice-label">Weibo</span>
+                  </label>
+                  <label class="platform-choice update-platform-choice">
+                    <input type="radio" name="updatePlatformChoice" value="fb" />
+                    <span class="platform-choice-mark"></span>
+                    <span class="platform-choice-label">Facebook</span>
+                  </label>
+                </div>
+                <div class="native-control-hidden">
+                  <select id="updatePlatformSelect" aria-hidden="true" tabindex="-1">
+                    <option value="wb">Weibo</option>
+                    <option value="fb">Facebook</option>
+                  </select>
+                </div>
+              </div>
+              <div class="update-platform-state-card" id="updatePlatformStateCard">
+                <div class="update-platform-state-head">
+                  <div>
+                    <span class="update-platform-state-pill" id="updatePlatformStatePill">Weibo database metadata</span>
+                    <p class="update-platform-state-copy" id="updatePlatformStateCopy"></p>
+                  </div>
+                  <div class="update-platform-state-latest" id="updatePlatformLatestWeek"></div>
+                </div>
+                <div class="update-platform-state-grid">
+                  <div class="update-platform-metric-card">
+                    <span>Update Period Coverage</span>
+                    <strong id="updatePlatformCrawlableCount">0</strong>
+                  </div>
+                  <div class="update-platform-metric-card">
+                    <span>Updated Posts in Database</span>
+                    <strong id="updatePlatformReadyCount">0</strong>
+                  </div>
+                  <div class="update-platform-metric-card">
+                    <span>Latest Updated Date</span>
+                    <strong id="updatePlatformFutureCount">0</strong>
+                  </div>
+                </div>
+              </div>
             </div>
-            <button class="ghost-button-link control-button" id="closeCalendarButton" type="button">Close</button>
+            <button class="ghost-button-link control-button modal-close-button" id="closeCalendarButton" type="button" aria-label="Close update dialog">×</button>
           </div>
 
           <div class="calendar-toolbar" id="calendarToolbar">
@@ -208,11 +251,11 @@
           <div class="calendar-footer">
             <div class="calendar-selection">
               <strong id="calendarSelectionLabel">No week selected</strong>
-              <p id="calendarSelectionDetail">Click a blue week to trigger crawling and ingest for that fixed weekly window.</p>
+              <p id="calendarSelectionDetail"></p>
             </div>
             <div class="calendar-legend" id="calendarLegend"></div>
             <div class="calendar-actions">
-              <button class="primary-button-link control-button" id="confirmUpdateButton" type="button">Update This Week</button>
+              <button class="primary-button-link control-button" id="confirmUpdateButton" type="button">Start Crawl</button>
             </div>
           </div>
         </div>
@@ -230,9 +273,9 @@
           <div class="info-stack info-stack-spacious">
             <div class="info-card info-card-highlight formula-hero-card">
               <strong>Heat Score Formula</strong>
-              <p>The final heat score is a weighted combination of four log-scaled indicator components.</p>
+              <p>The final heat score is a weighted combination of four log-scaled indicator components, then normalized onto a 0-100 scale.</p>
               <div class="formula-block">
-                <code>Heat Score = 0.45 × Engagement Factor + 0.25 × Discussion Factor + 0.15 × Diversity Factor + 0.15 × Velocity Factor</code>
+                <code>Heat Score = 10 × (0.45 × Engagement Factor + 0.25 × Discussion Factor + 0.15 × Diversity Factor + 0.15 × Velocity Factor)</code>
               </div>
             </div>
             <section class="info-section">
@@ -276,19 +319,19 @@
               </div>
               <div class="info-grid info-grid-levels">
                 <div class="info-card info-card-compact">
-                  <strong>8.5 - 10.0</strong>
+                  <strong>85 - 100</strong>
                   <p>Very high heat. Strong engagement, wide discussion, and clear momentum across multiple indicators.</p>
                 </div>
                 <div class="info-card info-card-compact">
-                  <strong>7.0 - 8.5</strong>
+                  <strong>70 - 84.9</strong>
                   <p>High heat. A clearly active topic with strong public attention, but slightly less balanced than the top tier.</p>
                 </div>
                 <div class="info-card info-card-compact">
-                  <strong>5.0 - 7.0</strong>
+                  <strong>50 - 69.9</strong>
                   <p>Moderate heat. Visible conversation or engagement exists, but the signal is not yet dominant across every indicator.</p>
                 </div>
                 <div class="info-card info-card-compact">
-                  <strong>Below 5.0</strong>
+                  <strong>Below 50</strong>
                   <p>Early or limited heat. The topic may still be niche, fragmented, or waiting for stronger discussion and momentum.</p>
                 </div>
               </div>
@@ -302,7 +345,7 @@
                 <strong>Worked example</strong>
                 <p>If the four normalized components are <code>8.8</code>, <code>9.2</code>, <code>7.4</code>, and <code>8.0</code>, the weighted heat score is:</p>
                 <div class="formula-block formula-block-compact">
-                  <code>0.45 × 8.8 + 0.25 × 9.2 + 0.15 × 7.4 + 0.15 × 8.0 = 8.57</code>
+                  <code>10 × (0.45 × 8.8 + 0.25 × 9.2 + 0.15 × 7.4 + 0.15 × 8.0) = 85.7</code>
                 </div>
               </div>
             </section>
@@ -394,8 +437,53 @@
           </td>
         </tr>
       </template>
+
+      <section class="crawl-monitor-shell hidden" id="crawlMonitorShell" aria-live="polite">
+        <button class="crawl-monitor-chip hidden" id="crawlMonitorChip" type="button">
+          <span class="crawl-monitor-chip-dot"></span>
+          <span id="crawlMonitorChipLabel">Crawl running</span>
+        </button>
+        <section class="glass-panel crawl-monitor-panel" id="crawlMonitorPanel">
+          <div class="crawl-monitor-header">
+            <div>
+              <p class="eyebrow crawl-monitor-eyebrow">Background Crawl</p>
+              <h3 id="crawlMonitorTitle">Weekly update in progress</h3>
+            </div>
+            <div class="crawl-monitor-header-actions">
+              <span class="crawl-monitor-status-badge" id="crawlMonitorStatusBadge">Running</span>
+              <button class="ghost-button-link control-button mini-control-button" id="crawlMonitorToggleButton" type="button">Minimize</button>
+            </div>
+          </div>
+          <div class="crawl-monitor-body" id="crawlMonitorBody">
+            <div class="crawl-monitor-meta">
+              <div class="crawl-monitor-meta-card">
+                <span>Platform</span>
+                <strong id="crawlMonitorPlatform">Weibo</strong>
+              </div>
+              <div class="crawl-monitor-meta-card">
+                <span>Selected Week</span>
+                <strong id="crawlMonitorWeek">2026-03-29 to 2026-04-04</strong>
+              </div>
+            </div>
+            <p class="helper-copy crawl-monitor-copy" id="crawlMonitorDetail">
+              Launching the crawler and waiting for live output.
+            </p>
+            <div class="crawl-monitor-log-shell">
+              <div class="crawl-monitor-log-head">
+                <span>Live Output</span>
+                <span id="crawlMonitorUpdatedAt">Waiting for updates...</span>
+              </div>
+              <pre class="crawl-monitor-log" id="crawlMonitorLog">No crawl output yet.</pre>
+            </div>
+            <div class="crawl-monitor-actions">
+              <button class="ghost-button-link control-button" id="crawlMonitorStopButton" type="button" disabled>Stop Crawl</button>
+              <button class="ghost-button-link control-button" id="crawlMonitorImportButton" type="button" disabled>Confirm Import</button>
+            </div>
+          </div>
+        </section>
+      </section>
     </div>
 
-    <script type="module" src="/full-web-assets/full_web_heat_analysis.js?v=20260409i"></script>
+    <script type="module" src="/full-web-assets/full_web_heat_analysis.js?v=20260411n"></script>
   </body>
 </html>
