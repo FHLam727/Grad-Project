@@ -304,10 +304,28 @@
       var link = url
         ? '<a class="link" href="' + esc(url) + '" target="_blank" rel="noopener">Open</a>'
         : "—";
+      var rawPrev = String(it.content_preview || "").replace(/\s+/g, " ").trim();
+      var snip = rawPrev.length > 38 ? rawPrev.slice(0, 38) + "…" : rawPrev;
+      var sumAi = ai && ai.summary ? String(ai.summary).trim() : "";
+      var summaryLine = sumAi || snip;
+      var titleLine = esc((it.title || "").slice(0, 200)) || "—";
+      var titleStyle =
+        "font-weight:650;color:var(--text);line-height:1.35;margin-bottom:4px;max-width:420px;";
+      var descStyle =
+        "font-size:12px;color:var(--muted);line-height:1.5;max-width:420px;";
+      var descHtml = summaryLine
+        ? "<div style=\"" + descStyle + "\">" + esc(summaryLine) + "</div>"
+        : "";
       return (
         "<tr>" +
         "<td>" + esc((it.published_at || "").slice(0, 16)) + "</td>" +
-        "<td>" + esc((it.title || it.content_preview || "").slice(0, 200)) + "</td>" +
+        "<td><div style=\"" +
+        titleStyle +
+        "\">" +
+        titleLine +
+        "</div>" +
+        descHtml +
+        "</td>" +
         "<td>" + lex + "</td>" +
         "<td>" + aiCell + "</td>" +
         "<td>" + link + "</td>" +
