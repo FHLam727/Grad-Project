@@ -413,7 +413,9 @@ NEGATIVE_MONITOR_LEXICON = [
     "避雷", "踩雷", "翻車", "差評", "差评", "吐槽", "投訴", "维权", "維權", "騙局", "骗局",
     "被坑", "別去", "别去", "不要住", "服務差", "服务差", "態度差", "态度差", "衛生", "卫生",
     "髒", "脏", "吵", "騷擾", "骚扰", "退費", "退费", "退款", "報警", "报警", "凶殺", "凶杀",
-    "命案", "事故", "受傷", "受伤", "食物中毒", "發霉", "发霉", "筹码", "公关", "抽成", "偷"
+    "命案", "事故", "受傷", "受伤", "食物中毒", "發霉", "发霉", "筹码", "叠码", "码", "叠码仔", "抽水", "抽水太狠", "抽油", "磅水", "水紧", "贵宾厅", "VIP厅",
+"赢的钱不给", "赢了不让走", "杀猪", "杀客", "套路", "做局", "被黑", "黑钱", "出千", "作弊",
+"输打赢要", "偷"
 ]
 
 # ── 繁簡轉換（共用 trad_simp 模組） ──────────────────────────────────────────
@@ -843,6 +845,18 @@ FOOTFALL_MACAU_VENUE_REFERENCE_ZH = """
 - 注意：**励宫酒店**、**澳门文华东方（文化东方）不属于澳博/SJM**；若活动在这些场所举办，region 仍填 nam_van，primary_venue 填真实酒店名，**不要**把场所写成或归到 SJM/澳博名下。
 """
 
+def _footfall_parse_venue_cap(v) -> int | None:
+    """Parse AI venue max daily visitors cap; invalid -> None."""
+    if v is None:
+        return None
+    try:
+        n = int(float(str(v).replace(",", "").replace("，", "").strip()))
+        if n <= 0:
+            return None
+        return min(n, 2_000_000)
+    except (TypeError, ValueError):
+        return None
+
 
 def _footfall_parse_json_object(text: str) -> dict:
     text = (text or "").strip()
@@ -1085,6 +1099,7 @@ def _footfall_fallback_assignment(idx: int, ev: dict, allowed_dates: list[str]) 
         "region": region,
         "primary_venue": (ev.get("location") or "")[:80] or "—",
         "active_dates": [ds_pick] if ds_pick else [],
+        "venue_max_daily_visitors": None,
     }
 
 
@@ -1117,11 +1132,12 @@ def _footfall_ai_assign_top_events(
 3. **active_dates**：该活动在上述查询范围内**实际举办**的公历日期列表，格式 YYYY-MM-DD。若活动跨多天，列出全部日期且必须 ⊆ 允许日期集合。
    - 允许日期集合（你必须只使用这些日期）：{json.dumps(allowed_dates, ensure_ascii=False)}
    - 若文案未写清日期，可根据 date_hint 推断；仍无法确定则取与 date_hint 最接近日的一条或该范围内中间一日（只能一条）。
+4. **venue_max_daily_visitors**：结合你判定的 **primary_venue** 与活动性质，参照公开可查资料（剧场座位、会展消防容量、场馆最大容纳人数等）估计「该场所在典型大型活动日」的**合理单日可承载人次上限**（正整数），用于收紧下游流量预测、避免明显超过物理容量。若无法合理估计则填 **null**。
 
 只输出一个 JSON 对象，格式严格如下（不要 markdown）：
 {{
   "assignments": [
-    {{"id": "0", "region": "cotai", "primary_venue": "澳门威尼斯人", "active_dates": ["2026-03-15"]}}
+    {{"id": "0", "region": "cotai", "primary_venue": "澳门威尼斯人", "active_dates": ["2026-03-15"], "venue_max_daily_visitors": 12000}}
   ]
 }}
 id 必须与下方 [0]..[{max(0, len(events)-1)}] 对应。"""
@@ -1186,6 +1202,9 @@ def _footfall_allocate_visitors(
                 pick = [alist[len(alist) // 2]]
             a["active_dates"] = pick
             by_id[sid] = a
+            
+    for _sid, _a in by_id.items():
+        _a["venue_max_daily_visitors"] = _footfall_parse_venue_cap(_a.get("venue_max_daily_visitors"))
 
     # (region, ds) -> list of (idx, heat)
     buckets: dict = defaultdict(list)
@@ -1207,6 +1226,9 @@ def _footfall_allocate_visitors(
         sh = sum(max(h, 0.1) for _, h in lst)
         for idx, h in lst:
             share = ztot * (max(h, 0.1) / sh)
+            cap = _footfall_parse_venue_cap(by_id.get(str(idx), {}).get("venue_max_daily_visitors"))
+            if cap is not None:
+                share = min(share, float(cap))
             per_event_daily[idx].append(
                 {
                     "ds": ds,
@@ -1224,9 +1246,11 @@ def _footfall_allocate_visitors(
         tot = totals.get(idx, 0)
         avg = (tot / len(days)) if days else 0
         a = by_id.get(str(idx), {})
+        vm = _footfall_parse_venue_cap(a.get("venue_max_daily_visitors"))
         out_by_key[key] = {
             "region": a.get("region"),
             "primary_venue": a.get("primary_venue") or "—",
+            "venue_max_daily_visitors": vm,
             "daily": days,
             "total_visitors": round(tot, 1),
             "avg_daily_visitors": round(avg, 1),
@@ -3333,9 +3357,10 @@ def _deepseek_score_negative_monitor(items: list[dict]) -> list[dict]:
 注意：單純打卡分享、中性攻略、正面種草、無關抱怨（未指向永利）應判為非負面。
 
 只輸出一段 JSON：要麼是數組，要麼是對象且含 "items" 數組，不要其它文字、不要 Markdown。示例數組：
-[{"post_id":"與上文一致","negative":false,"severity":0,"reason":"繁體短句","triggers":[]}]
+[{"post_id":"與上文一致","negative":false,"severity":0,"reason":"繁體短句","triggers":[],"summary":"網友分享永利皇宮住宿體驗，提及房間整潔與服務態度尚可，整體屬中性打卡性質。"}]
 其中 severity: 0=無負面 1=輕微情緒 2=明確負面 3=嚴重/安全法律敏感
 post_id 必須與 ### 行完全一致。
+另請輸出 summary：使用繁體中文，約30～40 字概括貼文核心（供列表展示；必要時可略多，但不要超過 55 字）；勿與 reason 重複長句，可填中性短語如「一般打卡分享」。
 
 貼文列表：
 """ + "\n".join(lines)
@@ -3344,7 +3369,7 @@ post_id 必須與 ### 行完全一致。
         resp = client.chat.completions.create(
             model=DEEPSEEK_JSON_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=min(4096, 350 * len(items) + 400),
+            max_tokens=min(4096, 380 * len(items) + 600),
         )
         raw = (resp.choices[0].message.content or "").strip()
         out = _parse_llm_json_array(raw)
@@ -3384,6 +3409,9 @@ def _nm_run_ai_batches(ai_candidates: list, bs: int) -> list:
             hit = by_pid.get(str(c["post_id"]))
             if not hit:
                 continue
+            _sum = (hit.get("summary") or "").strip()
+            if len(_sum) > 120:
+                _sum = _sum[:120]
             ai_flat.append({
                 "post_id": c["post_id"],
                 "note_id": c["note_id"],
