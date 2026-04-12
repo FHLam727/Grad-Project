@@ -25,10 +25,23 @@ Then either:
 - place the database at `data/social_media_analytics.db`, or
 - export `FULL_WEB_ANALYTICS_DB_PATH=/absolute/path/to/social_media_analytics.db`
 
+For the original main-system routes, the repo will also use `macau_analytics.db`
+as `DB_PATH` automatically when that file exists in the project root.
+
 Then run:
 
 ```bash
 ./run_full_web_sidecar.sh
+```
+
+Notes:
+
+- `run_full_web_sidecar.sh` now starts without `--reload` by default so pull-down
+  testing is faster and more stable.
+- If you need hot reload while developing, use:
+
+```bash
+FULL_WEB_RELOAD=1 ./run_full_web_sidecar.sh
 ```
 
 ## Routes

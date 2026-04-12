@@ -387,6 +387,100 @@ function formatMonthHeading(monthKey) {
   return dateValue.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
+function formatMonthShortLabel(monthKey) {
+  const [year, month] = String(monthKey || "").split("-");
+  if (!year || !month) {
+    return monthKey || "--";
+  }
+  const dateValue = new Date(Number(year), Number(month) - 1, 1);
+  return dateValue.toLocaleDateString("en-US", { month: "short" });
+}
+
+function formatQuarterHeading(yearText) {
+  const year = String(yearText || "").trim();
+  return year ? `${year} Quarters` : "Calendar Quarters";
+}
+
+function formatQuarterShortLabel(quarterKey) {
+  const [, quarterText = ""] = String(quarterKey || "").split("-");
+  return quarterText || quarterKey || "--";
+}
+
+function resolveMonthWindow(monthKey) {
+  const [yearText, monthText] = String(monthKey || "").split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+  if (!year || !month) {
+    return { start: "", end: "" };
+  }
+  const start = new Date(year, month - 1, 1);
+  const end = new Date(year, month, 0);
+  return { start: toIsoDate(start), end: toIsoDate(end) };
+}
+
+function resolveQuarterWindow(quarterKey) {
+  const normalized = String(quarterKey || "").trim().toUpperCase();
+  const match = normalized.match(/^(\d{4})-Q([1-4])$/);
+  if (!match) {
+    return { start: "", end: "" };
+  }
+  const year = Number(match[1]);
+  const quarter = Number(match[2]);
+  const startMonth = (quarter - 1) * 3;
+  const start = new Date(year, startMonth, 1);
+  const end = new Date(year, startMonth + 3, 0);
+  return { start: toIsoDate(start), end: toIsoDate(end) };
+}
+
+function formatWindowRange(startDate, endDate) {
+  if (startDate && endDate) {
+    return `${startDate} to ${endDate}`;
+  }
+  return startDate || endDate || "";
+}
+
+function getCalendarYearKeys(items, keyName) {
+  return [...new Set(
+    items
+      .map((item) => String(item?.[keyName] || "").slice(0, 4))
+      .filter((value) => /^\d{4}$/.test(value))
+  )].sort((left, right) => right.localeCompare(left));
+}
+
+function renderPeriodCalendarCard({
+  keyText,
+  label,
+  rangeText,
+  helperText = "",
+  statusMeta,
+  isSelected = false,
+  isSelectable = false,
+  onSelect = null,
+}) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `calendar-day calendar-period-card ${statusMeta.className}${isSelected ? " selected-week" : ""}`;
+  const selectedPill = isSelected ? '<span class="calendar-selected-pill">Selected</span>' : "";
+  const statusPill = `<span class="calendar-status-pill ${statusMeta.className}">${statusMeta.label}</span>`;
+  const helperMarkup = helperText ? `<span class="calendar-period-helper">${helperText}</span>` : "";
+  button.innerHTML = `
+    <div class="calendar-week-card-head">
+      ${statusPill}
+      ${selectedPill}
+    </div>
+    <span class="calendar-period-key">${escapeHtml(keyText)}</span>
+    <strong class="calendar-period-label">${escapeHtml(label)}</strong>
+    <span class="calendar-period-range">${escapeHtml(rangeText)}</span>
+    ${helperMarkup}
+  `;
+  if (isSelectable && typeof onSelect === "function") {
+    button.addEventListener("click", onSelect);
+  } else {
+    button.disabled = true;
+  }
+  return button;
+}
+
 function formatSelectedWindowLabel(windowValue) {
   if (!windowValue) {
     if (isQuarterlyMode()) {
@@ -1748,36 +1842,43 @@ function renderCalendar() {
       syncCalendarSelectionSummary();
       return;
     }
-    const section = document.createElement("section");
-    section.className = "calendar-month-section";
-    section.innerHTML = `<h3 class="calendar-section-title">Calendar Quarters</h3>`;
-    const grid = document.createElement("div");
-    grid.className = "calendar-section-grid calendar-section-grid-months";
-    state.windows.forEach((item) => {
-      const statusMeta = getFilterStatusMeta(item);
-      const isSelected = state.calendarSelectedWeek?.quarter_key === item.quarter_key;
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = `calendar-day ${statusMeta.className}${isSelected ? " selected-week" : ""}`;
-        button.innerHTML = `
-        <span class="calendar-day-month">${item.quarter_key}</span>
-        <span class="calendar-day-status-text">${statusMeta.label}</span>
-        ${item.note ? `<span class="calendar-day-helper">${item.note}</span>` : ""}
-      `;
-      if (getCalendarModeConfig().selectableStatuses.has(item.status)) {
-        button.addEventListener("click", () => {
-          state.calendarScrollTop = elements.calendarGrid?.scrollTop || 0;
-          state.calendarSelectedWeek = item;
-          syncCalendarSelectionSummary();
-          renderCalendar();
+    const quarterMap = new Map(state.windows.map((item) => [item.quarter_key, item]));
+    const years = getCalendarYearKeys(state.windows, "quarter_key");
+    years.forEach((yearText) => {
+      const section = document.createElement("section");
+      section.className = "calendar-month-section";
+      section.innerHTML = `<h3 class="calendar-section-title">${formatQuarterHeading(yearText)}</h3>`;
+      const grid = document.createElement("div");
+      grid.className = "calendar-section-grid calendar-section-grid-quarters";
+      for (let quarter = 1; quarter <= 4; quarter += 1) {
+        const quarterKey = `${yearText}-Q${quarter}`;
+        const item = quarterMap.get(quarterKey) || null;
+        const statusMeta = item ? getFilterStatusMeta(item) : FILTER_STATUS_META.future;
+        const isSelected = Boolean(item) && state.calendarSelectedWeek?.quarter_key === item.quarter_key;
+        const isSelectable = Boolean(item) && getCalendarModeConfig().selectableStatuses.has(item.status);
+        const resolvedWindow = item?.quarter_start && item?.quarter_end
+          ? { start: item.quarter_start, end: item.quarter_end }
+          : resolveQuarterWindow(quarterKey);
+        const button = renderPeriodCalendarCard({
+          keyText: quarterKey,
+          label: formatQuarterShortLabel(quarterKey),
+          rangeText: formatWindowRange(resolvedWindow.start, resolvedWindow.end),
+          helperText: item?.note || (item ? statusMeta.label : "No quarter snapshot in range"),
+          statusMeta,
+          isSelected,
+          isSelectable,
+          onSelect: () => {
+            state.calendarScrollTop = elements.calendarGrid?.scrollTop || 0;
+            state.calendarSelectedWeek = item;
+            syncCalendarSelectionSummary();
+            renderCalendar();
+          },
         });
-      } else {
-        button.disabled = true;
+        grid.appendChild(button);
       }
-      grid.appendChild(button);
+      section.appendChild(grid);
+      elements.calendarGrid.appendChild(section);
     });
-    section.appendChild(grid);
-    elements.calendarGrid.appendChild(section);
     syncCalendarSelectionSummary();
     elements.calendarGrid.scrollTop = preservedScrollTop;
     return;
@@ -1911,35 +2012,43 @@ function renderCalendar() {
   }
 
   if (useMonthPicker) {
-    const section = document.createElement("section");
-    section.className = "calendar-month-section";
-    section.innerHTML = `<h3 class="calendar-section-title">Calendar Months</h3>`;
-    const grid = document.createElement("div");
-    grid.className = "calendar-section-grid calendar-section-grid-months";
-    state.windows.forEach((item) => {
-      const statusMeta = getFilterStatusMeta(item);
-      const isSelected = state.calendarSelectedWeek?.month_key === item.month_key;
-      const isSelectable = getCalendarModeConfig().selectableStatuses.has(item.status);
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = `calendar-day ${statusMeta.className}${isSelected ? " selected-week" : ""}`;
-      button.innerHTML = `
-        <span class="calendar-day-month">${formatMonthLabel(item.month_key)}</span>
-      `;
-      if (isSelectable) {
-        button.addEventListener("click", () => {
-          state.calendarScrollTop = elements.calendarGrid?.scrollTop || 0;
-          state.calendarSelectedWeek = item;
-          syncCalendarSelectionSummary();
-          renderCalendar();
+    const monthMap = new Map(state.windows.map((item) => [item.month_key, item]));
+    const years = getCalendarYearKeys(state.windows, "month_key");
+    years.forEach((yearText) => {
+      const section = document.createElement("section");
+      section.className = "calendar-month-section";
+      section.innerHTML = `<h3 class="calendar-section-title">${yearText}</h3>`;
+      const grid = document.createElement("div");
+      grid.className = "calendar-section-grid calendar-section-grid-periods";
+      for (let month = 1; month <= 12; month += 1) {
+        const monthKey = `${yearText}-${String(month).padStart(2, "0")}`;
+        const item = monthMap.get(monthKey) || null;
+        const statusMeta = item ? getFilterStatusMeta(item) : FILTER_STATUS_META.future;
+        const isSelected = Boolean(item) && state.calendarSelectedWeek?.month_key === item.month_key;
+        const isSelectable = Boolean(item) && getCalendarModeConfig().selectableStatuses.has(item.status);
+        const resolvedWindow = item?.month_start && item?.month_end
+          ? { start: item.month_start, end: item.month_end }
+          : resolveMonthWindow(monthKey);
+        const button = renderPeriodCalendarCard({
+          keyText: monthKey,
+          label: formatMonthShortLabel(monthKey),
+          rangeText: formatWindowRange(resolvedWindow.start, resolvedWindow.end),
+          helperText: item ? statusMeta.label : "No month snapshot in range",
+          statusMeta,
+          isSelected,
+          isSelectable,
+          onSelect: () => {
+            state.calendarScrollTop = elements.calendarGrid?.scrollTop || 0;
+            state.calendarSelectedWeek = item;
+            syncCalendarSelectionSummary();
+            renderCalendar();
+          },
         });
-      } else {
-        button.disabled = true;
+        grid.appendChild(button);
       }
-      grid.appendChild(button);
+      section.appendChild(grid);
+      elements.calendarGrid.appendChild(section);
     });
-    section.appendChild(grid);
-    elements.calendarGrid.appendChild(section);
     syncCalendarSelectionSummary();
     elements.calendarGrid.scrollTop = preservedScrollTop;
     return;
