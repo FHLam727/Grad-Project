@@ -180,6 +180,14 @@
       box-shadow: var(--cardShadow);
       padding:16px;
     }
+    #resultsSummaryBlock{
+      padding-top: 6px;
+      padding-bottom: 12px;
+    }
+    #resultsSummaryBlock .empty-state{
+      padding-top: 14px !important;
+      padding-bottom: 18px !important;
+    }
     .block + .block{margin-top:14px;}
 
     .block-head{
@@ -307,6 +315,22 @@
     .prompt-item-body .event-ref{
       font-weight:800;
       color:#0F172A;
+    }
+    .prompt-item-body .heat-ref{
+      font-weight:800;
+      color:#C2410C;
+    }
+    .prompt-item-body .cat-ref{
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      padding:2px 8px;
+      border-radius:999px;
+      font-weight:800;
+      color:#6D28D9;
+      background:rgba(109,40,217,0.10);
+      border:1px solid rgba(109,40,217,0.22);
+      line-height:1.2;
     }
     .prompt-item-body .op-ref{
       font-weight:800;
@@ -990,7 +1014,7 @@
         onmouseout="this.style.background='rgba(37,99,235,0.07)'">
         🗂️ Archived Reports
       </a>
-       <button onclick="collectReportData()" style="
+       <button id="exportCurrentReportBtn" onclick="collectReportData()" style="
       display:inline-flex;align-items:center;gap:5px;
       padding:6px 14px;border-radius:16px;
       background:rgba(22,163,74,0.08);border:1px solid rgba(22,163,74,0.20);
@@ -999,7 +1023,7 @@
       font-family:var(--font);"
       onmouseover="this.style.background='rgba(22,163,74,0.16)'"
       onmouseout="this.style.background='rgba(22,163,74,0.08)'">
-      📄 Preview Report
+      📄 Export Current Report
     </button>
     </div>
   </div>
@@ -1246,7 +1270,7 @@
 
               <!-- LEFT: Avg Heat by Category -->
               <div>
-                <div style="font-size:13px;font-weight:700;margin-bottom:2px;color:var(--text);">Avg Heat Score by Organiser</div>
+                <div style="font-size:13px;font-weight:700;margin-bottom:2px;color:var(--text);">Average Heat Score by Organiser</div>
                 <div style="font-size:11.5px;color:var(--muted);margin-bottom:12px;">Select a category to compare organisers</div>
                 <div id="heatCatFilter" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;"></div>
                 <div id="heatAvgBarWrap" style="position:relative;">
@@ -1309,7 +1333,7 @@
           </section>
 
           <!-- Block #4: Strategic Recommendations for Wynn -->
-          <section class="block">
+          <section class="block" id="strategicRecommendationsBlock">
             <div class="block-head">
               <div>
                 <h3 class="block-title">Strategic Recommendations for Wynn</h3>
@@ -1327,7 +1351,7 @@
             </div>
           </section>
           <!-- Block #5: Posts -->
-          <section class="block">
+          <section class="block" id="postsBlock">
             <div class="block-head">
               <div>
                 <h3 class="block-title">Posts</h3>
@@ -1359,9 +1383,57 @@
       token      : _sp.get('token') || '',
     } : null;
 
+    function _normalizeAuthorityPosition(position, role) {
+      const pos = String(position || '').trim().toLowerCase();
+      const userRole = String(role || '').trim().toLowerCase();
+      if (userRole === 'admin' || pos === 'it admin' || pos === 'admin') return 'admin';
+      if (pos === 'director') return 'director';
+      if (pos === 'manager') return 'manager';
+      if (pos === 'analyst' || pos === 'executive') return 'analyst';
+      return 'analyst';
+    }
+
+    const _authorityPosition = _normalizeAuthorityPosition(_session?.position, _session?.role);
+    const _authorityRules = {
+      results_summary: ['analyst', 'manager', 'director'],
+      post_information: ['analyst', 'manager', 'director'],
+      analytics_charts: ['analyst', 'manager', 'director'],
+      heat_leaderboard: ['analyst', 'manager', 'director'],
+      full_web_heat_analysis: ['analyst', 'manager', 'director'],
+      export_current_report: ['analyst', 'manager', 'director'],
+      archived_report: ['manager', 'director'],
+      strategic_recommendations: ['director'],
+      negative_keyword_monitor: ['director'],
+      admin_page: ['admin']
+    };
+
+    function _hasAuthority(featureKey) {
+      const allowed = _authorityRules[featureKey] || [];
+      return allowed.includes(_authorityPosition);
+    }
+
+    function _setHiddenByAuthority(id, visible) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.style.display = visible ? '' : 'none';
+    }
+
+    function _applyAuthorityToOperationPanel() {
+      _setHiddenByAuthority('resultsSummaryBlock', _hasAuthority('results_summary'));
+      _setHiddenByAuthority('analyticsChartsBlock', _hasAuthority('analytics_charts'));
+      _setHiddenByAuthority('activityHeatmapBlock', _hasAuthority('analytics_charts'));
+      _setHiddenByAuthority('postsBlock', _hasAuthority('post_information'));
+      _setHiddenByAuthority('strategicRecommendationsBlock', _hasAuthority('strategic_recommendations'));
+      _setHiddenByAuthority('heatLbLink', _hasAuthority('heat_leaderboard'));
+      _setHiddenByAuthority('fullWebHeatLink', _hasAuthority('full_web_heat_analysis'));
+      _setHiddenByAuthority('exportCurrentReportBtn', _hasAuthority('export_current_report'));
+      _setHiddenByAuthority('archiveNavLink', _hasAuthority('archived_report'));
+      _setHiddenByAuthority('negativeMonitorLink', _hasAuthority('negative_keyword_monitor'));
+    }
+
     if (!_session) {
       window.location.href = 'login_page.html';
-    } else if (_session.position === 'IT Admin') {
+    } else if (_authorityPosition === 'admin') {
       // IT Admins belong in admin_page, not here
       window.location.href = 'admin_page.html?' + window.location.search.slice(1);
     } else {
@@ -1371,6 +1443,7 @@
         const aEl = document.getElementById('nav-avatar');
         if (uEl) uEl.textContent = fullName;
         if (aEl) aEl.textContent = (_session.first_name[0] + _session.last_name[0]).toUpperCase();
+        _applyAuthorityToOperationPanel();
       });
     }
 
@@ -1806,7 +1879,7 @@
         }
         if (events.length === 0) return [];
         try {
-            const resp = await fetch("http://127.0.0.1:9038/api/hot-themes", {
+            const resp = await fetch(`${_bridgeApiBase()}/api/hot-themes`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ events })
@@ -1846,6 +1919,12 @@
     // ── Summary Banner（event cards 上方）─────────────────────
     async function buildSummaryBanner(catData, filterParams) {
         const { fromDate, toDate } = filterParams || {};
+        const currentFilters = {
+            operators: [...(_appliedFilterState?.operators || [])],
+            categories: [...(_appliedFilterState?.categories || [])]
+        };
+        const currentPeriod = { start: fromDate || '', end: toDate || '' };
+        const cachedInsights = _getCachedInsightsForSelection(currentFilters, currentPeriod, _currentKeywordString());
 
         // ── Aggregate stats ───────────────────────────────────
         const totalEvents = Object.values(catData).reduce((s,a) => s + a.length, 0);
@@ -1934,6 +2013,17 @@
                 </div>
             </div>
         `;
+
+        const cachedSlot = banner.querySelector('#hotThemesSlot');
+        if (cachedInsights?.hotThemes?.length && cachedSlot) {
+            _renderHotThemesToSlot(cachedSlot, cachedInsights.hotThemes);
+            _attachHotThemeFilterHandlers(cachedSlot, cachedInsights.hotThemes, catData);
+            if (_reportCache) _reportCache.hotThemes = cachedInsights.hotThemes.slice();
+            _cachedHotThemesHTML = cachedSlot.innerHTML;
+            _cachedHotThemesStyle = cachedSlot.style.cssText;
+            _markReportAnalysisReady('hotThemesReady');
+            return banner;
+        }
 
         // ── Fire async DeepSeek call, inject result when ready ──
         fetchHotThemes(catData).then(themes => {
@@ -2026,37 +2116,16 @@
 	                _cachedHotThemesStyle = slot.style.cssText;
                    // Also store structured data for Preview Report (no DOM scraping needed)
 	                if (_reportCache) {
-	                    _reportCache.hotThemes = themesMeta.map(({ label, avgHeat, opSet }) => ({
-	                        label, icon: '🔥', avgHeat: avgHeat ?? null, operators: [...opSet]
+	                    _reportCache.hotThemes = themesMeta.map(({ label, avgHeat, opSet, indices }) => ({
+	                        label, icon: '🔥', avgHeat: avgHeat ?? null, operators: [...opSet], indices: [...indices]
 	                    }));
+                      _persistReportInsightsToSessionIfReady();
 	                    _persistFullReportInsightsIfReady();
 	                }
 	                _markReportAnalysisReady('hotThemesReady');
 	            }
 
-            // Click-to-filter by theme indices
-            slot.querySelectorAll('.hot-theme-card[data-theme-idx]').forEach(chip => {
-                chip.addEventListener('click', () => {
-                    const idx = parseInt(chip.dataset.themeIdx);
-                    const meta = themesMeta[idx];
-                    if (!meta || !meta.indices || !meta.indices.length) return;
-                    // Filter allActs to only those matching the 1-based indices
-                    const filtered = {};
-                    meta.indices.forEach(n => {
-                        const act = allActs[n - 1];
-                        if (!act) return;
-                        const cat = act.sub_type || act.category || 'experience';
-                        if (!filtered[cat]) filtered[cat] = [];
-                        filtered[cat].push(act);
-                    });
-                    const container = document.getElementById('analyticsContent');
-                    if (container && Object.keys(filtered).length) {
-                        container.innerHTML = '';
-                        _renderGroupedBody(filtered, container);
-                        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                });
-            });
+            _attachHotThemeFilterHandlers(slot, themesMeta, catData);
 
             // Hover effect for hot-theme cards
             slot.querySelectorAll('.hot-theme-card').forEach(card => {
@@ -2077,10 +2146,11 @@
     }
 
     // ── 核心：Group by Category 渲染 ─────────────────────────
-    async function _renderGroupedBody(data, container) {
+    async function _renderGroupedBody(data, container, options = {}) {
         if (!container) container = document.getElementById("analyticsContent");
         if (!container) return;
         const summaryHost = document.getElementById('resultsSummaryHost');
+        const skipSummary = !!options.skipSummary;
 
         // data 可以係 category_summaries (新格式) 或 operator_summaries (舊格式)
         // 判斷：如果 key 係 category 名就用新格式，否則轉換
@@ -2109,7 +2179,7 @@
 
         const totalCards = Object.values(catData).reduce((s,a) => s + a.length, 0);
         if (totalCards === 0) {
-            if (summaryHost) {
+            if (summaryHost && !skipSummary) {
                 summaryHost.innerHTML = `<div class="empty-state" style="padding:28px 24px;">
                     <h4>Results Summary</h4>
                     <p>No matching activities found for the current selection.</p>
@@ -2127,10 +2197,10 @@
             selectedCats: typeof getSelectedValues === 'function' ? getSelectedValues("category") : [],
             selectedOps:  typeof getSelectedValues === 'function' ? getSelectedValues("operator")  : [],
         };
-        if (summaryHost) {
+        if (summaryHost && !skipSummary) {
             summaryHost.innerHTML = '';
             summaryHost.appendChild(await buildSummaryBanner(catData, filterParams));
-        } else {
+        } else if (!skipSummary) {
             container.appendChild(await buildSummaryBanner(catData, filterParams));
         }
 
@@ -2594,7 +2664,7 @@
         _updateReportButtons();     
         _appliedFilterState = { operators: selectedOps, categories: selectedCats };
         stopPoll();
-        const url = `http://127.0.0.1:9038/api/v2/analyze?` +
+        const url = `${_bridgeApiBase()}/api/v2/analyze?` +
             `keyword=${encodeURIComponent(rawInput)}&` +
             `operators=${encodeURIComponent(selectedOps.join(','))}&` +
             `category=${encodeURIComponent(selectedCats.join(','))}&` +
@@ -2746,6 +2816,7 @@ let _barChart       = null;
 
 // Active drill-down filter: { operator: string|null, catKey: string|null }
 let _chartFilter = { operator: null, catKey: null };
+let _activeHotThemeIdx = null;
 // ── Hot Themes cache (base = after Apply Filter; restored on Clear Filter) ───
 let _cachedHotThemesHTML  = null;
 let _cachedHotThemesStyle = null;
@@ -2754,13 +2825,23 @@ let _cachedHotThemesStyle = null;
 // hotThemes filled by buildSummaryBanner; aiRecommendations+comparisons by updateStrategyPrompt
 let _reportCache = null;
 let _reportInsightsPersistedKey = null;
-let _reportAnalysisState = { hotThemesReady: false, recommendationsReady: false };
+let _reportAnalysisState = {
+  hotThemesReady: false,
+  recommendationsReady: !_hasAuthority('strategic_recommendations')
+};
 const REPORT_ALL_OPERATORS = ['wynn','sands','galaxy','mgm','melco','sjm','government'];
 const REPORT_SELECTABLE_CATEGORIES = ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping'];
 const REPORT_ALL_CATEGORIES = ['concert','exhibition','experience','sport','crossover','accommodation','food','shopping'];
 
 function _currentKeywordString() {
   return ((document.getElementById('keywords') || {}).value || '').trim();
+}
+
+function _bridgeApiBase() {
+  if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+    return window.location.origin.replace(/\/$/, '');
+  }
+  return 'http://127.0.0.1:9038';
 }
 
 function _isFullReportSelection(ops, cats) {
@@ -2779,8 +2860,54 @@ function _reportInsightCacheKey(period, keyword) {
   return `${start}|${end}|${kw}`;
 }
 
+function _normaliseStringSet(values) {
+  return [...new Set((values || []).map(v => String(v).trim().toLowerCase()).filter(Boolean))].sort();
+}
+
+function _sameSelectionValues(a, b) {
+  const aa = _normaliseStringSet(a);
+  const bb = _normaliseStringSet(b);
+  return aa.length === bb.length && aa.every((v, i) => v === bb[i]);
+}
+
+function _selectionMatches(filters, period, keyword, source) {
+  if (!source) return false;
+  const sourcePeriod = source.period || {};
+  const sourceFilters = source.filters || {};
+  return (sourcePeriod.start || '') === (period?.start || '')
+    && (sourcePeriod.end || '') === (period?.end || '')
+    && _reportInsightCacheKey(period, keyword) === (source.key || _reportInsightCacheKey(sourcePeriod, source.keyword || ''))
+    && _sameSelectionValues(sourceFilters.operators || [], filters?.operators || [])
+    && _sameSelectionValues(sourceFilters.categories || [], filters?.categories || []);
+}
+
+function _getCachedInsightsForSelection(filters, period, keyword) {
+  if (_selectionMatches(filters, period, keyword, _reportCache) &&
+      ((_reportCache?.hotThemes?.length || 0) > 0 ||
+       (_reportCache?.aiRecommendations?.length || 0) > 0 ||
+       (_reportCache?.comparisons?.length || 0) > 0)) {
+    return {
+      period: _reportCache.period,
+      filters: _reportCache.filters,
+      keyword: _reportCache.keyword || '',
+      key: _reportInsightCacheKey(_reportCache.period, _reportCache.keyword || ''),
+      hotThemes: Array.isArray(_reportCache.hotThemes) ? _reportCache.hotThemes : [],
+      aiRecommendations: Array.isArray(_reportCache.aiRecommendations) ? _reportCache.aiRecommendations : [],
+      comparisons: Array.isArray(_reportCache.comparisons) ? _reportCache.comparisons : []
+    };
+  }
+  try {
+    const saved = JSON.parse(sessionStorage.getItem('_cachedReportInsights') || 'null');
+    if (_selectionMatches(filters, period, keyword, saved)) return saved;
+  } catch (e) {}
+  return null;
+}
+
 function _resetReportAnalysisState() {
-  _reportAnalysisState = { hotThemesReady: false, recommendationsReady: false };
+  _reportAnalysisState = {
+    hotThemesReady: false,
+    recommendationsReady: !_hasAuthority('strategic_recommendations')
+  };
 }
 
 function _markReportAnalysisReady(key) {
@@ -2792,21 +2919,45 @@ function _isReportAnalysisReady() {
   return !!(_reportAnalysisState.hotThemesReady && _reportAnalysisState.recommendationsReady);
 }
 
+function _persistReportInsightsToSessionIfReady() {
+  if (!_reportCache) return;
+  if (!_reportCache.period?.start || !_reportCache.period?.end) return;
+  if (!Array.isArray(_reportCache.hotThemes)         || !_reportCache.hotThemes.length)         return;
+  if (_hasAuthority('strategic_recommendations')) {
+    if (!Array.isArray(_reportCache.aiRecommendations) || !_reportCache.aiRecommendations.length) return;
+    if (!Array.isArray(_reportCache.comparisons)       || !_reportCache.comparisons.length)       return;
+  }
+  const cacheKey = _reportInsightCacheKey(_reportCache.period, _reportCache.keyword || '');
+  try {
+    sessionStorage.setItem('_cachedReportInsights', JSON.stringify({
+      key: cacheKey,
+      period: _reportCache.period,
+      filters: _reportCache.filters,
+      keyword: _reportCache.keyword || '',
+      hotThemes: _reportCache.hotThemes,
+      aiRecommendations: _reportCache.aiRecommendations,
+      comparisons: _reportCache.comparisons
+    }));
+  } catch(e) {}
+}
+
 async function _persistFullReportInsightsIfReady() {
   if (!_reportCache) return;
   const filters = _reportCache.filters || {};
   if (!_isFullReportSelection(filters.operators || [], filters.categories || [])) return;
   if (!_reportCache.period?.start || !_reportCache.period?.end) return;
   if (!Array.isArray(_reportCache.hotThemes)         || !_reportCache.hotThemes.length)         return;
-  if (!Array.isArray(_reportCache.aiRecommendations) || !_reportCache.aiRecommendations.length) return;
-  if (!Array.isArray(_reportCache.comparisons)       || !_reportCache.comparisons.length)       return;
+  if (_hasAuthority('strategic_recommendations')) {
+    if (!Array.isArray(_reportCache.aiRecommendations) || !_reportCache.aiRecommendations.length) return;
+    if (!Array.isArray(_reportCache.comparisons)       || !_reportCache.comparisons.length)       return;
+  }
 
   const cacheKey = _reportInsightCacheKey(_reportCache.period, _reportCache.keyword || '');
   if (_reportInsightsPersistedKey === cacheKey) return;
 
   try {
     console.log('[Persist] Saving report insights to backend…');
-    const resp = await fetch('http://127.0.0.1:9038/api/report-insights', {
+    const resp = await fetch(`${_bridgeApiBase()}/api/report-insights`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2821,16 +2972,6 @@ async function _persistFullReportInsightsIfReady() {
     const data = await resp.json();
     _reportInsightsPersistedKey = cacheKey;
     console.log('[Persist] report-insights saved ✓');
-    try {
-      sessionStorage.setItem('_cachedReportInsights', JSON.stringify({
-        key: cacheKey,
-        period: _reportCache.period,
-        filters: _reportCache.filters,
-        hotThemes: _reportCache.hotThemes,
-        aiRecommendations: _reportCache.aiRecommendations,
-        comparisons: _reportCache.comparisons
-      }));
-    } catch(e) {}
   } catch (err) {
     console.warn('report insights persist failed:', err);
   }
@@ -2844,62 +2985,181 @@ function _renderCachedInsightsToDOM(insights) {
   if (hotThemes.length) {
     const slot = document.getElementById('hotThemesSlot');
     if (slot) {
-      const hotColors = ['#DC2626','#D97706','#7C3AED','#059669','#0891B2'];
-      const OP_CHIP_COLORS = { wynn:'#B45309', sands:'#1D4ED8', galaxy:'#15803D', mgm:'#7C3AED', melco:'#DB2777', sjm:'#0369A1', government:'#374151' };
-      const OP_CHIP_LABELS = { wynn:'Wynn', sands:'Sands', galaxy:'Galaxy', mgm:'MGM', melco:'Melco', sjm:'SJM', government:'Gov' };
-      slot.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:6px;width:100%;';
-      slot.innerHTML = hotThemes.map((t, i) => {
-        const color = hotColors[i % hotColors.length];
-        const heatBadge = t.avgHeat != null
-          ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;background:rgba(234,88,12,0.10);color:#C2410C;border:1px solid rgba(234,88,12,0.20);border-radius:999px;padding:2px 6px;">🔥${Number(t.avgHeat).toFixed(1)}</span>` : '';
-        const opTags = (t.operators||[]).map(op => {
-          const c = OP_CHIP_COLORS[op]||'#6B7280';
-          const lbl = OP_CHIP_LABELS[op]||(op[0].toUpperCase()+op.slice(1));
-          return `<span style="display:inline-flex;align-items:center;font-size:10px;font-weight:600;background:${c}14;color:${c};border:1px solid ${c}30;border-radius:999px;padding:2px 7px;">${lbl}</span>`;
-        }).join('');
-        return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:${color}0d;border:1px solid ${color}28;border-radius:12px;padding:6px 12px;">
-          <span style="font-size:11px;font-weight:700;color:${color};flex:0 0 auto;">🔥 ${t.label||''}</span>
-          ${heatBadge}${opTags}
-        </div>`;
-      }).join('');
+      _renderHotThemesToSlot(slot, hotThemes);
+      _attachHotThemeFilterHandlers(slot, hotThemes, _chartCatData);
     }
   }
 
   // 2. AI recommendations → fill .prompt-item-body elements
   const recs = insights.aiRecommendations || [];
-  if (recs.length) {
-    const TYPE_CONFIG = {
-      keep_up: { icon:'🚀', label:'Keep it Up',   color:'#15803D', bg:'rgba(22,163,74,0.08)',  border:'rgba(22,163,74,0.22)' },
-      improve: { icon:'⚡', label:'Improve',       color:'#B45309', bg:'rgba(245,158,11,0.08)', border:'rgba(245,158,11,0.22)' },
-      avoid:   { icon:'🚫', label:'Avoid for Now', color:'#B91C1C', bg:'rgba(220,38,38,0.06)',  border:'rgba(220,38,38,0.18)' }
-    };
-    const CAT_ICONS = { concert:'🎤', exhibition:'🖼️', experience:'✨', sport:'🏆', crossover:'🎨', accommodation:'🏨', food:'🍴', shopping:'💰' };
-    const CAT_LABELS = { concert:'Concert', exhibition:'Exhibition', experience:'Experience', sport:'Sport', crossover:'Crossover', accommodation:'Hotel', food:'Food', shopping:'Shopping' };
-    const list = document.querySelector('.prompt-list, #promptList, [class*="prompt-list"]');
-    const items = document.querySelectorAll('.prompt-item-body');
-    if (items.length >= 2) {
-      // strengths item (index 0) = keep_up recs, gaps item (index 1) = improve/avoid recs
-      const keepUpRecs  = recs.filter(r => r.type === 'keep_up');
-      const improveRecs = recs.filter(r => r.type !== 'keep_up');
-      const renderRec = rec => {
-        const cfg = TYPE_CONFIG[rec.type||'improve'] || TYPE_CONFIG.improve;
-        const catKey = String(rec.catKey||'').toLowerCase();
-        const catIcon = CAT_ICONS[catKey]||'📌';
-        const catLabel = CAT_LABELS[catKey]||catKey;
-        return `<div class="rec-line" style="margin-bottom:10px;padding:10px 12px;border-radius:12px;border:1px solid ${cfg.border};background:${cfg.bg};">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
-            <span style="font-size:11px;font-weight:800;color:${cfg.color};">${cfg.icon} ${cfg.label}</span>
-            <span style="font-size:11px;font-weight:700;background:rgba(109,40,217,0.10);color:#6D28D9;border-radius:999px;padding:1px 7px;">${catIcon} ${catLabel}</span>
-          </div>
-          <div style="font-size:13px;line-height:1.6;color:rgba(15,23,42,0.82);">${rec.text||''}</div>
-        </div>`;
-      };
-      if (keepUpRecs.length)  items[0].innerHTML = keepUpRecs.map(renderRec).join('');
-      if (improveRecs.length) items[1].innerHTML = improveRecs.map(renderRec).join('');
-      const status = document.getElementById('strategyPromptStatus');
-      if (status) { status.textContent = '✓ Restored from cache'; status.style.display = 'block'; }
-    }
+  if (_hasAuthority('strategic_recommendations') && recs.length) {
+    _renderCachedRecommendationsToDOM(recs, insights.comparisons || []);
   }
+}
+
+function _renderCachedRecommendationsToDOM(recs, comparisons = []) {
+  const list = document.getElementById('strategyPromptList');
+  const status = document.getElementById('strategyPromptStatus');
+  if (!list || !Array.isArray(recs) || !recs.length) return false;
+
+  const TYPE_CONFIG = {
+    keep_up: { icon: '🚀', label: 'Keep it Up', color: '#15803D', bg: 'rgba(22,163,74,0.08)', border: 'rgba(22,163,74,0.22)' },
+    improve: { icon: '⚡', label: 'Improve', color: '#B45309', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.22)' },
+    avoid: { icon: '🚫', label: 'Avoid for Now', color: '#B91C1C', bg: 'rgba(220,38,38,0.06)', border: 'rgba(220,38,38,0.18)' }
+  };
+  const CAT_ICONS = { concert:'🎤', exhibition:'🖼️', experience:'✨', sport:'🏅', crossover:'🤝', accommodation:'🏨', food:'🍽️', shopping:'🛍️' };
+  const CAT_LABELS = { concert:'Concert', exhibition:'Exhibition', experience:'Experience', sport:'Sport', crossover:'Crossover', accommodation:'Hotel', food:'Food', shopping:'Shopping' };
+  const OP_COLORS = { Wynn:'#B45309', Sands:'#1D4ED8', Galaxy:'#047857', MGM:'#991B1B', Melco:'#6D28D9', SJM:'#0E7490', Government:'#374151' };
+
+  function buildHeatRankingHtml(catKey) {
+    const comp = (comparisons || []).find(c => String(c.catKey || '').toLowerCase() === String(catKey || '').toLowerCase());
+    if (!comp) return '';
+    const rows = [
+      { opTitle: 'Wynn', count: comp.wynn?.count || 0, avg: comp.wynn?.avgHeat || 0 },
+      ...((comp.opponents || []).map(opp => ({
+        opTitle: opp.organiser,
+        count: opp.count || 0,
+        avg: opp.avgHeat || 0
+      })))
+    ].sort((a, b) => (b.avg || 0) - (a.avg || 0));
+    const rowsHtml = rows.map((r, i) => {
+      const isWynn = r.opTitle === 'Wynn';
+      const color = OP_COLORS[r.opTitle] || '#6B7280';
+      const rankBg = isWynn ? 'rgba(234,179,8,0.15)' : 'rgba(15,23,42,0.06)';
+      const rankColor = isWynn ? '#92400E' : 'rgba(15,23,42,0.45)';
+      const rowBg = isWynn ? 'rgba(234,179,8,0.08)' : 'transparent';
+      const rowBorder = isWynn ? '1px solid rgba(234,179,8,0.22)' : '1px solid transparent';
+      const heatBadge = r.count === 0
+        ? `<span style="font-size:12px;font-weight:600;color:#9CA3AF;font-style:italic;">no events</span>`
+        : `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;background:rgba(249,115,22,0.10);border:1px solid rgba(249,115,22,0.22);font-size:12px;font-weight:700;color:#C2410C;">🔥 avg ${Number(r.avg || 0).toFixed(1)}</span>`;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:10px;background:${rowBg};border:${rowBorder};">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${rankBg};font-size:11px;font-weight:800;color:${rankColor};flex:0 0 auto;">${i + 1}</span>
+        <span style="font-size:13px;font-weight:700;color:${color};">${r.opTitle}</span>
+        <span style="font-size:12px;font-weight:500;color:rgba(15,23,42,0.5);">: ${r.count}</span>
+        ${heatBadge}
+      </div>`;
+    }).join('');
+    return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(15,23,42,0.07);">
+      <div style="font-size:10px;font-weight:700;color:rgba(15,23,42,0.35);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;">Heat Ranking · ${CAT_LABELS[catKey] || catKey}</div>
+      <div style="display:flex;flex-direction:column;gap:4px;">${rowsHtml}</div>
+    </div>`;
+  }
+
+  const cards = recs.slice(0, Math.min(recs.length, 3)).map(rec => {
+    const catKey = String(rec.catKey || '').toLowerCase();
+    const cfg = TYPE_CONFIG[String(rec.type || 'improve').toLowerCase()] || TYPE_CONFIG.improve;
+    const catIcon = CAT_ICONS[catKey] || '📍';
+    const catLabel = CAT_LABELS[catKey] || catKey;
+    return `<div style="display:flex;gap:12px;align-items:flex-start;padding:16px 18px;border-radius:18px;
+        background:${cfg.bg};border:1px solid ${cfg.border};margin-bottom:12px;">
+      <div style="flex:0 0 auto;width:36px;height:36px;border-radius:12px;
+        background:${cfg.color}18;border:1px solid ${cfg.color}30;
+        display:flex;align-items:center;justify-content:center;font-size:18px;margin-top:1px;">
+        ${cfg.icon}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+          <span style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
+            color:${cfg.color};background:${cfg.color}14;border:1px solid ${cfg.color}28;
+            border-radius:999px;padding:2px 8px;">${cfg.icon} ${cfg.label}</span>
+          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;
+            background:rgba(109,40,217,0.10);color:#6D28D9;border:1px solid rgba(109,40,217,0.22);
+            display:inline-flex;align-items:center;gap:4px;">${catIcon} ${catLabel}</span>
+        </div>
+        <div class="prompt-item-body" style="font-size:13.5px;line-height:1.7;color:rgba(15,23,42,0.82);">${formatAiRecommendationText(rec.text || '', [])}</div>
+        ${buildHeatRankingHtml(catKey)}
+      </div>
+    </div>`;
+  }).join('');
+
+  list.innerHTML = `<li class="prompt-item" style="display:block;padding:0;background:transparent;box-shadow:none;">
+    <div style="padding:4px 2px;">${cards || '<span style="color:rgba(15,23,42,0.4);font-size:13px;">No recommendations available.</span>'}</div>
+  </li>`;
+  if (status) {
+    status.textContent = '✓ Restored from cache';
+    status.style.display = 'block';
+  }
+  return true;
+}
+
+function _renderHotThemesToSlot(slot, hotThemes) {
+  if (!slot || !Array.isArray(hotThemes) || !hotThemes.length) return false;
+  const hotColors = ['#DC2626','#D97706','#7C3AED','#059669','#0891B2'];
+  const OP_CHIP_COLORS = { wynn:'#B45309', sands:'#1D4ED8', galaxy:'#15803D', mgm:'#7C3AED', melco:'#DB2777', sjm:'#0369A1', government:'#374151' };
+  const OP_CHIP_LABELS = { wynn:'Wynn', sands:'Sands', galaxy:'Galaxy', mgm:'MGM', melco:'Melco', sjm:'SJM', government:'Gov' };
+  slot.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:6px;width:100%;';
+  slot.innerHTML = hotThemes.map((t, i) => {
+    const color = hotColors[i % hotColors.length];
+    const hasFilter = Array.isArray(t.indices) && t.indices.length > 0;
+    const heatBadge = t.avgHeat != null
+      ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;background:rgba(234,88,12,0.10);color:#C2410C;border:1px solid rgba(234,88,12,0.20);border-radius:999px;padding:2px 6px;">🔥${Number(t.avgHeat).toFixed(1)}</span>` : '';
+    const opTags = (t.operators || []).map(op => {
+      const key = String(op).toLowerCase();
+      const c = OP_CHIP_COLORS[key] || '#6B7280';
+      const lbl = OP_CHIP_LABELS[key] || (key[0]?.toUpperCase() + key.slice(1));
+      return `<span style="display:inline-flex;align-items:center;font-size:10px;font-weight:600;background:${c}14;color:${c};border:1px solid ${c}30;border-radius:999px;padding:2px 7px;">${lbl}</span>`;
+    }).join('');
+    return `<div class="hot-theme-card" data-theme-idx="${i}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:${color}0d;border:1px solid ${color}28;border-radius:12px;padding:6px 12px;cursor:${hasFilter ? 'pointer' : 'default'};">
+      <span style="font-size:11px;font-weight:700;color:${color};flex:0 0 auto;">🔥 ${t.label || ''}</span>
+      ${heatBadge}${opTags}
+    </div>`;
+  }).join('');
+  return true;
+}
+
+function _attachHotThemeFilterHandlers(slot, hotThemes, catData) {
+  if (!slot || !Array.isArray(hotThemes) || !hotThemes.length || !catData) return;
+  const allActs = Object.values(catData).flat();
+  const chips = slot.querySelectorAll('.hot-theme-card[data-theme-idx]');
+
+  function paintActiveChip(activeIdx) {
+    chips.forEach(chip => {
+      const idx = parseInt(chip.dataset.themeIdx, 10);
+      if (idx === activeIdx) {
+        chip.style.boxShadow = '0 8px 20px rgba(15,23,42,0.10)';
+        chip.style.transform = 'translateY(-1px)';
+        chip.style.filter = 'brightness(1.03)';
+      } else {
+        chip.style.boxShadow = '';
+        chip.style.transform = '';
+        chip.style.filter = '';
+      }
+    });
+  }
+
+  function renderThemeFilter(themeIdx) {
+    const container = document.getElementById('analyticsContent');
+    if (!container) return;
+    if (_activeHotThemeIdx === themeIdx) {
+      _activeHotThemeIdx = null;
+      paintActiveChip(null);
+      container.innerHTML = '';
+      _renderGroupedBody(catData, container, { skipSummary: true });
+      return;
+    }
+    const meta = hotThemes[themeIdx];
+    if (!meta || !Array.isArray(meta.indices) || !meta.indices.length) return;
+    const filtered = {};
+    meta.indices.forEach(n => {
+      const act = allActs[n - 1];
+      if (!act) return;
+      const catKey = act.category || act.sub_type || act.catKey || Object.keys(catData).find(k => (catData[k] || []).includes(act)) || 'experience';
+      if (!filtered[catKey]) filtered[catKey] = [];
+      filtered[catKey].push(act);
+    });
+    _activeHotThemeIdx = themeIdx;
+    paintActiveChip(themeIdx);
+    container.innerHTML = '';
+    _renderGroupedBody(filtered, container, { skipSummary: true });
+    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      const idx = parseInt(chip.dataset.themeIdx, 10);
+      renderThemeFilter(idx);
+    });
+  });
 }
 async function _fetchStoredReportInsights(period, keyword) {
   if (!period?.start || !period?.end) return null;
@@ -2909,7 +3169,7 @@ async function _fetchStoredReportInsights(period, keyword) {
       to_date: period.end,
       keyword: keyword || ''
     });
-    const resp = await fetch(`http://127.0.0.1:9038/api/report-insights?${params.toString()}`);
+    const resp = await fetch(`${_bridgeApiBase()}/api/report-insights?${params.toString()}`);
     const data = await resp.json();
     if (data.status !== 'success') return null;
     return {
@@ -3409,6 +3669,7 @@ function refreshAnalyticsCharts(rawSummaries) {
   // Reset hot themes cache — fresh Apply Filter means fresh base themes
   _cachedHotThemesHTML  = null;
   _cachedHotThemesStyle = null;
+  _activeHotThemeIdx = null;
   _chartCatData = _extractCatData(rawSummaries);
   _comparisonCatData = _chartCatData;  // keep _chartDataSource() in sync
   // In DEMO mode nothing is checked yet → fall back to full default lists
@@ -3492,9 +3753,9 @@ window.renderGroupedResults = async function(summaries, isCrawling) {
         filters:           { operators: [..._appliedFilterState.operators], categories: [..._appliedFilterState.categories] },
         period:            { start: _fromDate, end: _toDate },
         keyword:           _currentKeywordString(),
-        hotThemes:         _reportCache?.hotThemes?.length         ? _reportCache.hotThemes         : [],
-        aiRecommendations: _reportCache?.aiRecommendations?.length ? _reportCache.aiRecommendations : [],
-        comparisons:       _reportCache?.comparisons?.length       ? _reportCache.comparisons       : [],
+        hotThemes:         [],
+        aiRecommendations: [],
+        comparisons:       [],
       };
       _reportInsightsPersistedKey = null;
       console.log('[ReportCache] initialised for', _fromDate, '→', _toDate);
@@ -4165,6 +4426,20 @@ function _chartDataSource() {
 
     function formatAiRecommendationText(text, events = []) {
       let html = String(text || "");
+      const CATEGORY_REFS = [
+        { pattern: /🍽️\s*Food/g, html: '<span class="cat-ref">🍽️ Food</span>' },
+        { pattern: /🏨\s*Hotel/g, html: '<span class="cat-ref">🏨 Hotel</span>' },
+        { pattern: /🖼️\s*Exhibition/g, html: '<span class="cat-ref">🖼️ Exhibition</span>' }
+      ];
+      const CATEGORY_PHRASE_RESETS = [
+        { pattern: /🍽️\s*Food\s+(?=experiences?\b)/gi, replacement: 'Food ' },
+        { pattern: /🍽️\s*Food\s+(?=packages?\b)/gi, replacement: 'Food ' },
+        { pattern: /🏨\s*Hotel\s+(?=stay packages?\b)/gi, replacement: 'Hotel ' },
+        { pattern: /🏨\s*Hotel\s+(?=packages?\b)/gi, replacement: 'Hotel ' },
+        { pattern: /🏨\s*Hotel\s+(?=service\b)/gi, replacement: 'Hotel ' },
+        { pattern: /🏨\s*Hotel\s+(?=services\b)/gi, replacement: 'Hotel ' },
+        { pattern: /🖼️\s*Exhibition\s+(?=[a-z])/g, replacement: 'Exhibition ' }
+      ];
       // Step 0: Protect existing HTML spans from double-processing
       const placeholders = [];
       const protectSpans = () => {
@@ -4184,17 +4459,25 @@ function _chartDataSource() {
       // Step 2: Convert op《event》 and op「event」 → HTML refs, then immediately protect them
       ["Government", "Galaxy", "Melco", "Sands", "Wynn", "MGM", "SJM"].forEach(op => {
         const rx = new RegExp(`\\b${escapeRegex(op)}\\b\\s*[《「]([^》」]+)[》」]`, "g");
-        html = html.replace(rx, (_, name) => `${promptOperatorRef(op)}${promptEventRef(name)}`);
+        html = html.replace(rx, (_, name) => `${promptOperatorRef(op)} ${promptEventRef(name)}`);
       });
       protectSpans();
       // Step 3: Convert remaining 《event》 and 「event」 → HTML refs (with operator lookup), then protect
       html = html.replace(/《([^》]+)》/g, (_, name) => {
         const meta = resolvePromptEventMeta(name, events);
-        return meta ? `${promptOperatorRef(meta.operator)}${promptEventRef(name)}` : promptEventRef(name);
+        return meta ? `${promptOperatorRef(meta.operator)} ${promptEventRef(name)}` : promptEventRef(name);
       });
       html = html.replace(/「([^」]+)」/g, (_, name) => {
         const meta = resolvePromptEventMeta(name, events);
-        return meta ? `${promptOperatorRef(meta.operator)}${promptEventRef(name)}` : promptEventRef(name);
+        return meta ? `${promptOperatorRef(meta.operator)} ${promptEventRef(name)}` : promptEventRef(name);
+      });
+      const bareEventNames = [...new Set((events || [])
+        .map(ev => String(ev?.name || '').trim())
+        .filter(name => name.length >= 6))]
+        .sort((a, b) => b.length - a.length);
+      bareEventNames.forEach(name => {
+        const rx = new RegExp(escapeRegex(name), 'g');
+        html = html.replace(rx, promptEventRef(name));
       });
       protectSpans();
       // Step 4: Convert remaining bare operator names → HTML refs
@@ -4204,6 +4487,29 @@ function _chartDataSource() {
         while (html.includes(`${badge}${badge}`)) html = html.replace(`${badge}${badge}`, badge);
         while (html.includes(`${badge} ${badge}`)) html = html.replace(`${badge} ${badge}`, badge);
       });
+      // Step 4.5: Bold quoted event examples even if they are not in Chinese brackets
+      html = html.replace(/"([^"]{3,120})"\s*\((🔥\s*[0-9]+(?:\.[0-9]+)?)\)/g, (_, name, score) =>
+        `<span class="event-ref">"${name}"</span> <span class="heat-ref">(${score})</span>`
+      );
+      html = html.replace(/'([^']{3,120})'\s*\((🔥\s*[0-9]+(?:\.[0-9]+)?)\)/g, (_, name, score) =>
+        `<span class="event-ref">'${name}'</span> <span class="heat-ref">(${score})</span>`
+      );
+      // Step 4.6: Highlight standalone heat scores
+      html = html.replace(/(🔥\s*[0-9]+(?:\.[0-9]+)?)/g, '<span class="heat-ref">$1</span>');
+      // Step 4.65: Remove category emoji/chip treatment when the word is part of a normal noun phrase
+      CATEGORY_PHRASE_RESETS.forEach(ref => {
+        html = html.replace(ref.pattern, ref.replacement);
+      });
+      // Step 4.7: Clean awkward category phrasing before rendering category chips
+      html = html.replace(/instead of pushing Exhibition/gi, 'instead of prioritising 🖼️ Exhibition');
+      html = html.replace(/instead of prioritising\s+Exhibition/gi, 'instead of prioritising 🖼️ Exhibition');
+      html = html.replace(/pushing\s+Exhibition/gi, 'prioritising 🖼️ Exhibition');
+      // Step 4.75: Highlight category references with emoji
+      CATEGORY_REFS.forEach(ref => {
+        html = html.replace(ref.pattern, ref.html);
+      });
+      // Step 4.8: Trim misleading wording from AI output
+      html = html.replace(/\s+and activity\b/gi, '');
       // Step 5: Restore all placeholders
       restoreSpans();
       return html;
@@ -4589,7 +4895,7 @@ function _chartDataSource() {
           .map(ev => ({ operator: ev.operator, name: ev.name, heat: ev.heat, description: ev.description || "" }))
       }));
       try {
-        const resp = await fetch("http://127.0.0.1:9038/api/wynn-recommendations", {
+        const resp = await fetch(`${_bridgeApiBase()}/api/wynn-recommendations`, {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             selected_operators: selectedOps, categories,
@@ -4622,17 +4928,17 @@ function _chartDataSource() {
       {
         catKey: "food",
         type: "keep_up",
-        text: "建議永利延續米芝蓮 Fine Dining 優勢，推出主庋私宴系列，配合 Wynn Insider 會員專屬預覽礼遇，將餐飲優勢轉化為住宿及零售消費的帶動力。"
+        text: "Wynn should turn its Michelin-led dining strength into chef-led private experiences for high-value guests."
       },
       {
         catKey: "concert",
         type: "keep_up",
-        text: "建議永利專注精品演出路線，構建與高熱度歌手的長線合作關係，待 2028 年新場館落成後優先邀請。"
+        text: "Wynn should lock in repeat partnerships with proven high-heat artists before the 2028 venue launch."
       },
       {
         catKey: "accommodation",
         type: "keep_up",
-        text: "深化住宿、Fine Dining 與水療三位一體的奊華套餐體驗，以個人化禄賓服務作核心差異化，持續巩固頂端賓客黏性。"
+        text: "Wynn should package luxury stays with dining and spa perks to deepen premium guest loyalty."
       }
     ];
 
@@ -4640,8 +4946,25 @@ function _chartDataSource() {
       const status = getPromptStatusEl();
       const reqSeq = ++_strategyPromptReqSeq;
 
+      if (!_hasAuthority('strategic_recommendations')) {
+        if (status) status.style.display = 'none';
+        _markReportAnalysisReady('recommendationsReady');
+        _analysesComplete = _isReportAnalysisReady();
+        _updateReportButtons();
+        return;
+      }
+
       const state = precomputedState || buildStrategyPromptState();
       if (reqSeq !== _strategyPromptReqSeq || !state) return;
+      const currentFilters = {
+        operators: [...(_appliedFilterState?.operators || [])],
+        categories: [...(_appliedFilterState?.categories || [])]
+      };
+      const currentPeriod = {
+        start: ((document.getElementById('fromDate') || {}).value || ''),
+        end: ((document.getElementById('toDate') || {}).value || '')
+      };
+      const cachedInsights = _getCachedInsightsForSelection(currentFilters, currentPeriod, _currentKeywordString());
 
       const TYPE_CONFIG = {
         keep_up: { icon: '🚀', label: 'Keep it Up',   color: '#15803D', bg: 'rgba(22,163,74,0.08)',   border: 'rgba(22,163,74,0.22)' },
@@ -4727,6 +5050,18 @@ function _chartDataSource() {
         return;
       }
 
+      if (cachedInsights?.aiRecommendations?.length) {
+        if (_reportCache) {
+          _reportCache.aiRecommendations = cachedInsights.aiRecommendations.slice();
+          _reportCache.comparisons = Array.isArray(cachedInsights.comparisons) ? cachedInsights.comparisons.slice() : [];
+        }
+        _renderCachedRecommendationsToDOM(cachedInsights.aiRecommendations, cachedInsights.comparisons || []);
+        _markReportAnalysisReady('recommendationsReady');
+        _analysesComplete = true;
+        _updateReportButtons();
+        return;
+      }
+
       // ── LIVE MODE ────────────────────────────────────────────────────────────
       // Show loading state
       if (list) {
@@ -4779,22 +5114,6 @@ function _chartDataSource() {
           <div style="display:flex;flex-direction:column;gap:4px;">${rows}</div>
         </div>`;
       }
-      const OP_COLOR_MAP = { Wynn:'#B45309', Sands:'#1D4ED8', Galaxy:'#047857', MGM:'#991B1B', Melco:'#6D28D9', SJM:'#0E7490', Government:'#374151' };
-      function colorizeOps(text) {
-        // Add 🔥 before heat/熱度 numbers
-        let t = text
-          .replace(/(?:heat|熱度達|熱度為|熱度)\s*([0-9]+(?:\.[0-9]+)?)/g, '🔥$1')
-          .replace(/平均\s*([0-9]+(?:\.[0-9]+)?)/g, '🔥$1');
-        // Bold event names in 《》or 「」brackets
-        t = t.replace(/《([^》]+)》/g, '<strong>《$1》</strong>');
-        t = t.replace(/「([^」]+)」/g, '<strong>「$1」</strong>');
-        // Colorize bare operator names
-        return t.replace(/\b(Wynn|Sands|Galaxy|MGM|Melco|SJM|Government)\b/g, (match) => {
-          const color = OP_COLOR_MAP[match] || '#0F172A';
-          return `<span style="font-weight:700;color:${color};">${match}</span>`;
-        });
-      }
-
       const n_recs = Math.min(comparisons.length, 3);
       const cards = (aiRecommendations || []).slice(0, n_recs).map(rec => {
         const catKey   = String(rec.catKey || '').toLowerCase();
@@ -4806,7 +5125,7 @@ function _chartDataSource() {
         const cfg      = TYPE_CONFIG[type] || TYPE_CONFIG.improve;
         const catIcon  = CAT_ICONS[catKey] || '📍';
         const catLabel = CAT_LABELS_ZH[catKey] || catKey;
-        const formattedText = colorizeOps(rawText);
+        const formattedText = formatAiRecommendationText(rawText, events);
         const heatHtml = buildHeatRankingHtml(catKey);
         return `<div style="display:flex;gap:12px;align-items:flex-start;padding:16px 18px;border-radius:18px;
             background:${cfg.bg};border:1px solid ${cfg.border};margin-bottom:12px;">
@@ -4824,7 +5143,7 @@ function _chartDataSource() {
                 background:rgba(109,40,217,0.10);color:#6D28D9;border:1px solid rgba(109,40,217,0.22);
                 display:inline-flex;align-items:center;gap:4px;">${catIcon} ${catLabel}</span>
             </div>
-            <div style="font-size:13.5px;line-height:1.7;color:rgba(15,23,42,0.82);">${formattedText}</div>
+            <div class="prompt-item-body" style="font-size:13.5px;line-height:1.7;color:rgba(15,23,42,0.82);">${formattedText}</div>
             ${heatHtml}
           </div>
         </div>`;
@@ -4853,6 +5172,7 @@ function _chartDataSource() {
           } : null,
           wynnLeads: (item.wynn?.count ?? 0) > 0 && (!item.topOpponent || (item.wynn?.avg ?? 0) > (item.topOpponent?.avg ?? 0))
         }));
+        _persistReportInsightsToSessionIfReady();
         _persistFullReportInsightsIfReady();
         _analysesComplete = true;   
         _updateReportButtons();    
@@ -5002,13 +5322,14 @@ function _normaliseReportCatData(rawSummaries) {
 }
 
 async function collectReportData(openReport = true) {
+  const includeStrategicRecommendations = _hasAuthority('strategic_recommendations');
   if (!_hasAppliedFilters || !_reportCache?.rawSummaries) {
-    alert('Please apply filters in the operation panel!');
+    if (openReport) alert('Please select filters before previewing report.');
     return;
   }
   if (!Array.isArray(_reportCache?.hotThemes) || !_reportCache.hotThemes.length ||
-      !Array.isArray(_reportCache?.aiRecommendations) || !_reportCache.aiRecommendations.length) {
-    alert('Please wait until all the hot themes and recommendations are generated!');
+      (includeStrategicRecommendations && (!Array.isArray(_reportCache?.aiRecommendations) || !_reportCache.aiRecommendations.length))) {
+    if (openReport) alert('Please wait until all analysis is generated.');
     return;
   }
   resolveDateRange();
@@ -5203,7 +5524,7 @@ async function collectReportData(openReport = true) {
     const _from = (document.getElementById('fromDate')||{}).value||'';
     const _to   = (document.getElementById('toDate')||{}).value||'';
     const res = await fetch(
-      `http://127.0.0.1:9038/api/heat/leaderboard-ai?top=10&from_date=${_from}&to_date=${_to}`
+      `${_bridgeApiBase()}/api/heat/leaderboard-ai?top=10&from_date=${_from}&to_date=${_to}`
     );
     const lb  = await res.json();
     if (lb.success && Array.isArray(lb.top_overall)) {
@@ -5274,8 +5595,8 @@ async function collectReportData(openReport = true) {
   } catch(e) { console.warn('AI strategy extraction failed:',e); }
  
   const perspective = (typeof DEMO!=='undefined'&&DEMO.perspective) ? DEMO.perspective : {};
-  const cachedAiRecs = Array.isArray(_reportCache?.aiRecommendations) ? _reportCache.aiRecommendations : [];
-  const cachedComparisons = Array.isArray(_reportCache?.comparisons) ? _reportCache.comparisons : [];
+  const cachedAiRecs = includeStrategicRecommendations && Array.isArray(_reportCache?.aiRecommendations) ? _reportCache.aiRecommendations : [];
+  const cachedComparisons = includeStrategicRecommendations && Array.isArray(_reportCache?.comparisons) ? _reportCache.comparisons : [];
   const _CAT_L2 = { concert:'Concert', sport:'Sport', crossover:'Crossover', exhibition:'Exhibition', experience:'Experience', food:'Food', accommodation:'Hotel', shopping:'Shopping', gaming:'Gaming' };
   const recommendationItems = cachedAiRecs;
   if (!recommendations && cachedAiRecs.length) {
@@ -5286,7 +5607,9 @@ async function collectReportData(openReport = true) {
     }).join('\n\n');
   }
   const finalComparisons = cachedComparisons.length ? cachedComparisons : comparisons;
-  const aiStrategy = { comparisons: finalComparisons, recommendations, recommendationItems, perspective };
+  const aiStrategy = includeStrategicRecommendations
+    ? { comparisons: finalComparisons, recommendations, recommendationItems, perspective }
+    : { comparisons: [], recommendations: '', recommendationItems: [], perspective };
  
   // 11. Assemble & save
   const reportData = {
@@ -5311,7 +5634,7 @@ async function collectReportData(openReport = true) {
       console.log('hotThemes:', hotThemes);
       console.log('recommendations:', recommendations);
       console.log('leaderboard:', leaderboard);
-      fetch('http://127.0.0.1:9038/api/period-cache/save', {
+      fetch(`${_bridgeApiBase()}/api/period-cache/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

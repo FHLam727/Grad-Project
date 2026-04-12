@@ -32,7 +32,15 @@ def _bridge_html_file(filename: str) -> FileResponse:
     p = BRIDGE_ROOT / filename
     if not p.is_file():
         raise HTTPException(status_code=404, detail=f"{filename} not found under {BRIDGE_ROOT}")
-    return FileResponse(p, media_type="text/html; charset=utf-8")
+    return FileResponse(
+        p,
+        media_type="text/html; charset=utf-8",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 def _full_web_ui_file(filename: str) -> FileResponse:
@@ -396,7 +404,7 @@ async def browser_icon_placeholders():
 
 # DeepSeek client（用於帖文分析）
 client = OpenAI(
-    api_key="sk-ec64f5296ab34389a632b48aa8c28600",
+    api_key="sk-c302e467a09b4827b48a14eb44fa6006",
     base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 )
 DEEPSEEK_JSON_MODEL = "deepseek-chat"
@@ -1000,11 +1008,39 @@ def _footfall_ai_five_regressors(ds: str, events_summary: str, cont: dict) -> di
 _FOOTFALL_FITTED_CACHE: dict = {}
 
 
+def _ensure_prophet_module():
+    try:
+        import prophet  # noqa: F401
+        return
+    except ModuleNotFoundError:
+        pass
+
+    extra_paths = []
+    extra_paths.extend(glob.glob("/Library/Frameworks/Python.framework/Versions/*/lib/python*/site-packages"))
+    extra_paths.extend(glob.glob(str(Path.home() / "Library/Python/*/lib/python/site-packages")))
+    extra_paths.extend(glob.glob(str(Path.home() / ".local/lib/python*/site-packages")))
+
+    added = []
+    for p in extra_paths:
+        if p and p not in sys.path and Path(p).exists():
+            sys.path.append(p)
+            added.append(p)
+
+    try:
+        import prophet  # noqa: F401
+        if added:
+            print(f"footfall: recovered prophet import via sys.path patch ({added[0]})")
+        return
+    except ModuleNotFoundError as e:
+        raise ModuleNotFoundError(f"{e}. sys.executable={sys.executable}") from e
+
+
 def _get_footfall_fitted(model_path: Path):
     import joblib
 
     k = str(model_path.resolve())
     if k not in _FOOTFALL_FITTED_CACHE:
+        _ensure_prophet_module()
         _FOOTFALL_FITTED_CACHE[k] = joblib.load(model_path)
     return _FOOTFALL_FITTED_CACHE[k]
 
@@ -1272,14 +1308,14 @@ async def api_footfall_predict(ds: str, ai: bool = True):
         return {
             "ok": False,
             "error": "model_not_found",
-            "message": "找不到 Prophet 模型檔案",
+            "message": "未找到 Prophet 模型文件",
             "model_path": str(model_path.resolve()),
         }
     if not zone_csv.is_file():
         return {
             "ok": False,
             "error": "zone_csv_not_found",
-            "message": "找不到 zone_table1_monthly_share.csv",
+            "message": "未找到 zone_table1_monthly_share.csv",
             "zone_csv": str(zone_csv.resolve()),
         }
     footfall_dir = BRIDGE_ROOT / "footfall"
@@ -1311,7 +1347,7 @@ async def api_footfall_event_allocate(payload: dict):
     to_date = (payload.get("to_date") or "").strip()[:10]
     events_in = payload.get("events") or []
     if not events_in or not from_date or not to_date:
-        return {"ok": False, "message": "需要 from_date、to_date 與 events"}
+        return {"ok": False, "message": "需要 from_date、to_date 与 events"}
 
     model_path = Path(os.getenv("FOOTFALL_MODEL_PATH", str(BRIDGE_ROOT / "footfall" / "fitted_prophet.joblib")))
     zone_csv = Path(os.getenv("FOOTFALL_ZONE_CSV", str(BRIDGE_ROOT / "footfall" / "zone_table1_monthly_share.csv")))
@@ -1320,7 +1356,7 @@ async def api_footfall_event_allocate(payload: dict):
 
     allowed = _footfall_enumerate_dates(from_date, to_date)
     if len(allowed) > 150:
-        return {"ok": False, "message": "日期範圍過長（最多 150 天）"}
+        return {"ok": False, "message": "日期范围过长（最多 150 天）"}
     allowed_set = set(allowed)
 
     footfall_dir = BRIDGE_ROOT / "footfall"
@@ -2145,8 +2181,8 @@ Category 判斷規則：
 @app.post("/api/hot-themes")
 async def hot_themes(payload: dict):
     """
-    接收 event names + descriptions + heat_score，用 DeepSeek 返回 2-3 個 semantic hot themes，
-    並帶回對應活動序號，方便前端 click filter。
+    Accept event names + descriptions + heat_score and return 2-3 semantic hot themes
+    with event indices for frontend filtering.
     payload: { "events": [ {"name": "...", "description": "...", "heat_score": 87.5}, ... ] }
     """
     events = payload.get("events", [])
@@ -2164,46 +2200,50 @@ async def hot_themes(payload: dict):
             heat_num = None
         if name:
             heat_prefix = f"[heat {heat_num:.1f}] " if heat_num is not None else ""
-            lines.append(f"{i}. {heat_prefix}{name}{'：' + desc if desc else ''}")
+            lines.append(f"{i}. {heat_prefix}{name}{' | ' + desc if desc else ''}")
 
     if not lines:
         return {"themes": []}
 
     event_list = "\n".join(lines)
-    prompt = f"""以下係澳門各博企近期嘅活動列表：
+    prompt = f"""Below is a recent event list across Macau operators:
 
 {event_list}
 
-以上列表已經大致按 heat score 由高到低排列，heat 越高代表越值得優先參考。
+The list is already roughly sorted by heat score from high to low.
 
-請分析以上活動，識別出 2-3 個最突出嘅市場主題（hot themes）。
-主題應該係具體嘅概念，例如「韓星演唱會」、「葡萄酒品鑑」、「沉浸式體驗」、「非遺文化」，而唔係籠統嘅字眼如「活動」、「體驗」、「娛樂」。
-每個主題用 3-8 個字表達，繁體中文。
-每個主題要帶返對應活動序號 indices，方便前端點擊後篩選相關活動。
+Identify the 2-3 strongest market hot themes.
+Each theme must be written in natural, native-style English.
+Each theme must be a specific concept such as "K-pop acts", "wine tasting", "immersive art", or "heritage showcase" rather than generic words like "events" or "entertainment".
+Return each theme as a short, sharp label in concise English, ideally 2-4 words.
+Each theme must include the related event indices so the frontend can filter posts.
 
-【最重要：必須以 heat score 高嘅活動為主】
-- Hot themes 代表市場上最受關注嘅趨勢，因此 theme 嘅選擇必須以列表最前面（heat 最高）嘅活動為主
-- 如果某個 theme 裡面嘅活動 heat 都偏低（例如全部都係 30 分以下），呢個唔係熱門主題，唔應該選佢
-- 每個 theme 嘅 indices 所對應活動嘅平均 heat 要盡量高
+Rules:
+- Prioritise themes driven by the highest-heat events near the top of the list.
+- If all events inside one theme are low heat (for example mostly below 30), do not choose it.
+- The average heat of events inside each chosen theme should be as high as possible.
+- Only include indices for events that genuinely belong to that exact theme.
+- If you are unsure whether an event belongs to a theme, leave it out.
+- Do not write labels that sound translated, academic, or overly literal.
+- Prefer idiomatic labels a native English speaker would naturally use in a presentation or dashboard.
+- Avoid awkward forms like "cultural heritage exhibition" if a more natural label such as "heritage showcase" fits the events better.
+- Avoid repeating the category name unless it is necessary for clarity.
+- Do not use labels ending in "heat wave", "fever", "trend", or other hype wording.
+- For music themes, prefer labels like "K-pop acts", "Cantopop shows", or "idol fan events" over "K-pop heat wave" or similar phrasing.
 
-【重要：indices 只能包含真正屬於該主題嘅活動】
-- 每個 index 必須係該 theme 嘅直接相關活動，唔相關嘅一律唔包含
-- 如果唔確定某個活動係咪屬於某個 theme，唔好包含，寧少勿錯
+Nationality rule for artist-based themes:
+- If a theme is about artists from a specific market, every included event must clearly belong to that market.
+- Korea cues include aespa, EXO, GOT7, MARK段宜恩, BLACKPINK, BTS, FANCON, FANMEETING, 韓團, 韓星, K-pop, UPPOOM.
+- Hong Kong artists such as Anson Lo, Edan, 張天賦, TYSON YOSHI, Kiri T, 炎明熹, 姜濤, Mirror, MUSIC UNBOUNDED LIVE MACAU must not be grouped into a Korea/K-pop theme.
+- Taiwan artists such as 周杰倫, 五月天, 張惠妹 must not be grouped into a Korea/K-pop theme.
 
-【國籍主題規則——極嚴格】
-- 如果 theme 係關於某個國家/地區嘅藝人（例如「韓流演唱會」「韓團見面會」），indices 裡面每一個活動都必須明確係嗰個國家嘅藝人，缺乏明確國籍線索嘅活動一律排除
-- 韓國藝人線索：aespa、EXO、GOT7、MARK段宜恩、BLACKPINK、BTS、FANCON、FANMEETING、韓團、韓星、K-pop、UPPOOM 等
-- 香港藝人（唔可以歸入韓流主題）：Anson Lo、Edan、張天賦、TYSON YOSHI、Kiri T、炎明熹、姜濤、Mirror、MUSIC UNBOUNDED LIVE MACAU 等香港歌手/組合或相關活動
-- 台灣藝人（唔可以歸入韓流主題）：周杰倫、五月天、張惠妹等台灣藝人
-- 只有活動名或描述中有明確韓國藝人名、韓語、K-pop、韓團相關詞，先可以入韓流主題
-
-只返回 JSON array，例如：
+Return JSON array only, for example:
 [
-  {{"theme":"韓流演唱會熱潮","indices":[1,2,4]}},
-  {{"theme":"澳門當代藝術推廣","indices":[3,6]}},
-  {{"theme":"經典音樂會重溫","indices":[5,7]}}
+  {{"theme":"K-pop acts","indices":[1,2,4]}},
+  {{"theme":"Heritage showcase","indices":[3,6]}},
+  {{"theme":"Immersive art","indices":[5,7]}}
 ]
-唔需要任何解釋，只輸出 JSON array。"""
+No explanation. JSON array only."""
 
     try:
         resp = client.chat.completions.create(
@@ -2216,26 +2256,22 @@ async def hot_themes(payload: dict):
         themes = json.loads(raw)
         if not isinstance(themes, list):
             themes = []
-        try:
-            from trad_simp import to_trad as _to_trad
-            normalized = []
-            for item in themes[:3]:
-                if isinstance(item, str):
-                    normalized.append({"theme": _to_trad(item), "indices": []})
-                    continue
-                if not isinstance(item, dict):
-                    continue
-                theme = _to_trad(str(item.get("theme") or "").strip())
-                indices = item.get("indices") or []
-                if not theme:
-                    continue
-                normalized.append({
-                    "theme": theme,
-                    "indices": [int(i) for i in indices if str(i).isdigit()]
-                })
-            themes = normalized
-        except Exception:
-            themes = themes[:3]
+        normalized = []
+        for item in themes[:3]:
+            if isinstance(item, str):
+                normalized.append({"theme": str(item).strip(), "indices": []})
+                continue
+            if not isinstance(item, dict):
+                continue
+            theme = str(item.get("theme") or "").strip()
+            indices = item.get("indices") or []
+            if not theme:
+                continue
+            normalized.append({
+                "theme": theme,
+                "indices": [int(i) for i in indices if str(i).isdigit()]
+            })
+        themes = normalized
         print(f"🔥 Hot themes: {themes}")
         return {"themes": themes}
     except Exception as e:
@@ -2261,16 +2297,16 @@ async def wynn_recommendations(payload: dict):
 
     # Per-category competitor structural insight — injected inline into each block
     CAT_COMPETITOR_INSIGHT = {
-        "concert":       "🎤 Concert策略：Wynn場地1,200座限制，2028年前無法辦大型演唱會，唔應該投入資源追大型演唱會。但Wynn heat領先（如有）屬小型精品優勢。建議方向：mark低目前市場上高熱度歌手，積極建立關係，2028年新場館落成後優先邀請。Galaxy銀河2024年辦460場，係結構性霸主，無需正面競爭。type應為keep_up（若Wynn heat領先）。",
-        "food":          "✅ 餐飲係Wynn絕對優勢：2025年米芝蓮5粒星（Wing Lei兩星16年連獎、Chef Tam's Seasons澳門唯一兩星、Mizumi一星），Forbes全球最多五星餐廳。最需警惕係Melco（Jade Dragon三星）。若Wynn領先，type=keep_up，深化Fine Dining+會員禮遇。",
-        "accommodation": "✅ 住宿係Wynn絕對優勢：Forbes 63粒星澳門最多，永利皇宮連3年全球最大Forbes五星度假村。type=keep_up，深化個人化禮賓服務差異化。",
-        "experience":    "⚠️ Experience唔係Wynn最強項。MGM有《澳門2049》張藝謀駐場+The Spectacle，Melco有水舞間。Wynn有表演湖+SkyCab但規模較小。若Wynn heat落後，type=avoid，唔需要集中資源喺呢個category。",
-        "exhibition":    "⚠️ Exhibition唔係Wynn強項。MGM有保利藝術博物館，Sands有藝術展覽。若Wynn heat明顯落後或count=0，type=avoid，建議Wynn唔需要focus呢個category，集中資源喺餐飲、住宿等強項。",
-        "sport":         "⚠️ Sport結構性限制：Galaxy有UFC（16,000座），Sands有NBA季前賽（14,000座），Melco heat最高。Wynn場地唔夠，type=avoid，唔需要追大型體育IP。",
-        "crossover":     "Melco跨界最強（heat 68.3），Wynn可走奢侈品+Fine Dining+藝術的高端crossover。若Wynn落後，type=improve。",
-        "shopping":      "✅ Wynn名店街頂級品牌有優勢（heat 56.4）。Galaxy零售規模最大但Wynn走奢侈品精品路線，方向不同。type=keep_up，深化會員專屬購物體驗。",
-        "gaming":        "Wynn gaming定位premium mass+VIP，heat領先。type=keep_up，配合住宿+餐飲禮遇作轉化。",
-        "government":    "政府活動代表城市級文化節慶，熱度往往較高（如澳門美食之都嘉年華、格蘭披治大賽車等）。若Government活動熱度高於Wynn，建議Wynn參考該活動的策展主題或形式，以奢華包裝呼應政府文化方向，爭取成為官方合作博企夥伴。",
+        "concert":       "Concert context: Wynn's current venue size supports a boutique concert strategy rather than arena-scale competition before the 2028 venue launch. If Wynn leads on heat, use keep_up and recommend long-term artist relationship building. When mentioning artists above heat 60, cite concrete examples from Relevant events with event names and scores.",
+        "food":          "Food is a core Wynn strength. If Wynn leads, use keep_up and focus on Michelin-led dining experiences, member privileges, and conversion into hotel and retail spend.",
+        "accommodation": "Accommodation is a core Wynn strength. If Wynn leads, use keep_up and emphasise personalised luxury stay packages, concierge service, and premium guest retention.",
+        "experience":    "Experience is not Wynn's strongest category versus the market. If Wynn clearly trails, avoid should recommend shifting resources into Wynn's core strengths while only lightly testing luxury-formatted experience ideas.",
+        "exhibition":    "Exhibition is not Wynn's strongest category. If Wynn clearly trails or has no events, avoid should recommend focusing on stronger categories such as food, hotel, and shopping.",
+        "sport":         "Sport has structural venue disadvantages for Wynn versus larger operators. If Wynn trails clearly, use avoid and do not recommend chasing large-scale sports IPs.",
+        "crossover":     "Crossover can be improved through luxury collaborations connecting fine dining, art, retail, and brand partnerships.",
+        "shopping":      "Shopping is a premium-strength category for Wynn. If Wynn leads, use keep_up and deepen exclusive luxury retail experiences for members and high-value guests.",
+        "gaming":        "Gaming should focus on premium mass and VIP conversion through linked hotel, dining, and member benefits.",
+        "government":    "Government events often reflect city-level cultural priorities. If Government outperforms Wynn in a category, recommend selectively referencing the government's theme or format through a luxury Wynn interpretation.",
     }
 
     blocks = []
@@ -2304,7 +2340,7 @@ async def wynn_recommendations(payload: dict):
 
         blocks.append(
             f"""[{idx}] {label} ({cat_key})
-{f"策略洞察：{cat_insight}" if cat_insight else ""}
+{f"Strategic context: {cat_insight}" if cat_insight else ""}
 Wynn:
 - count {wynn.get('count', 0)}, avg heat {_fmt_heat(wynn.get('avg'))}
 """ + (
@@ -2323,47 +2359,57 @@ Wynn:
     n_cats = len(categories[:12])
     n_recs = min(n_cats, 3)  # 1-2 categories → same count; 3+ categories → 3
 
-    prompt = f"""你係 Wynn 嘅策略顧問。根據以下市場數據，從已選 categories 中選出最重要的【{n_recs} 個】，各出一條精準建議。
+    prompt = f"""You are a native-English strategy advisor writing for Wynn executives. Based on the market data below, choose the most important {n_recs} categories and write exactly one recommendation for each.
 
-目前對比 organiser:
+Current organiser comparison:
 {", ".join(str(op) for op in selected_operators) if selected_operators else "Wynn only"}
 
-已確立嘅前置結論（建議不可同以下內容矛盾）：
-第1點 Wynn 優勢：
+Established conclusions that your recommendations must not contradict:
+Wynn strengths:
 {json.dumps(strengths, ensure_ascii=False)}
 
-第2點 Wynn 改進空間：
+Wynn improvement areas:
 {json.dumps(improvements, ensure_ascii=False)}
 
-以下係每個 category 嘅對比資料（已附策略洞察）：
+Category comparison blocks:
 
 {chr(10).join(blocks)}
 
-選擇原則（必須遵守）：
-- 只可從以上已列出的 categories 中選，絕對不可加入未列出的 category
-- 優先選 Wynn 有真實優勢嘅 category（food、accommodation、shopping 等），type=keep_up
-- Concert 若 Wynn heat 領先：type=keep_up，建議積極與市場上單場熱度達60分以上的藝人建立長線合作關係，並列舉數個來自 Relevant events 中熱度達60+ 的具體活動名作例子（格式：如「張天賦永利音樂會」🔥70.6），待2028年新場館落成後優先邀請
-- Exhibition 或 Experience 若對手熱度明顯高於 Wynn（差距 ≥ 10分）：type=avoid，建議 Wynn 將資源投放至自身強項（F&B、住宿、購物），而非「避免集中資源」——措辭應積極，例如「建議將資源集中於永利的核心優勢」
-- 若 Wynn 與對手熱度相近（差距 < 10分），不應用 avoid，改用 improve 並給出具體提升方向
-- Government 的活動必須納入對比：若某 category 中 Government 的活動熱度高於 Wynn，應在建議中提及可參考政府活動的主題或形式
-- 選出【剛好 {n_recs} 個】最具策略價值嘅 category
+Selection rules:
+- Only choose from the categories listed above.
+- Prioritise categories where Wynn has a real strategic edge, such as food, accommodation, and shopping; these should usually be keep_up.
+- If Wynn leads in Concert, use keep_up and use this phrasing direction: "Wynn should secure long-term partnerships with artists with at least 60 heat scores, such as Sands 「2025-26 TREASURE TOUR [PULSE ON] IN MACAO」 (🔥61.6)." Keep this as one clean sentence when possible. Do not use follow-up wording like "define the target tier", "show the tier Wynn should target", or "illustrate the target level". Do not use "capable of exceeding 60 heat points" or similar wording. Keep event names in their original language.
+- If Exhibition or Experience clearly trails the top competitor by 10 or more heat points, use avoid and recommend shifting focus into Wynn's core strengths in a positive tone.
+- If Wynn is close to competitors (gap under 10), do not use avoid; use improve instead with a concrete action. In this situation, use a fact-first structure: sentence 1 should state that Wynn is only about X heat points ahead of its competitors, and sentence 2 should state that Wynn should actively host more high-heat events, high-buzz formats, or stronger flagship activations to widen the gap.
+- If Government outperforms Wynn in a category, mention that Wynn can selectively reference the government's theme or format.
+- Return exactly {n_recs} categories.
 
-輸出要求：
-1. 只返回【剛好 {n_recs} 個】建議，不多不少
-2. 每條建議1-2句，書面繁體中文，有具體行動
-3. 建議內容只講 Wynn 應該做咩；Concert 類別可引用 Relevant events 中的 Wynn 活動名作例子；其他對手活動禁止點名，但可提及熱度數字
-4. type 字段：keep_up / improve / avoid
-5. avoid 類別的措辭必須前後一致，格式為「永利毋須大力投入 [該類別]，但可輕量參考 [具體方向]，以奢華包裝試行，將資源重心保持在 [核心強項]」；禁止在同一句先說「避免集中資源」再說「作輕量嘗試」——兩者矛盾
-6. 絕對禁止出現「count=0」、「heat 0」、「熱度偏低 0.0」等技術性表達
-7. 若 Wynn 在某 category 沒有活動，用自然書面語：「永利目前並未舉辦任何 Exhibition 活動」
-8. 描述領先關係時，用「進一步拉開與對手的差距」或「持續擴大優勢」，禁止使用「鞏固對 X 的領先地位」
+Output requirements:
+1. Return exactly {n_recs} recommendations.
+2. Write in natural, concise executive English. Do not sound translated.
+3. Keep each recommendation short: 1 or 2 short sentences, maximum 45 words total.
+4. Sentence 1 must say exactly what Wynn should do.
+5. Sentence 2, if used, must explain why with one concrete market signal, strength, or gap.
+6. Use active voice and simple wording. A native English speaker should understand it instantly.
+7. Avoid padded phrases such as "aligns with", "builds on", "complement existing strengths", "higher return on investment", or "in this period" unless absolutely necessary.
+8. When you cite a concrete event example, always format it as 「Event Name」 (🔥score). Keep event names in their original language.
+9. Keep event names, artist names, and proper nouns in their original language when they are already Chinese or mixed-language names.
+10. Only describe what Wynn should do. For Concert, you may cite concrete event examples from Relevant events. For other categories, avoid naming competitor events unless the event is the concrete example needed by the rule above.
+11. type must be one of: keep_up / improve / avoid.
+12. Avoid technical wording such as count=0, heat 0, or low heat 0.0.
+13. If Wynn has no event presence in a category, say it naturally in English, for example: "Wynn has no Exhibition presence in this selection."
+14. When mentioning high-heat artist opportunities, do not stop at saying "artists above heat 60"; include specific example event names and scores, and prefer a single-sentence construction using "such as".
+15. For avoid recommendations, lead with the market fact first, then the action. Example structure: "Wynn has no Exhibition presence in this selection. Wynn should shift resources toward 🍽️ Food and 🏨 Hotel instead of pushing Exhibition."
+16. When referring to Wynn's strongest categories in recommendations, use the system category names with emojis where relevant, especially 🍽️ Food and 🏨 Hotel. Do not replace them with vague labels such as dining or hospitality.
+17. If Wynn is only slightly ahead of competitors, avoid awkward lines like "Competitors are within 10 heat scores, requiring proactive innovation to stay ahead." Use fact-first ordering instead, for example: "Wynn is only about 10 heat points ahead of its competitors. Wynn should actively host more high-heat events to widen the gap."
 
-請只返回 JSON array（{n_recs} 項）：
+Return JSON array only:
 [
-  {{"catKey":"food","type":"keep_up","text":"建議永利延續米芝蓮Fine Dining優勢，推出Chef Tam's Seasons主廚晚宴配合Wynn Insider會員專屬預覽禮遇。"}},
-  {{"catKey":"concert","type":"keep_up","text":"建議永利延續精品演唱會路線，同時積極與市場上單場熱度達60分以上的藝人建立長線合作關係，待2028年新場館落成後優先邀請。"}}
+  {{"catKey":"food","type":"keep_up","text":"Wynn should turn its Michelin-led dining strength into chef-led private experiences for high-value guests."}},
+  {{"catKey":"concert","type":"keep_up","text":"Wynn should secure long-term partnerships with artists with at least 60 heat scores, such as Sands 「2025-26 TREASURE TOUR [PULSE ON] IN MACAO」 (🔥61.6)."}},
+  {{"catKey":"exhibition","type":"avoid","text":"Wynn has no Exhibition presence in this selection. Wynn should shift resources toward 🍽️ Food and 🏨 Hotel instead of pushing Exhibition."}}
 ]
-唔需要任何解釋。"""
+No explanation. JSON only."""
 
     try:
         resp = QWEN_RECOMMENDATION_CLIENT.chat.completions.create(
@@ -2394,7 +2440,7 @@ Wynn:
                 cat_key = str(item.get("catKey") or "").strip().lower()
                 if cat_key not in selected_cat_keys:
                     continue
-                text = _to_trad(str(item.get("text") or "").strip())
+                text = str(item.get("text") or "").strip()
                 rec_type = str(item.get("type") or "improve").strip().lower()
                 if cat_key and text:
                     normalized.append({"catKey": cat_key, "type": rec_type, "text": text})
@@ -3361,8 +3407,6 @@ def _deepseek_score_negative_monitor(items: list[dict]) -> list[dict]:
 其中 severity: 0=無負面 1=輕微情緒 2=明確負面 3=嚴重/安全法律敏感
 post_id 必須與 ### 行完全一致。
 另請輸出 summary：使用繁體中文，約30～40 字概括貼文核心（供列表展示；必要時可略多，但不要超過 55 字）；勿與 reason 重複長句，可填中性短語如「一般打卡分享」。
-reason、summary、triggers 內所有字串也必須是繁體中文（台港澳常用字形），勿使用簡體字。
-輸入的貼文與「評論摘錄」多為簡體中文時：請先準確理解內容，再將 reason、summary、triggers 內所有可讀文字改寫為繁體中文（台港澳常用字形；必要時可略作意譯），不要機械式逐字照搬簡體字到這些輸出欄位。post_id、negative、severity 等 JSON 結構與布林值不變。
 
 貼文列表：
 """ + "\n".join(lines)
@@ -3421,7 +3465,6 @@ def _nm_run_ai_batches(ai_candidates: list, bs: int) -> list:
                 "severity": int(hit.get("severity") or 0),
                 "reason": hit.get("reason") or "",
                 "triggers": hit.get("triggers") or [],
-                "summary": _sum,
             })
     return ai_flat
 
@@ -3819,8 +3862,3 @@ if __name__ == "__main__":
     if not _access_log:
         print("ℹ️  HTTP access log 已關閉（BRIDGE_ACCESS_LOG=0），終端唔再逐條打印 GET/POST")
     uvicorn.run(app, host=_host, port=_port, access_log=_access_log)
-
-# ══════════════════════════════════════════════════════════════════════════════
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=9038)

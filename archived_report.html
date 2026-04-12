@@ -204,6 +204,32 @@
 
 <script>
 // ── Constants ─────────────────────────────────────────────────────────────────
+function arNormalizeAuthorityPosition(position, role) {
+  const pos = String(position || '').trim().toLowerCase();
+  const userRole = String(role || '').trim().toLowerCase();
+  if (userRole === 'admin' || pos === 'it admin' || pos === 'admin') return 'admin';
+  if (pos === 'director') return 'director';
+  if (pos === 'manager') return 'manager';
+  if (pos === 'analyst' || pos === 'executive') return 'analyst';
+  return 'analyst';
+}
+
+(function enforceArchiveAuthority() {
+  const sp = new URLSearchParams(window.location.search);
+  if (!sp.get('first_name')) {
+    window.location.href = './login_page.html';
+    return;
+  }
+  const authorityPosition = arNormalizeAuthorityPosition(sp.get('position'), sp.get('role'));
+  if (authorityPosition === 'admin') {
+    window.location.href = './admin_page.html?' + sp.toString();
+    return;
+  }
+  if (!['manager', 'director'].includes(authorityPosition)) {
+    window.location.href = './operation_panel.html?' + sp.toString();
+  }
+})();
+
 const OP_KEYS   = ['wynn','sands','galaxy','mgm','melco','sjm','government'];
 const OP_LABELS = { wynn:'Wynn', sands:'Sands', galaxy:'Galaxy', mgm:'MGM', melco:'Melco', sjm:'SJM', government:'Government' };
 const OP_COLORS = { wynn:'#B45309', sands:'#1D4ED8', galaxy:'#047857', mgm:'#991B1B', melco:'#6D28D9', sjm:'#0E7490', government:'#374151' };
@@ -841,6 +867,10 @@ function buildQuarterOptions(months) {
 }
 
 async function loadMonthList() {
+  const root = document.getElementById('pdf-content');
+  if (root && !root.innerHTML.trim()) {
+    root.innerHTML = `<div style="padding:60px 40px;text-align:center;font-family:sans-serif;color:#555;">Loading archive report...</div>`;
+  }
   try {
     const res = await fetch(`${BRIDGE}/api/archive/months`);
     const data = await res.json();
@@ -868,7 +898,7 @@ async function loadMonthList() {
       '</optgroup>';
 
     sel.value = data.months[0];
-    loadArchiveMonth(data.months[0]);
+    await loadArchiveMonth(data.months[0]);
   } catch(e) {
     document.getElementById('pdf-content').innerHTML = `
       <div style="padding:60px 40px;text-align:center;font-family:sans-serif;color:#B91C1C;">
@@ -1257,7 +1287,17 @@ function buildReportData(archiveData, month, insights, cachedLeaderboard, archiv
   };
 }
 
-window.onload = loadMonthList;
+let _archiveBootStarted = false;
+async function startArchiveBoot() {
+  if (_archiveBootStarted) return;
+  _archiveBootStarted = true;
+  await loadMonthList();
+}
+
+window.onload = startArchiveBoot;
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => { startArchiveBoot().catch(() => {}); }, 0);
+});
 
 </script>
 </body>

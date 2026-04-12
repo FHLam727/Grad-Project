@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Macau Analytics · Heat Leaderboard</title>
+<title>Macau Resort Analytics · Heat Leaderboard</title>
 <style>
 :root{
   --bg1:#F6F8FC;--bg2:#EEF2F8;--border:rgba(17,24,39,0.10);--text:#0F172A;
@@ -270,8 +270,8 @@ body{font-family:var(--font);color:var(--text);min-height:100vh;
 
 <div class="nav">
   <div class="nav-brand">
-    <div class="nav-logo">MA</div>
-    <span class="nav-title">Macau Analytics</span>
+    <div class="nav-logo">MR</div>
+    <span class="nav-title">Macau Resort Analytics</span>
     <span class="nav-sub">· Heat Leaderboard</span>
   </div>
   <div class="nav-right">
@@ -449,14 +449,14 @@ function nmFindFootfallSlot(key){
 function nmRenderFootfallRec(slot,rec){
   if(!slot)return;
   if(!rec){
-    slot.innerHTML='<div class="footfall-box"><div class="fb-line">流量預測：<strong>—</strong></div></div>';
+    slot.innerHTML='<div class="footfall-box"><div class="fb-line">Estimated visitor traffic: <strong>—</strong></div></div>';
     return;
   }
   var avg=rec.avg_daily_visitors!=null?Math.round(rec.avg_daily_visitors).toLocaleString('zh-Hant'):'—';
   var dc=rec.days_count||0;
-  var sub=dc>1?'<div class="fb-sub">活動 '+dc+' 天</div>':'';
+  var sub=dc>1?'<div class="fb-sub">'+dc+' event days</div>':'';
   slot.innerHTML='<div class="footfall-box">'+
-    '<div class="fb-line">流量預測：<strong>'+avg+'</strong> 人次</div>'+sub+'</div>';
+    '<div class="fb-line">Estimated visitor traffic: <strong>'+avg+'</strong></div>'+sub+'</div>';
 }
 async function loadFootfallForHeatLb(){
   if(!TOP10||!TOP10.length)return;
@@ -483,13 +483,13 @@ async function loadFootfallForHeatLb(){
     console.warn('footfall-event-allocate',err);
     const hostHint=(API_BASE||'').replace(/^https?:\/\//,'');
     document.querySelectorAll('#lb-list .footfall-slot[data-footfall-key]').forEach(slot=>{
-      slot.innerHTML='<div class="footfall-box" style="border-color:rgba(220,38,38,0.25);background:rgba(220,38,38,0.06);"><div class="fb-line">流量預測載入失敗（網路或埠）</div><div class="fb-sub">請確認 bridge 在 '+hostHint+' 運行，或 URL 加 ?_bridge_port=埠</div></div>';    });
+      slot.innerHTML='<div class="footfall-box" style="border-color:rgba(220,38,38,0.25);background:rgba(220,38,38,0.06);"><div class="fb-line">Visitor estimation unavailable (network or port)</div><div class="fb-sub">Please ensure bridge is running on '+hostHint+', or add ?_bridge_port=PORT to the URL.</div></div>';    });
     return;
   }
   if(!j||!j.ok){
-    const msg=(j&&j.message)?String(j.message):'模型或資料未就緒';
+    const msg=(j&&j.message)?String(j.message):'Model or data is not ready yet';
     document.querySelectorAll('#lb-list .footfall-slot[data-footfall-key]').forEach(slot=>{
-      slot.innerHTML='<div class="footfall-box" style="border-color:rgba(217,119,6,0.28);background:rgba(245,158,11,0.08);"><div class="fb-line">流量預測暫不可用</div><div class="fb-sub">'+msg.replace(/</g,'&lt;')+'</div></div>';
+      slot.innerHTML='<div class="footfall-box" style="border-color:rgba(217,119,6,0.28);background:rgba(245,158,11,0.08);"><div class="fb-line">Visitor estimation temporarily unavailable</div><div class="fb-sub">'+msg.replace(/</g,'&lt;')+'</div></div>';
    });
     return;
   }
@@ -512,6 +512,24 @@ const _dateQ  = (_lbFrom && _lbTo) ? `?from_date=${_lbFrom}&to_date=${_lbTo}` : 
 // Preserve session URL params when navigating back to Operation Panel
 (function(){
   const sp = new URLSearchParams(window.location.search);
+  function normalizeAuthorityPosition(position, role){
+    const pos = String(position || '').trim().toLowerCase();
+    const userRole = String(role || '').trim().toLowerCase();
+    if (userRole === 'admin' || pos === 'it admin' || pos === 'admin') return 'admin';
+    if (pos === 'director') return 'director';
+    if (pos === 'manager') return 'manager';
+    if (pos === 'analyst' || pos === 'executive') return 'analyst';
+    return 'analyst';
+  }
+  const authorityPosition = normalizeAuthorityPosition(sp.get('position'), sp.get('role'));
+  if(!sp.get('first_name')){
+    window.location.href = './login_page.html';
+    return;
+  }
+  if(authorityPosition === 'admin'){
+    window.location.href = './admin_page.html?' + sp.toString();
+    return;
+  }
   if(sp.get('first_name')){
     document.getElementById('opPanelLink').href = './operation_panel.html?' + sp.toString();
   }
@@ -667,7 +685,7 @@ function renderTop10(){
         ${tagOp(e.operator)}${plats.slice(0,3).map(tagPlt).join('')}${getCats(e).slice(0,2).map(tagCat).join('')}
         <span class="exp-btn" id="expbtn-${wid}">▼ Source Posts</span>
       </div>
-            <div class="footfall-slot" data-footfall-key="${ffk}"><div class="footfall-box footfall-loading"><div class="fb-line">流量預測：<span class="fb-pending">計算中…</span></div></div></div>
+            <div class="footfall-slot" data-footfall-key="${ffk}"><div class="footfall-box footfall-loading"><div class="fb-line">Estimated visitor traffic: <span class="fb-pending">calculating...</span></div></div></div>
     </div>
     <div class="lb-score">
       <div class="heat-num">${(e.heat_score||0).toFixed(1)}</div>
