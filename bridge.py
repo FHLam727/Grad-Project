@@ -3361,6 +3361,8 @@ def _deepseek_score_negative_monitor(items: list[dict]) -> list[dict]:
 其中 severity: 0=無負面 1=輕微情緒 2=明確負面 3=嚴重/安全法律敏感
 post_id 必須與 ### 行完全一致。
 另請輸出 summary：使用繁體中文，約30～40 字概括貼文核心（供列表展示；必要時可略多，但不要超過 55 字）；勿與 reason 重複長句，可填中性短語如「一般打卡分享」。
+reason、summary、triggers 內所有字串也必須是繁體中文（台港澳常用字形），勿使用簡體字。
+輸入的貼文與「評論摘錄」多為簡體中文時：請先準確理解內容，再將 reason、summary、triggers 內所有可讀文字改寫為繁體中文（台港澳常用字形；必要時可略作意譯），不要機械式逐字照搬簡體字到這些輸出欄位。post_id、negative、severity 等 JSON 結構與布林值不變。
 
 貼文列表：
 """ + "\n".join(lines)
@@ -3419,6 +3421,7 @@ def _nm_run_ai_batches(ai_candidates: list, bs: int) -> list:
                 "severity": int(hit.get("severity") or 0),
                 "reason": hit.get("reason") or "",
                 "triggers": hit.get("triggers") or [],
+                "summary": _sum,
             })
     return ai_flat
 
