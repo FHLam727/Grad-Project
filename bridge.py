@@ -1272,14 +1272,14 @@ async def api_footfall_predict(ds: str, ai: bool = True):
         return {
             "ok": False,
             "error": "model_not_found",
-            "message": "未找到 Prophet 模型文件",
+            "message": "找不到 Prophet 模型檔案",
             "model_path": str(model_path.resolve()),
         }
     if not zone_csv.is_file():
         return {
             "ok": False,
             "error": "zone_csv_not_found",
-            "message": "未找到 zone_table1_monthly_share.csv",
+            "message": "找不到 zone_table1_monthly_share.csv",
             "zone_csv": str(zone_csv.resolve()),
         }
     footfall_dir = BRIDGE_ROOT / "footfall"
@@ -1311,7 +1311,7 @@ async def api_footfall_event_allocate(payload: dict):
     to_date = (payload.get("to_date") or "").strip()[:10]
     events_in = payload.get("events") or []
     if not events_in or not from_date or not to_date:
-        return {"ok": False, "message": "需要 from_date、to_date 与 events"}
+        return {"ok": False, "message": "需要 from_date、to_date 與 events"}
 
     model_path = Path(os.getenv("FOOTFALL_MODEL_PATH", str(BRIDGE_ROOT / "footfall" / "fitted_prophet.joblib")))
     zone_csv = Path(os.getenv("FOOTFALL_ZONE_CSV", str(BRIDGE_ROOT / "footfall" / "zone_table1_monthly_share.csv")))
@@ -1320,7 +1320,7 @@ async def api_footfall_event_allocate(payload: dict):
 
     allowed = _footfall_enumerate_dates(from_date, to_date)
     if len(allowed) > 150:
-        return {"ok": False, "message": "日期范围过长（最多 150 天）"}
+        return {"ok": False, "message": "日期範圍過長（最多 150 天）"}
     allowed_set = set(allowed)
 
     footfall_dir = BRIDGE_ROOT / "footfall"
