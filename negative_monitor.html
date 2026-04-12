@@ -3,72 +3,184 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Negative keyword monitor</title>
+  <title>Macau Analytics · Negative keyword monitor</title>
   <style>
     :root {
-      --bg1: #F6F8FC; --bg2: #EEF2F8; --border: rgba(17,24,39,0.10);
-      --text: #0F172A; --muted: rgba(15,23,42,0.58); --brand: #2563EB;
-      --brand2: #B91C1C; --radius: 18px;
+      --bg1: #F6F8FC;
+      --bg2: #EEF2F8;
+      --border: rgba(17, 24, 39, 0.1);
+      --text: #0F172A;
+      --muted: rgba(15, 23, 42, 0.6);
+      --muted2: rgba(15, 23, 42, 0.42);
+      --brand: #2563EB;
+      --brand2: #B91C1C;
+      --ok: #15803D;
+      --danger: #DC2626;
+      --cardShadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+      --panelBorder: rgba(15, 23, 42, 0.08);
       --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-      --danger: #DC2626; --ok: #15803D;
-      --nm-field-max: 360px; 
+      --nm-field-max: 360px;
       --nm-ctl-h: 42px;
       --nm-ctl-pad: 10px 12px;
     }
-    * { box-sizing: border-box; }
-    body { margin: 0; font-family: var(--font); color: var(--text);
-      background: linear-gradient(180deg, var(--bg1), var(--bg2)); min-height: 100vh;
-      padding: 24px 18px 48px; }
-    .wrap { max-width: 1100px; margin: 0 auto; }
-    .page-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
-    .page-head h1 { font-size: 1.35rem; font-weight: 700; margin: 0; }
-    .card {
-      background: rgba(255,255,255,0.92); border: 1px solid var(--border); border-radius: var(--radius);
-      padding: 20px 22px; margin-bottom: 16px; box-shadow: 0 18px 40px rgba(15,23,42,0.06);
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      color: var(--text);
+      min-height: 100vh;
+      background:
+        radial-gradient(900px 520px at 18% 10%, rgba(185, 28, 28, 0.06), transparent 60%),
+        radial-gradient(700px 480px at 88% 18%, rgba(37, 99, 235, 0.07), transparent 55%),
+        linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 100%);
     }
-    .row { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end; }
-    label { display: block; font-size: 11px; font-weight: 650; color: var(--muted);
-      text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
-    input[type="text"], input[type="date"], input[type="number"] {
-      width: 100%; min-width: 0; padding: 10px 12px; border-radius: 12px;
-      border: 1px solid rgba(15,23,42,0.12); background: #F9FAFB; font-size: 14px;
+
+    .nav {
+      max-width: 1280px;
+      margin: 28px auto 0;
+      padding: 14px 20px;
+      width: calc(100% - 40px);
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.82);
+      border-radius: 24px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
     }
-    select { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(15,23,42,0.12);
-      background: #F9FAFB; font-size: 14px; font-family: inherit; color: var(--text); }
-    .field { flex: 1 1 140px; min-width: 120px; }
-    .btn {
-      border: none; border-radius: 12px; padding: 11px 18px; font-size: 14px; font-weight: 650;
-      cursor: pointer; transition: opacity 0.15s;
+    .nav-brand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .nav-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--brand2), #991B1B);
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: 13px;
+      flex: 0 0 auto;
     }
-    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-    .btn-primary { background: linear-gradient(135deg, var(--brand), #1D4ED8); color: #fff; }
-    .btn-danger { background: linear-gradient(135deg, var(--brand2), #991B1B); color: #fff; }
-    .btn-ghost { background: rgba(15,23,42,0.06); color: var(--text); text-decoration: none; display: inline-block; }
-    .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-    .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
-      padding: 6px 12px; border-radius: 999px; background: rgba(37,99,235,0.10); color: #1D4ED8; }
-    .pill.busy { background: rgba(220,38,38,0.12); color: var(--danger); }
-    .pill.ok { background: rgba(22,163,74,0.12); color: var(--ok); }
-    .log {
-      font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--muted);
-      white-space: pre-wrap; max-height: 140px; overflow: auto; margin-top: 12px; padding: 10px;
-      background: rgba(15,23,42,0.04); border-radius: 10px;
+    .nav-title { font-size: 15px; font-weight: 700; }
+    .nav-sub { font-size: 13px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+    .nav-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .nav-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 650;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: 0.15s;
+      border: 1px solid;
     }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
-    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid rgba(15,23,42,0.08); vertical-align: top; }
-    th { color: var(--muted); font-weight: 650; font-size: 11px; text-transform: uppercase; }
-    tr:hover td { background: rgba(37,99,235,0.04); }
-    .tag { font-size: 11px; padding: 2px 8px; border-radius: 6px; background: rgba(185,28,28,0.12);
-      color: #991B1B; margin-right: 4px; display: inline-block; margin-top: 2px; }
-    .tag-soft { background: rgba(15,23,42,0.08); color: var(--muted); }
-    a.link { color: var(--brand); text-decoration: none; font-weight: 600; }
-    .nm-stack-gap { margin-bottom: 12px; }
-    .nm-stack-gap:last-child { margin-bottom: 0; }
-    .nm-same-w {
+    .nl-blue {
+      background: rgba(37, 99, 235, 0.1);
+      border-color: rgba(37, 99, 235, 0.22);
+      color: #1D4ED8;
+    }
+    .nl-blue:hover { background: rgba(37, 99, 235, 0.18); }
+    .nl-ghost {
+      background: rgba(15, 23, 42, 0.06);
+      border-color: rgba(15, 23, 42, 0.12);
+      color: var(--text);
+    }
+    .nl-ghost:hover { background: rgba(15, 23, 42, 0.1); }
+
+    .wrapper { max-width: 1280px; margin: 20px auto 60px; padding: 0 20px; }
+    .page-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 24px 0 20px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .page-title { font-size: 22px; font-weight: 750; letter-spacing: 0.2px; }
+    .pill-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 650;
+      border: 1px solid;
+      white-space: nowrap;
+    }
+    .p-blue { background: rgba(37, 99, 235, 0.1); color: #1D4ED8; border-color: rgba(37, 99, 235, 0.2); }
+    .p-red { background: rgba(220, 38, 38, 0.1); color: #B91C1C; border-color: rgba(220, 38, 38, 0.22); }
+    .p-green { background: rgba(22, 163, 74, 0.1); color: var(--ok); border-color: rgba(22, 163, 74, 0.22); }
+    .p-gray { background: rgba(15, 23, 42, 0.06); color: var(--muted); border-color: rgba(15, 23, 42, 0.12); }
+    .pill.busy { background: rgba(220, 38, 38, 0.12); color: var(--danger); border-color: rgba(220, 38, 38, 0.25); }
+    .pill.ok { background: rgba(22, 163, 74, 0.12); color: var(--ok); border-color: rgba(22, 163, 74, 0.22); }
+
+    .sec-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; margin-top: 8px; }
+    .sec-title { font-size: 16px; font-weight: 750; }
+    .sec-hint { font-size: 11.5px; color: var(--muted2); font-weight: 500; }
+    .sec-line { flex: 1; height: 1px; background: linear-gradient(90deg, rgba(15, 23, 42, 0.12), transparent); }
+
+    .report-frame {
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.78);
+      box-shadow: var(--cardShadow);
+      padding: 22px 24px;
+      margin-bottom: 28px;
+    }
+
+    label.nm-lbl {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 650;
+      color: var(--muted);
+      margin-bottom: 6px;
+      letter-spacing: 0.02em;
+    }
+    input[type="text"],
+    input[type="date"],
+    input[type="number"] {
       width: 100%;
-      max-width: min(var(--nm-field-max), 100%);
+      min-width: 0;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      background: #F9FAFB;
+      font-size: 14px;
     }
-    .nm-kw-block label { margin-bottom: 5px; }
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      background: #F9FAFB;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--text);
+    }
+    .btn {
+      border: none;
+      border-radius: 14px;
+      padding: 11px 20px;
+      font-size: 13px;
+      font-weight: 650;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.12s;
+    }
+    .btn:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-primary { background: linear-gradient(135deg, var(--brand), #1D4ED8); color: #fff; box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25); }
+    .btn-danger { background: linear-gradient(135deg, var(--brand2), #991B1B); color: #fff; box-shadow: 0 8px 20px rgba(185, 28, 28, 0.22); }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+
+    .nm-same-w { width: 100%; max-width: min(var(--nm-field-max), 100%); }
+    .nm-stack-gap { margin-bottom: 14px; }
+    .nm-stack-gap:last-child { margin-bottom: 0; }
     select#nmPlatform,
     .nm-dates-row input[type="date"] {
       width: 100%;
@@ -85,37 +197,186 @@
       align-items: end;
     }
     @media (max-width: 820px) {
-      .nm-dates-row {
-        grid-template-columns: 1fr;
-        max-width: min(var(--nm-field-max), 100%);
-      }
+      .nm-dates-row { grid-template-columns: 1fr; max-width: min(var(--nm-field-max), 100%); }
+      .nav { margin: 14px auto 0; width: calc(100% - 24px); }
+      .wrapper { padding: 0 12px; }
     }
+
     #kwBox {
-      display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
-      min-height: var(--nm-ctl-h); padding: 5px 10px; box-sizing: border-box;
-      border-radius: 12px; border: 1px solid rgba(15,23,42,0.12); background: #F9FAFB; cursor: text;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      align-items: center;
+      min-height: var(--nm-ctl-h);
+      padding: 5px 10px;
+      box-sizing: border-box;
+      border-radius: 12px;
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      background: #F9FAFB;
+      cursor: text;
     }
     #kwBox input[type="text"] {
-      border: none; outline: none; background: transparent; flex: 1; min-width: 72px;
-      font-size: 13px; padding: 4px 2px; line-height: 1.25;
+      border: none;
+      outline: none;
+      background: transparent;
+      flex: 1;
+      min-width: 72px;
+      font-size: 13px;
+      padding: 4px 2px;
+      line-height: 1.25;
     }
     .kw-tag {
-      display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px;
-      background: rgba(37,99,235,0.10); color: #1D4ED8; border: 1px solid rgba(37,99,235,0.22);
-      font-size: 11px; font-weight: 600; cursor: pointer; user-select: none;
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: rgba(37, 99, 235, 0.1);
+      color: #1D4ED8;
+      border: 1px solid rgba(37, 99, 235, 0.22);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
     }
+
+    .log {
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: 11.5px;
+      color: var(--muted);
+      white-space: pre-wrap;
+      max-height: 160px;
+      overflow: auto;
+      margin-top: 14px;
+      padding: 12px 14px;
+      background: rgba(15, 23, 42, 0.04);
+      border-radius: 14px;
+      border: 1px solid var(--panelBorder);
+    }
+
+    .nm-table-wrap {
+      overflow-x: auto;
+      border-radius: 18px;
+      border: 1px solid var(--panelBorder);
+      background: rgba(255, 255, 255, 0.92);
+    }
+    table.nm-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .nm-table th,
+    .nm-table td {
+      text-align: left;
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+      vertical-align: top;
+    }
+    .nm-table thead th {
+      color: var(--muted);
+      font-weight: 650;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: rgba(15, 23, 42, 0.03);
+    }
+    .nm-table tbody tr:hover td { background: rgba(37, 99, 235, 0.04); }
+    .nm-table tbody tr:last-child td { border-bottom: none; }
+
+    .lex-tag {
+      font-size: 11px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: rgba(185, 28, 28, 0.12);
+      color: #991B1B;
+      margin: 2px 4px 2px 0;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid rgba(185, 28, 28, 0.2);
+      font-weight: 600;
+    }
+    .lex-soft { background: rgba(15, 23, 42, 0.06); color: var(--muted); border-color: rgba(15, 23, 42, 0.1); }
+
+    .ai-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid;
+    }
+    .ai-badge.neg { background: rgba(220, 38, 38, 0.1); color: #B91C1C; border-color: rgba(220, 38, 38, 0.28); }
+    .ai-badge.okb { background: rgba(22, 163, 74, 0.1); color: #15803D; border-color: rgba(22, 163, 74, 0.25); }
+    .ai-reason {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.55;
+      max-width: 380px;
+    }
+    .ai-summary {
+      margin-top: 4px;
+      font-size: 11.5px;
+      color: var(--muted);
+      line-height: 1.5;
+      max-width: 420px;
+    }
+    .ai-trig {
+      margin-top: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .ai-trig span {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(234, 88, 12, 0.1);
+      color: #C2410C;
+      border: 1px solid rgba(234, 88, 12, 0.2);
+    }
+    a.nm-link {
+      color: var(--brand);
+      text-decoration: none;
+      font-weight: 650;
+      font-size: 12px;
+    }
+    a.nm-link:hover { text-decoration: underline; }
+
+    .phase2-hint { font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 12px; }
   </style>
 </head>
 <body>
-  <div class="wrap">
+  <div class="nav">
+    <div class="nav-brand">
+      <div class="nav-logo">MA</div>
+      <span class="nav-title">Macau Analytics</span>
+      <span class="nav-sub">· Negative monitor</span>
+    </div>
+    <div class="nav-right">
+      <a id="nmBackToPanel" class="nav-link nl-blue" href="/operation-panel">Operation panel</a>
+    </div>
+  </div>
+
+  <div class="wrapper">
     <div class="page-head">
-      <h1>Negative keyword monitor</h1>
-      <a class="btn btn-ghost" id="nmBackToPanel" href="/operation-panel">Operation panel</a>
+      <h1 class="page-title">🛑 Negative keyword monitor</h1>
+      <div class="pill-row">
+        <span class="pill p-red">Wynn · PR risk</span>
+        <span class="pill p-blue">Lexicon + AI (2 steps)</span>
+        <span class="pill p-gray" id="statusPill">Status: idle</span>
+      </div>
     </div>
 
-    <div class="card">
+    <div class="sec-head">
+      <span class="sec-title">📥 Data & crawl</span>
+      <span class="sec-hint">Pick platform, keywords, dates — analysis reuses the same filters</span>
+      <div class="sec-line"></div>
+    </div>
+    <div class="report-frame">
       <div class="nm-same-w nm-stack-gap">
-        <label>Platform</label>
+        <label class="nm-lbl" for="nmPlatform">Platform</label>
         <select id="nmPlatform" title="Data source for crawl and analysis">
           <option value="xhs" selected>Xiaohongshu (XHS)</option>
           <option value="weibo">Weibo</option>
@@ -123,46 +384,49 @@
           <option value="fb">Facebook (Apify)</option>
         </select>
       </div>
-      <div class="nm-same-w nm-stack-gap nm-kw-block">
-        <label id="nmKwLabel">Keywords for <strong id="nmKwPlatName">Xiaohongshu (XHS)</strong></label>
+      <div class="nm-same-w nm-stack-gap">
+        <label class="nm-lbl" id="nmKwLabel">Keywords for <strong id="nmKwPlatName">Xiaohongshu (XHS)</strong></label>
         <div id="kwBox" onclick="document.getElementById('kwInput').focus()">
           <span id="kwTags"></span>
           <input type="text" id="kwInput" placeholder="Keyword, Enter to add" autocomplete="off" />
         </div>
       </div>
       <div class="nm-dates-row nm-stack-gap">
-        <div style="min-width:0">
-          <label>From date</label>
-          <input type="date" id="fromDate" title="分析篩選；Run crawl 時若填寫則只入庫該區間內發布的帖" />
+        <div style="min-width: 0">
+          <label class="nm-lbl" for="fromDate">From date</label>
+          <input type="date" id="fromDate" title="Filter for analysis; if set, crawl only ingests posts in this date range" />
         </div>
-        <div style="min-width:0">
-          <label>To date</label>
-          <input type="date" id="toDate" title="分析篩選；Run crawl 時若填寫則只入庫該區間內發布的帖" />
+        <div style="min-width: 0">
+          <label class="nm-lbl" for="toDate">To date</label>
+          <input type="date" id="toDate" title="Filter for analysis; if set, crawl only ingests posts in this date range" />
         </div>
       </div>
       <div class="btn-row">
         <button type="button" class="btn btn-primary" id="btnCrawl">Run crawl</button>
       </div>
-      <div class="row" style="margin-top:12px;align-items:center">
-        <span class="pill ok" id="statusPill">Status: idle</span>
-      </div>
       <div class="log" id="log"></div>
     </div>
 
-    <div class="card">
-      <h2 style="margin:0 0 12px;font-size:1rem">Results</h2>
-      <div class="btn-row" style="margin-top:0;margin-bottom:10px">
+    <div class="sec-head">
+      <span class="sec-title">📊 Results</span>
+      <span class="sec-hint">Step 1: lexicon hits → AI · Step 2: full AI on posts with no lexicon hit (batched)</span>
+      <div class="sec-line"></div>
+    </div>
+    <div class="report-frame">
+      <div class="btn-row" style="margin-top: 0">
         <button type="button" class="btn btn-danger" id="btnPhase1">Step 1 — Lexicon hits + AI</button>
         <button type="button" class="btn btn-primary" id="btnPhase2">Step 2 — Full AI (no lexicon hit)</button>
       </div>
-      <div class="row" style="margin-bottom:10px;align-items:center">
-        <span id="phase2Hint" style="font-size:12px;color:var(--muted)"></span>
-      </div>
-      <div style="overflow-x:auto">
-        <table id="tbl">
+      <p class="phase2-hint" id="phase2Hint"></p>
+      <div class="nm-table-wrap">
+        <table class="nm-table" id="tbl">
           <thead>
             <tr>
-              <th>Time</th><th>Title / snippet</th><th>Lexicon</th><th>AI</th><th>Link</th>
+              <th>Time</th>
+              <th>Title / snippet</th>
+              <th>Lexicon</th>
+              <th>AI</th>
+              <th>Link</th>
             </tr>
           </thead>
           <tbody id="tbody"></tbody>
@@ -184,22 +448,18 @@
     }
 
     (function () {
-      var el = document.getElementById("nmBackToPanel");
-      if (!el) return;
-      var base = apiRoot() + "/operation-panel";
       var q = sessionQueryString();
-      el.href = q ? base + "?" + q : base;
+      var basePanel = apiRoot() + "/operation-panel";
+      var el = document.getElementById("nmBackToPanel");
+      if (el) el.href = q ? basePanel + "?" + q : basePanel;
     })();
 
     var _nmKeywordsByPlatform = { xhs: [], weibo: [], ig: [], fb: [] };
     var _nmPhase2NextOffset = 0;
 
-    var _NM_PLAT_LABELS = {
-      xhs: "Xiaohongshu (XHS)",
-      weibo: "Weibo",
-      ig: "Instagram",
-      fb: "Facebook",
-    };
+    var _NM_PLAT_LABELS = {"xhs": "Xiaohongshu (XHS)", "weibo": "Weibo", "ig": "Instagram", "fb": "Facebook"};
+
+    var _SEV_LABELS = ["None", "Mild", "Clear negative", "Severe / sensitive"];
 
     function nmKwList() {
       var p = document.getElementById("nmPlatform").value || "xhs";
@@ -220,9 +480,9 @@
       nmSyncKwPlatLabel();
       renderKwTags();
       logLine(
-        "已切換平台，關鍵詞列表已換為「" +
+        "Switched platform; keyword list is now for 「" +
           (_NM_PLAT_LABELS[this.value] || this.value) +
-          "」專用；Step 2 offset 已重置。"
+          "」. Step 2 offset reset."
       );
     });
 
@@ -230,7 +490,7 @@
 
     function logLine(msg) {
       var el = document.getElementById("log");
-      var t = new Date().toLocaleTimeString();
+      var t = new Date().toLocaleTimeString("en-GB", { hour12: false });
       el.textContent = "[" + t + "] " + msg + "\n" + el.textContent.slice(0, 4000);
     }
 
@@ -280,55 +540,83 @@
       return 10 - (parseInt(ai.severity, 10) || 0);
     }
 
+    function sevLabel(n) {
+      var i = parseInt(n, 10);
+      if (isNaN(i) || i < 0) i = 0;
+      if (i > 3) i = 3;
+      return _SEV_LABELS[i] || String(n);
+    }
+
     function rowHtml(it) {
       var ai = it.ai;
       var aiCell;
-      if (!ai) aiCell = '<span class="tag-soft">—</span>';
+      if (!ai) aiCell = '<span class="lex-soft">—</span>';
       else if (ai.negative === true) {
-        var sev = ai.severity != null ? " (sev " + esc(ai.severity) + ")" : "";
+        var sev = ai.severity != null ? " · sev. " + esc(sevLabel(ai.severity)) : "";
+        var trig = Array.isArray(ai.triggers) && ai.triggers.length
+          ? '<div class="ai-trig">' +
+            ai.triggers
+              .slice(0, 8)
+              .map(function (t) {
+                return "<span>" + esc(String(t)) + "</span>";
+              })
+              .join("") +
+            "</div>"
+          : "";
         aiCell =
-          '<span class="tag">Negative' +
+          '<span class="ai-badge neg">Negative</span><span style="font-size:11px;color:var(--muted);font-weight:600">' +
           sev +
-          '</span><div style="margin-top:4px;font-size:11px;color:var(--muted)">' +
+          '</span><div class="ai-reason">' +
           esc(ai.reason || "") +
-          "</div>";
+          "</div>" +
+          trig;
       } else {
-        var sev2 = ai.severity != null ? " (sev " + esc(ai.severity) + ")" : "";
-        aiCell = '<span class="tag tag-soft">Not negative' + sev2 + "</span>";
+        var sev2 = ai.severity != null ? " · " + esc(sevLabel(ai.severity)) : "";
+        aiCell =
+          '<span class="ai-badge okb">Not negative</span><span style="font-size:11px;color:var(--muted);font-weight:600">' +
+          sev2 +
+          "</span>";
+        if (ai.reason) {
+          aiCell += '<div class="ai-summary">' + esc(ai.reason) + "</div>";
+        }
       }
       var lex = (it.lexicon_hits || []).map(function (w) {
-        return '<span class="tag">' + esc(w) + "</span>";
+        return '<span class="lex-tag">' + esc(w) + "</span>";
       }).join(" ");
-      if (!lex) lex = '<span class="tag-soft">—</span>';
+      if (!lex) lex = '<span class="lex-soft">—</span>';
       var url = it.post_url || "";
       var link = url
-        ? '<a class="link" href="' + esc(url) + '" target="_blank" rel="noopener">Open</a>'
+        ? '<a class="nm-link" href="' + esc(url) + '" target="_blank" rel="noopener">Open ↗</a>'
         : "—";
       var rawPrev = String(it.content_preview || "").replace(/\s+/g, " ").trim();
       var snip = rawPrev.length > 38 ? rawPrev.slice(0, 38) + "…" : rawPrev;
       var sumAi = ai && ai.summary ? String(ai.summary).trim() : "";
       var summaryLine = sumAi || snip;
       var titleLine = esc((it.title || "").slice(0, 200)) || "—";
-      var titleStyle =
-        "font-weight:650;color:var(--text);line-height:1.35;margin-bottom:4px;max-width:420px;";
-      var descStyle =
-        "font-size:12px;color:var(--muted);line-height:1.5;max-width:420px;";
-      var descHtml = summaryLine
-        ? "<div style=\"" + descStyle + "\">" + esc(summaryLine) + "</div>"
-        : "";
+      var titleStyle = "font-weight:650;color:var(--text);line-height:1.35;margin-bottom:4px;max-width:420px;";
+      var descStyle = "font-size:12px;color:var(--muted);line-height:1.55;max-width:420px;";
+      var descHtml = summaryLine ? '<div style="' + descStyle + '">' + esc(summaryLine) + "</div>" : "";
       return (
         "<tr>" +
-        "<td>" + esc((it.published_at || "").slice(0, 16)) + "</td>" +
-        "<td><div style=\"" +
+        "<td>" +
+        esc((it.published_at || "").slice(0, 16)) +
+        "</td>" +
+        '<td><div style="' +
         titleStyle +
-        "\">" +
+        '">' +
         titleLine +
         "</div>" +
         descHtml +
         "</td>" +
-        "<td>" + lex + "</td>" +
-        "<td>" + aiCell + "</td>" +
-        "<td>" + link + "</td>" +
+        "<td>" +
+        lex +
+        "</td>" +
+        "<td>" +
+        aiCell +
+        "</td>" +
+        "<td>" +
+        link +
+        "</td>" +
         "</tr>"
       );
     }
@@ -374,7 +662,7 @@
           var cur = String(j.bridge_boot_ts);
           if (prev !== null && prev !== cur) {
             nmResetAfterBridgeRestart(
-              "Server was restarted — previous analysis view and Step 2 progress were cleared (no automatic resume)."
+              "Server restarted — previous analysis view and Step 2 progress were cleared (no automatic resume)."
             );
           }
           sessionStorage.setItem(NM_BOOT_KEY, cur);
