@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Macau Analytics · Negative keyword monitor</title>
+  <title>Macau Resort Analytics · Negative keyword monitor</title>
   <style>
     :root {
       --bg1: #F6F8FC;
@@ -40,7 +40,7 @@
       padding: 14px 20px;
       width: calc(100% - 40px);
       border: 1px solid var(--border);
-      background: rgba(255, 255, 255, 0.82);
+      background: rgba(255, 255, 255, 0.80);
       border-radius: 24px;
       box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
       display: flex;
@@ -57,9 +57,11 @@
       background: linear-gradient(135deg, var(--brand), #16A34A);
       display: grid;
       place-items: center;
-      color: #0B1220;
+      color: #fff;
       font-weight: 800;
       font-size: 13px;
+      letter-spacing: 0.02em;
+      user-select: none;
       flex: 0 0 auto;
     }
     .nav-title { font-size: 15px; font-weight: 700; }
@@ -164,6 +166,17 @@
       border: 1px solid rgba(15, 23, 42, 0.12);
       background: #F9FAFB;
       font-size: 14px;
+      font-family: inherit;
+      color: var(--text);
+      transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    }
+    input[type="text"]:focus,
+    input[type="date"]:focus,
+    input[type="number"]:focus {
+      outline: none;
+      border-color: var(--brand);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
     }
     select {
       width: 100%;
@@ -174,6 +187,13 @@
       font-size: 14px;
       font-family: inherit;
       color: var(--text);
+      transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    }
+    select:focus {
+      outline: none;
+      border-color: var(--brand);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
     }
     .btn {
       border: none;
@@ -186,7 +206,14 @@
     }
     .btn:hover:not(:disabled) { transform: translateY(-1px); }
     .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-    .btn-primary { background: linear-gradient(135deg, var(--brand), #1D4ED8); color: #fff; box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--brand), #16A34A);
+      color: #0B1220;
+      box-shadow: 0 10px 20px rgba(37, 99, 235, 0.20);
+    }
+    .btn-primary:hover:not(:disabled) {
+      box-shadow: 0 12px 24px rgba(37, 99, 235, 0.24);
+    }
     .btn-danger { background: linear-gradient(135deg, var(--brand2), #991B1B); color: #fff; box-shadow: 0 8px 20px rgba(185, 28, 28, 0.22); }
     .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 
@@ -226,6 +253,12 @@
       border: 1px solid rgba(15, 23, 42, 0.12);
       background: #F9FAFB;
       cursor: text;
+      transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    }
+    #kwBox:focus-within {
+      border-color: var(--brand);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
     }
     #kwBox input[type="text"] {
       border: none;
@@ -493,13 +526,13 @@
 <body>
   <div class="nav">
     <div class="nav-brand">
-      <div class="nav-logo">MA</div>
-      <span class="nav-title">Macau Analytics</span>
-      <span class="nav-sub">· Negative monitor</span>
+      <div class="nav-logo">MR</div>
+      <span class="nav-title">Macau Resort Analytics</span>
+      <span class="nav-sub">· Negative keyword monitor</span>
       <span class="nav-access-badge" title="Only users with Director position can use this page">Director access</span>
     </div>
     <div class="nav-right">
-      <a id="nmBackToPanel" class="nav-link nl-blue" href="/operation-panel">Operation panel</a>
+      <a id="nmBackToPanel" class="nav-link nl-blue" href="/operation-panel">📊 Operation panel</a>
     </div>
   </div>
 
