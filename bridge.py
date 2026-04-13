@@ -1333,14 +1333,14 @@ async def api_footfall_predict(ds: str, ai: bool = True):
         return {
             "ok": False,
             "error": "model_not_found",
-            "message": "未找到 Prophet 模型文件",
+            "message": "找不到 Prophet 模型檔案",
             "model_path": str(model_path.resolve()),
         }
     if not zone_csv.is_file():
         return {
             "ok": False,
             "error": "zone_csv_not_found",
-            "message": "未找到 zone_table1_monthly_share.csv",
+            "message": "找不到 zone_table1_monthly_share.csv",
             "zone_csv": str(zone_csv.resolve()),
         }
     footfall_dir = BRIDGE_ROOT / "footfall"
@@ -1372,7 +1372,7 @@ async def api_footfall_event_allocate(payload: dict):
     to_date = (payload.get("to_date") or "").strip()[:10]
     events_in = payload.get("events") or []
     if not events_in or not from_date or not to_date:
-        return {"ok": False, "message": "需要 from_date、to_date 与 events"}
+        return {"ok": False, "message": "需要 from_date、to_date 與 events"}
 
     model_path = Path(os.getenv("FOOTFALL_MODEL_PATH", str(BRIDGE_ROOT / "footfall" / "fitted_prophet.joblib")))
     zone_csv = Path(os.getenv("FOOTFALL_ZONE_CSV", str(BRIDGE_ROOT / "footfall" / "zone_table1_monthly_share.csv")))
@@ -1381,8 +1381,8 @@ async def api_footfall_event_allocate(payload: dict):
 
     allowed = _footfall_enumerate_dates(from_date, to_date)
     if len(allowed) > 150:
-        return {"ok": False, "message": "日期范围过长（最多 150 天）"}
-    allowed_set = set(allowed)
+        return {"ok": False, "message": "日期範圍過長（最多 150 天）"}
+     allowed_set = set(allowed)
 
     footfall_dir = BRIDGE_ROOT / "footfall"
     # 默認 fast：逐日 CSV 连续变量 + Prophet，不调 DeepSeek。
@@ -3432,6 +3432,8 @@ def _deepseek_score_negative_monitor(items: list[dict]) -> list[dict]:
 其中 severity: 0=無負面 1=輕微情緒 2=明確負面 3=嚴重/安全法律敏感
 post_id 必須與 ### 行完全一致。
 另請輸出 summary：使用繁體中文，約30～40 字概括貼文核心（供列表展示；必要時可略多，但不要超過 55 字）；勿與 reason 重複長句，可填中性短語如「一般打卡分享」。
+reason、summary、triggers 內所有字串也必須是繁體中文（台港澳常用字形），勿使用簡體字。
+輸入的貼文與「評論摘錄」多為簡體中文時：請先準確理解內容，再將 reason、summary、triggers 內所有可讀文字改寫為繁體中文（台港澳常用字形；必要時可略作意譯），不要機械式逐字照搬簡體字到這些輸出欄位。post_id、negative、severity 等 JSON 結構與布林值不變。
 
 貼文列表：
 """ + "\n".join(lines)
@@ -3490,6 +3492,7 @@ def _nm_run_ai_batches(ai_candidates: list, bs: int) -> list:
                 "severity": int(hit.get("severity") or 0),
                 "reason": hit.get("reason") or "",
                 "triggers": hit.get("triggers") or [],
+                "summary": _sum,
             })
     return ai_flat
 
