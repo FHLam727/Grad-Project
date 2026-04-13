@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from openai import OpenAI
 from collections import defaultdict
 from db_manager import query_db_by_filters, get_ops_needing_crawl, backfill_event_dates, DB_PATH, query_fb_negative_monitor, query_ig_negative_monitor, query_weibo_negative_monitor, query_xhs_negative_monitor
-from task_manager import run_task_master, run_fb_negative_monitor_crawl, run_ig_negative_monitor_crawl, run_weibo_negative_monitor_crawl, run_xhs_negative_monitor_crawl
+from task_manager import run_task_master, run_fb_negative_monitor_crawl, run_ig_negative_monitor_crawl, run_weibo_negative_monitor_crawl, run_xhs_negative_monitor_crawl ,XHS_NEGATIVE_MONITOR_DEFAULT_KEYWORDS, WEIBO_NEGATIVE_MONITOR_DEFAULT_KEYWORDS, IG_NEGATIVE_MONITOR_DEFAULT_KEYWORDS, FB_NEGATIVE_MONITOR_DEFAULT_KEYWORDS)
 import threading
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
@@ -3614,6 +3614,12 @@ async def negative_monitor_status():
         "crawl_running": busy,
         "supported_sources": list(NEGATIVE_MONITOR_SOURCES),
         "bridge_boot_ts": NEGATIVE_MONITOR_BRIDGE_BOOT_TS,
+        "default_keywords": {
+            "xhs": list(XHS_NEGATIVE_MONITOR_DEFAULT_KEYWORDS),
+            "weibo": list(WEIBO_NEGATIVE_MONITOR_DEFAULT_KEYWORDS),
+            "ig": list(IG_NEGATIVE_MONITOR_DEFAULT_KEYWORDS),
+            "fb": list(FB_NEGATIVE_MONITOR_DEFAULT_KEYWORDS),
+        },
     }
 
 
