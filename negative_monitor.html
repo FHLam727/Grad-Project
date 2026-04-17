@@ -540,7 +540,7 @@
     <div class="page-head">
       <h1 class="page-title">📋 Negative keyword monitor</h1>
       <div class="pill-row">
-        <span class="pill p-blue">Wynn · PR risk</span>
+        <span class="pill p-blue" title="The first keyword is the AI monitoring subject (brand/property). Generic words only fall back to Wynn.">AI subject</span>
         <span class="pill p-blue">Lexicon + AI (2 steps)</span>
         <span class="pill p-gray" id="statusPill">Status: idle</span>
       </div>
@@ -568,6 +568,7 @@
         <h4>Keywords & dates (crawler behaviour)</h4>
         <ul>
           <li>Keywords are stored <strong>per platform</strong>. If you <strong>remove all</strong> keywords for a platform and crawl again, the backend falls back to that platform’s <strong>default keyword list</strong>.</li>
+          <li>The <span class="nm-hint-k">first keyword</span> is also used as the <strong>AI monitoring subject</strong> (which brand/property negative sentiment is judged against). Put the operator or property name first (e.g. <span class="nm-hint-k">银河酒店</span>, then other search terms). If the first keyword is only a generic term (e.g. 避雷 alone) or empty, the model defaults to <strong>Wynn</strong>. After simple rules, the server may call a <strong>short AI check</strong> so vague or non-operator phrases still fall back to Wynn; set env <code>NEGATIVE_MONITOR_SUBJECT_AI_REFINE=0</code> on the bridge to skip that extra call.</li>
           <li>With dates set, ingestion filters by publish date. If many search results fall outside the range, the crawler <strong>keeps paging</strong> until it hits caps or the platform has no more results.</li>
         </ul>
       </div>
@@ -589,7 +590,7 @@
         </select>
       </div>
       <div class="nm-same-w nm-stack-gap">
-        <label class="nm-lbl" id="nmKwLabel">Keywords for <strong id="nmKwPlatName">Xiaohongshu (XHS)</strong></label>
+        <label class="nm-lbl" id="nmKwLabel">Keywords for <strong id="nmKwPlatName">Xiaohongshu (XHS)</strong> · first tag = AI subject (Wynn by default)</label>
         <div id="kwBox" onclick="document.getElementById('kwInput').focus()">
           <span id="kwTags"></span>
           <input type="text" id="kwInput" placeholder="Keyword, Enter to add" autocomplete="off" />
@@ -772,6 +773,11 @@
     });
 
     nmSyncKwPlatLabel();
+    
+    function nmKeywordsCsv() {
+      var arr = nmKwList();
+      return arr.length ? arr.join(",") : "";
+    }
 
     function nmResultProgressHide() {
       var w = document.getElementById("nmResultProgressWrap");
@@ -810,7 +816,7 @@
       f.classList.remove("indeterminate", "err");
       f.classList.add("done");
       f.style.width = "100%";
-      t.textContent = main || "完成";
+      t.textContent = main || "Done";
       if (su) su.textContent = sub || "";
     }
 
@@ -824,7 +830,7 @@
       f.classList.remove("indeterminate", "done");
       f.classList.add("err");
       f.style.width = "100%";
-      t.textContent = main || "\u767c\u751f\u932f\u8aa4";
+      t.textContent = main || "Error";
       if (su) su.textContent = sub || "";
     }
 
@@ -843,20 +849,15 @@
       if (exhausted) f.classList.add("done");
       else f.classList.remove("done", "err");
       t.textContent = exhausted
-        ? "Step 2 \u5df2\u5168\u90e8\u8dd1\u5b8c\uff08\u7121\u8a5e\u8868\u547d\u4e2d\u6279\u6b21\uff09"
-        : "Step 2 \u9032\u5ea6\uff1a" +
-          done +
-          " / " +
-          total +
-          "\uff08\u7121\u8a5e\u8868\u547d\u4e2d\u5e16\uff0c\u7531\u65b0\u5230\u820a\uff09";
+        ? "Step 2 complete (no more lexicon-miss batches in range)"
+        : "Step 2 progress: " + done + " / " + total + " (posts with no lexicon hit, newest first)";
       if (su)
         su.textContent =
           extraSub ||
           (exhausted
-            ? "\u53ef\u91cd\u65b0\u57f7\u884c Step 1 \u6216\u8abf\u6574\u65e5\u671f\u5f8c\u518d\u8a66\u3002"
-            : "\u53ef\u518d\u6309 Step 2 \u8655\u7406\u4e0b\u4e00\u6279\u3002");
+            ? "Run Step 1 again or adjust dates if needed."
+            : "Click Step 2 again for the next batch.");
     }
-
     function nmTableLoadingShow(step) {
       var L = document.getElementById("nmTableLoading");
       var T = document.getElementById("nmTableLoadingText");
@@ -1154,8 +1155,8 @@
       nmTableLoadingShow(1);
       renderTable([]);
       nmResultProgressStart(
-        "Step 1：詞典命中 + AI 分析進行中…",
-        "請稍候，請求完成後表格會更新。"
+        "Step 1 — lexicon hits + AI in progress…",
+        "Please wait; the table updates when the request completes."
       );
       var root = apiRoot();
       var fd = document.getElementById("fromDate").value;
@@ -1166,6 +1167,8 @@
       });
       if (fd) qs.set("from_date", fd);
       if (td) qs.set("to_date", td);
+      var kwc = nmKeywordsCsv();
+      if (kwc) qs.set("keywords", kwc);
       logLine("GET analyze phase=1 …");
       try {
         var url = root + "/api/v2/negative-monitor/analyze?" + qs.toString();
@@ -1181,22 +1184,27 @@
           (j.hint ? String(j.hint) : "") ||
           "";
         nmResultProgressDone(
-          "Step 1 \u5df2\u5b8c\u6210 \u00b7 \u8f09\u5165 " +
-            (nPosts != null ? nPosts : "\u2014") +
-            " \u5247 \u00b7 \u8868\u683c\u986f\u793a\u8a5e\u8868\u547d\u4e2d " +
+          "Step 1 done · loaded " +
+            (nPosts != null ? nPosts : "—") +
+            " post(s) · table shows " +
             nItems +
-            " \u5247\uff08\u5df2\u9001 AI " +
+            " lexicon-hit row(s) (" +
             nAi +
-            " \u5247\uff09",
-          sub ? sub.slice(0, 280) + (sub.length > 280 ? "\u2026" : "") : ""
+            " sent to AI)",
+          sub ? sub.slice(0, 280) + (sub.length > 280 ? "…" : "") : ""
         );
-        nmSetResultsContext(
-          "Showing: Step 1 — lexicon hits + AI · " + nItems + " row(s) in table"
-        );
+        var ctx1 =
+          "Showing: Step 1 — lexicon hits + AI · " + nItems + " row(s) in table";
+        if (j.monitor_subject != null && j.monitor_subject !== undefined) {
+          ctx1 +=
+            " · Effective AI subject: " +
+            (j.monitor_subject_is_default ? "Wynn (default)" : j.monitor_subject);
+        }
+        nmSetResultsContext(ctx1);
         logLine("Step 1 OK");
       } catch (e) {
         nmTableLoadingHide();
-        nmResultProgressError("Step 1 失敗", String(e));
+        nmResultProgressError("Step 1 failed", String(e));
         logLine("Step 1 failed: " + e);
       } finally {
         _nmAnalyzeBusy = false;
@@ -1213,7 +1221,7 @@
       nmTableLoadingShow(2);
       renderTable([]);
       nmResultProgressStart(
-        "Step 2\uff1a\u5168\u6587 AI \u6279\u6b21\u8655\u7406\u4e2d\uff08\u7121\u8a5e\u8868\u547d\u4e2d\u5e16\uff09\u2026",
+        "Step 2 — full AI batch (posts with no lexicon hit)…",
         "offset = " + _nmPhase2NextOffset
       );
       var root = apiRoot();
@@ -1226,6 +1234,8 @@
       });
       if (fd) qs.set("from_date", fd);
       if (td) qs.set("to_date", td);
+      var kwc2 = nmKeywordsCsv();
+      if (kwc2) qs.set("keywords", kwc2);
       logLine("GET analyze phase=2 offset=" + _nmPhase2NextOffset + " …");
       try {
         var url = root + "/api/v2/negative-monitor/analyze?" + qs.toString();
@@ -1246,19 +1256,24 @@
         var nBatch = (j.items_batch || []).length;
         var msgEn = j.message_en ? String(j.message_en) : "";
         nmResultProgressStep2Batch(done, total, exh, msgEn ? msgEn.slice(0, 300) + (msgEn.length > 300 ? "…" : "") : "");
-        nmSetResultsContext(
+        var ctx2 =
           "Showing: Step 2 — full AI (no lexicon hit) · " +
-            nBatch +
-            " row(s) this batch · cumulative " +
-            done +
-            " / " +
-            total +
-            (exh ? " · no further Step-2 batches for current filters" : "")
-        );
+          nBatch +
+          " row(s) this batch · cumulative " +
+          done +
+          " / " +
+          total +
+          (exh ? " · no further Step-2 batches for current filters" : "");
+        if (j.monitor_subject != null && j.monitor_subject !== undefined) {
+          ctx2 +=
+            " · Effective AI subject: " +
+            (j.monitor_subject_is_default ? "Wynn (default)" : j.monitor_subject);
+        }
+        nmSetResultsContext(ctx2);
         logLine("Step 2 OK");
       } catch (e) {
         nmTableLoadingHide();
-        nmResultProgressError("Step 2 失敗", String(e));
+        nmResultProgressError("Step 2 failed", String(e));
         logLine("Step 2 failed: " + e);
       } finally {
         _nmAnalyzeBusy = false;
