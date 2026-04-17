@@ -3415,7 +3415,123 @@ def _parse_llm_json_array(raw: str) -> list:
     return []
 
 
-def _deepseek_score_negative_monitor(items: list[dict]) -> list[dict]:
+def _parse_llm_json_object(raw: str) -> dict | None:
+    if not raw:
+        return None
+    s = raw.strip().replace("\ufeff", "")
+    s = re.sub(r"^```(?:json|JSON)?\s*", "", s)
+    s = re.sub(r"\s*```\s*$", "", s).strip()
+    try:
+        out = json.loads(s)
+        return out if isinstance(out, dict) else None
+    except json.JSONDecodeError:
+        pass
+    k = s.find("{")
+    m = s.rfind("}")
+    if k != -1 and m != -1 and m > k:
+        try:
+            out = json.loads(s[k : m + 1])
+            return out if isinstance(out, dict) else None
+        except json.JSONDecodeError:
+            pass
+    return None
+
+_NM_DEFAULT_MONITOR_SUBJECT = "永利 Wynn（含永利皇宮、永利澳門及相關物業）"
+
+_NM_GENERIC_SUBJECT_TOKENS = frozenset(
+    { "避雷", "吐槽", "差評", "差评", "踩雷", "不好", "攻略", "指南", "分享", "推薦", "推荐", "測評", "测评", "體驗", "体验", "網友", "网友", "澳门", "澳門", "macau"}
+)
+_NM_SUBJECT_TAIL_RE = re.compile(
+    r"(避雷|吐槽|差評|差评|踩雷|不好|攻略|指南|分享|推薦|推荐|測評|测评|體驗|体验|網友|网友)$",
+    re.IGNORECASE,
+)
+
+
+def _nm_first_keyword_from_csv(keywords_csv: str) -> str:
+    s = (keywords_csv or "").strip()
+    if not s:
+        return ""
+    return s.split(",")[0].strip()
+
+
+def _nm_sanitize_monitor_subject_label(s: str) -> str:
+    s = (s or "").strip().replace("\n", " ").replace("\r", " ")
+    if len(s) > 80:
+        s = s[:80]
+    return s
+
+def _nm_deepseek_refine_monitor_subject(first_kw: str, core: str) -> tuple[str, bool] | None:
+    """
+    第二層：LLM 判斷候選是否為可辨識的博企／物業／品牌主體名；否則回退永利。
+    設 NEGATIVE_MONITOR_SUBJECT_AI_REFINE=0 可關閉（僅用啟發式）。
+    API 失敗或解析失敗時回傳 None，由呼叫方沿用啟發式結果。
+    """
+    env = os.environ.get("NEGATIVE_MONITOR_SUBJECT_AI_REFINE", "1").strip().lower()
+    if env in ("0", "false", "no", "off"):
+        return None
+    core_j = json.dumps(core, ensure_ascii=False)
+    kw_j = json.dumps(first_kw, ensure_ascii=False)
+    prompt = f"""你是關鍵詞規範助手，服務澳門綜合度假村／博企負面輿情監測。
+
+使用者把「關鍵字列表的第一段」當成**監測主體（品牌／物業／營運方）**的候選。候選已去掉常見尾部用語（如避雷、攻略）。
+
+請判斷：候選是否指**澳門或大灣區旅遊語境下可辨識的**博企、綜合度假村、旗下酒店／物業／娛樂場品牌之**名稱或常用簡稱**？
+
+- 若是：use_default_wynn 為 false，subject 填**簡短繁體中文**主體名（≤40 字，可含少量英文如 Wynn、Galaxy；勿輸出解釋句）。
+- 若否（純泛詞、過短無所指、與酒店博企無關的日常詞、無法對應營運主體）：use_default_wynn 為 true，subject 為 null。
+
+只輸出一個 JSON 對象，不要 Markdown、不要其它文字。
+格式：{{"use_default_wynn":true或false,"subject":"繁體短語或null"}}
+
+候選（去尾後）：{core_j}
+第一個關鍵詞原文：{kw_j}
+"""
+    try:
+        resp = client.chat.completions.create(
+            model=DEEPSEEK_JSON_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=220,
+        )
+        raw = (resp.choices[0].message.content or "").strip()
+        obj = _parse_llm_json_object(raw)
+        if not obj:
+            return None
+        use_def = obj.get("use_default_wynn")
+        if use_def is True or str(use_def).lower() == "true":
+            return (_NM_DEFAULT_MONITOR_SUBJECT, True)
+        subj = obj.get("subject")
+        if subj is None:
+            return (_NM_DEFAULT_MONITOR_SUBJECT, True)
+        s = str(subj).strip()
+        if not s or s.lower() == "null":
+            return (_NM_DEFAULT_MONITOR_SUBJECT, True)
+        return (_nm_sanitize_monitor_subject_label(s), False)
+    except Exception as e:
+        print(f"⚠️ _nm_deepseek_refine_monitor_subject: {e}")
+        return None
+
+
+def _nm_effective_monitor_subject(first_kw: str) -> tuple[str, bool]:
+    """
+    回傳 (prompt 內使用的監測主體短語, 是否為預設永利)。
+    先啟發式；通過後可選擇再經 LLM 校驗（見 _nm_deepseek_refine_monitor_subject）。
+    """
+    k = (first_kw or "").strip()
+    if not k:
+        return _NM_DEFAULT_MONITOR_SUBJECT, True
+    t = _NM_SUBJECT_TAIL_RE.sub("", k).strip()
+    core = t if t else k
+    if core.lower() in _NM_GENERIC_SUBJECT_TOKENS or len(core) < 2:
+        return _NM_DEFAULT_MONITOR_SUBJECT, True
+    refined = _nm_deepseek_refine_monitor_subject(k, core)
+    if refined is not None:
+        return refined
+    return _nm_sanitize_monitor_subject_label(core), False
+
+
+def _deepseek_score_negative_monitor(
+    items: list[dict], monitor_subject: str = "", monitor_subject_is_default: bool = True
+) -> list[dict]:
     if not items:
         return []
     lines = []
@@ -3423,12 +3539,21 @@ def _deepseek_score_negative_monitor(items: list[dict]) -> list[dict]:
         pid = it.get("id") or ""
         blob = f"{it.get('title') or ''}\n{it.get('body') or ''}\n【評論摘錄】{it.get('comments_sample') or '無'}"[:1200]
         lines.append(f"### post_id={pid}\n{blob}")
-    prompt = """你是澳門博企公關風險分析助手。以下每條均為社交媒體（微博、小紅書等）上與「永利／永利皇宮／Wynn」相關的貼文摘要（含部分評論）。
-請逐條判斷是否對「永利 Wynn」品牌有明顯負面影響或潛在輿情風險，例如：避雷吐槽、服務/衛生投訴、差評、惡性事件傳聞、可能造謠需警惕等。
-注意：單純打卡分享、中性攻略、正面種草、無關抱怨（未指向永利）應判為非負面。
+    subj = (monitor_subject or "").strip() or _NM_DEFAULT_MONITOR_SUBJECT
+    if monitor_subject_is_default:
+        scope_line = "以下每條均為社交媒體（微博、小紅書等）上與「永利／永利皇宮／Wynn」相關或可比的貼文摘要（含部分評論）。"
+        focus_line = f"請逐條判斷是否對「{subj}」品牌有明顯負面影響或潛在輿情風險，例如：避雷吐槽、服務/衛生投訴、差評、惡性事件傳聞、可能造謠需警惕等。"
+        neutral_line = "注意：單純打卡分享、中性攻略、正面種草、無關抱怨（未指向永利或其物業）應判為非負面。"
+    else:
+        scope_line = f"以下每條均為社交媒體上與本次監測主體「{subj}」相關或可能影響該主體輿情的貼文摘要（含部分評論）。"
+        focus_line = f"請逐條判斷是否對「{subj}」及其對應品牌／物業／營運實體有明顯負面影響或潛在輿情風險，例如：避雷吐槽、服務/衛生投訴、差評、惡性事件傳聞、可能造謠需警惕等。"
+        neutral_line = f"注意：單純打卡分享、中性攻略、正面種草、無關抱怨（未指向「{subj}」或其物業）應判為非負面。"
+    prompt = f"""你是澳門博企公關風險分析助手。{scope_line}
+{focus_line}
+{neutral_line}
 
 只輸出一段 JSON：要麼是數組，要麼是對象且含 "items" 數組，不要其它文字、不要 Markdown。示例數組：
-[{"post_id":"與上文一致","negative":false,"severity":0,"reason":"繁體短句","triggers":[],"summary":"網友分享永利皇宮住宿體驗，提及房間整潔與服務態度尚可，整體屬中性打卡性質。"}]
+[{{"post_id":"與上文一致","negative":false,"severity":0,"reason":"繁體短句","triggers":[],"summary":"網友分享住宿體驗，語氣中性，屬一般打卡。"}}]
 其中 severity: 0=無負面 1=輕微情緒 2=明確負面 3=嚴重/安全法律敏感
 post_id 必須與 ### 行完全一致。
 另請輸出 summary：使用繁體中文，約30～40 字概括貼文核心（供列表展示；必要時可略多，但不要超過 55 字）；勿與 reason 重複長句，可填中性短語如「一般打卡分享」。
@@ -3456,8 +3581,12 @@ NEGATIVE_MONITOR_FETCH_CAP = max(1, min(20000, int(os.environ.get("NEGATIVE_MONI
 NEGATIVE_MONITOR_AI_BATCH = max(2, min(12, int(os.environ.get("NEGATIVE_MONITOR_AI_BATCH", "8"))))
 NEGATIVE_MONITOR_PHASE2_RECENT = max(1, min(500, int(os.environ.get("NEGATIVE_MONITOR_PHASE2_RECENT", "100"))))
 
-
-def _nm_run_ai_batches(ai_candidates: list, bs: int) -> list:
+def _nm_run_ai_batches(
+    ai_candidates: list,
+    bs: int,
+    monitor_subject: str = "",
+    monitor_subject_is_default: bool = True,
+) -> list:
     ai_flat: list[dict] = []
     if not ai_candidates:
         return ai_flat
@@ -3472,7 +3601,11 @@ def _nm_run_ai_batches(ai_candidates: list, bs: int) -> list:
             }
             for c in chunk
         ]
-        part = _deepseek_score_negative_monitor(payload)
+        part = _deepseek_score_negative_monitor(
+            payload,
+            monitor_subject=monitor_subject,
+            monitor_subject_is_default=monitor_subject_is_default,
+        )
         by_pid = {
             str(h.get("post_id")): h
             for h in part
@@ -3636,6 +3769,7 @@ async def negative_monitor_analyze(
     ai_max: int = 60,
     batch_size: int = 8,
     source: str = "xhs",
+    keywords: str = "",
 ):
     src = _normalize_negative_monitor_source(source)
     if not src:
@@ -3644,6 +3778,7 @@ async def negative_monitor_analyze(
             "hint": f"不支持的 source，可選：{', '.join(NEGATIVE_MONITOR_SOURCES)}",
             "supported_sources": list(NEGATIVE_MONITOR_SOURCES),
         }
+    mon_subj, mon_def = _nm_effective_monitor_subject(_nm_first_keyword_from_csv(keywords))
 
     ph = int(phase)
     cap = min(int(limit), NEGATIVE_MONITOR_FETCH_CAP) if int(limit) > 0 else NEGATIVE_MONITOR_FETCH_CAP
@@ -3694,6 +3829,8 @@ async def negative_monitor_analyze(
         "ai_updates": [],
         "ai_flagged": [],
         "hint": "無數據。可先 POST /api/v2/negative-monitor/crawl（帶 source=xhs|weibo|ig|fb），或調整時間範圍。",
+        "monitor_subject": mon_subj,
+        "monitor_subject_is_default": mon_def,
     }
     if df.empty:
         return empty
@@ -3749,6 +3886,8 @@ async def negative_monitor_analyze(
                 "ai_updates": [],
                 "ai_flagged": [],
                 "message_en": "Step 2 skipped: every loaded post had lexicon hits (Step 1 already sent those to AI).",
+                "monitor_subject": mon_subj,
+                "monitor_subject_is_default": mon_def,
             }
 
         recent = eligible[off : off + n]
@@ -3773,10 +3912,12 @@ async def negative_monitor_analyze(
                 "ai_updates": [],
                 "ai_flagged": [],
                 "message_en": "No more Step-2-eligible posts (no lexicon hits) in this range for the current offset.",
+                "monitor_subject": mon_subj,
+                "monitor_subject_is_default": mon_def,
             }
 
         if int(use_ai):
-            ai_flat = _nm_run_ai_batches(recent, bs)
+            ai_flat = _nm_run_ai_batches(recent, bs, mon_subj, mon_def)
         else:
             ai_flat = []
         by_pid_ai = {a["post_id"]: dict(a) for a in ai_flat}
@@ -3808,11 +3949,13 @@ async def negative_monitor_analyze(
                 f"batch rank #{off + 1}–{off + len(recent)} of {len(eligible)} eligible (newest first). "
                 f"{'No further Step-2 batches.' if exhausted else 'Click Step 2 again for the next 100 eligible posts.'}"
             ),
+            "monitor_subject": mon_subj,
+            "monitor_subject_is_default": mon_def,
         }
 
     ai_candidates = [x for x in built if x["lexicon_hits"]]
     if int(use_ai):
-        ai_flat = _nm_run_ai_batches(ai_candidates, bs)
+        ai_flat = _nm_run_ai_batches(ai_candidates, bs, mon_subj, mon_def)
     else:
         ai_flat = []
     neg_by_pid = {a["post_id"]: a for a in ai_flat}
@@ -3842,6 +3985,8 @@ async def negative_monitor_analyze(
                 f"Loaded {len(built)} {src} posts in range; none hit the monitoring lexicon. "
                 "Table lists lexicon hits only — empty. Use Step 2 for full AI on posts without lexicon hits."
             ),
+            "monitor_subject": mon_subj,
+            "monitor_subject_is_default": mon_def,
         }
 
     return {
@@ -3860,6 +4005,8 @@ async def negative_monitor_analyze(
             f"Step 1 ({src}): {len(built)} posts loaded in range, {len(lex_rows)} with lexicon hits (table shows these only). "
             "Step 2: full AI on posts with no lexicon hits, up to 100 per click (same logic as XHS)."
         ),
+        "monitor_subject": mon_subj,
+        "monitor_subject_is_default": mon_def,
     }
 
 
