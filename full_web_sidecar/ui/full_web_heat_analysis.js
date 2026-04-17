@@ -352,6 +352,40 @@ function getClusterDisplayText(item, fallback = "") {
   return String(item?.cluster_key_display || item?.cluster_key || fallback).trim();
 }
 
+function getTopicInsight(item) {
+  return {
+    summary: String(item?.topic_summary || "").trim(),
+    hotPoint: String(item?.topic_hot_point || "").trim(),
+    angle: String(item?.topic_representative_angle || "").trim(),
+  };
+}
+
+function buildMergedTopicInsightText(item) {
+  const insight = getTopicInsight(item);
+  const parts = [];
+
+  if (insight.summary) {
+    parts.push(insight.summary);
+  }
+  if (insight.hotPoint) {
+    parts.push(`最热在聊：${insight.hotPoint}`);
+  }
+  if (insight.angle) {
+    parts.push(`常见角度：${insight.angle}`);
+  }
+
+  return parts.join(" · ");
+}
+
+function renderTopicInsightBlock(item) {
+  const mergedText = buildMergedTopicInsightText(item);
+  if (!mergedText) {
+    return "";
+  }
+
+  return `<div class="topic-insight-merged">${clipText(mergedText, 260)}</div>`;
+}
+
 function isMonthlyMode() {
   return state.windowMode === "monthly";
 }
@@ -1250,6 +1284,11 @@ function renderOverview(items) {
     const totalPosts = items.reduce((sum, item) => sum + Number(item.post_count || 0), 0);
     const averagePerPost = totalPosts > 0 ? Math.round(totalEngagement / totalPosts) : 0;
     const topItem = items[0];
+    const topItemSubHtml = topItem
+      ? `<span class="overview-heat-flames">${getHeatTone(Number(topItem.heat_score || 0)).flames}</span><span>Heat ${formatScore(
+          topItem.heat_score
+        )} / 100</span>`
+      : "";
     const cards = [
       {
         key: "platform",
@@ -1273,11 +1312,7 @@ function renderOverview(items) {
         key: "top-title",
         label: state.boardType === "topic" ? "Top Topic" : "Top Event",
         value: clipText(getClusterDisplayText(topItem, "No cluster"), 34),
-        subHtml: topItem
-          ? `<span class="overview-heat-flames">${getHeatTone(Number(topItem.heat_score || 0)).flames}</span><span>Heat ${formatScore(
-              topItem.heat_score
-            )} / 100</span>`
-          : "",
+        subHtml: topItemSubHtml,
       },
       {
         key: "engagement",
@@ -1321,6 +1356,11 @@ function renderOverview(items) {
   const totalPosts = items.reduce((sum, item) => sum + Number(item.post_count || 0), 0);
   const averagePerPost = totalPosts > 0 ? Math.round(totalEngagement / totalPosts) : 0;
   const topItem = items[0];
+  const topItemSubHtml = topItem
+    ? `<span class="overview-heat-flames">${getHeatTone(Number(topItem.heat_score || 0)).flames}</span><span>Heat ${formatScore(
+        topItem.heat_score
+      )} / 100</span>`
+    : "";
   const cards = [
     {
       key: "platform",
@@ -1344,11 +1384,7 @@ function renderOverview(items) {
       key: "top-title",
       label: state.boardType === "topic" ? "Top Topic" : "Top Event",
       value: clipText(getClusterDisplayText(topItem, "No cluster"), 34),
-      subHtml: topItem
-        ? `<span class="overview-heat-flames">${getHeatTone(Number(topItem.heat_score || 0)).flames}</span><span>Heat ${formatScore(
-            topItem.heat_score
-          )} / 100</span>`
-        : "",
+      subHtml: topItemSubHtml,
     },
     {
       key: "engagement",
@@ -1401,13 +1437,18 @@ function renderLeaderboard(items) {
   elements.leaderboardCounter.textContent = `${formatNumber(items.length)} rows`;
   items.forEach((item, index) => {
     const tone = getHeatTone(Number(item.heat_score || 0));
+    const insight = getTopicInsight(item);
     const row = document.createElement("tr");
     row.className = "leaderboard-row-focus";
     row.tabIndex = 0;
+    if (state.boardType === "topic" && (insight.summary || insight.hotPoint || insight.angle)) {
+      row.title = buildMergedTopicInsightText(item);
+    }
     row.innerHTML = `
       <td class="leaderboard-rank-cell"><span class="rank-pill">${index + 1}</span></td>
       <td class="heat-title-cell">
         <strong>${getClusterDisplayText(item, item.cluster_key || "")}</strong>
+        ${state.boardType === "topic" ? renderTopicInsightBlock(item) : ""}
       </td>
       <td class="leaderboard-metric-cell">${PLATFORM_LABELS[item.platform] || item.platform || "-"}</td>
       <td class="leaderboard-metric-cell">${formatNumber(item.post_count)}</td>
@@ -1455,14 +1496,18 @@ function syncLeaderboardCopy() {
   if (isQuarterlyMode()) {
     elements.leaderboardTitle.textContent = `Quarterly ${getBoardTypeLabel()} Leaderboard`;
     if (elements.leaderboardSubtitle) {
-      elements.leaderboardSubtitle.textContent = "";
+      elements.leaderboardSubtitle.textContent =
+        state.boardType === "topic"
+          ? "Each topic row now shows one merged summary that combines the overall topic, the hottest discussion point, and the typical angle."
+          : "";
     }
     return;
   }
   if (state.boardType === "topic") {
     elements.leaderboardTitle.textContent = "Topic Leaderboard";
     if (elements.leaderboardSubtitle) {
-      elements.leaderboardSubtitle.textContent = "";
+      elements.leaderboardSubtitle.textContent =
+        "Each topic row now shows one merged summary that combines the overall topic, the hottest discussion point, and the typical angle.";
     }
     return;
   }

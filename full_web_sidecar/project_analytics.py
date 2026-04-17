@@ -22,6 +22,7 @@ from .helpers.build_weibo_heat_analysis import (
     load_event_alias_registry,
     load_event_parent_registry,
     load_organizer_registry,
+    scale_heat_scores,
 )
 from .helpers.rewrite_search_ready import (
     build_analysis_content,
@@ -69,10 +70,73 @@ PLATFORM_LABELS = {
     "wb": "Weibo",
     "fb": "Facebook",
 }
+
+TOPIC_INSIGHT_PRESETS: dict[str, dict[str, str]] = {
+    "澳门住宿与拼房": {
+        "summary": "围绕酒店入住、房型房价、住店体验和度假村场景展开，帖子常顺带出现招聘、表演和酒店日常信息。",
+        "hot_point": "当前热帖偏向永利、美高梅等酒店住店体验，以及新濠天地、新濠影汇一类的度假村活动和招聘信息。",
+        "representative_angle": "多是来澳门住一晚、顺路参加酒店活动或比较住宿体验的人在分享见闻。",
+    },
+    "澳门通关与交通": {
+        "summary": "主要在讲口岸过关、发财车、接驳车、高铁/巴士、打车和到场馆的路线衔接。",
+        "hot_point": "最常被问的是怎么最快从口岸进城、怎么把酒店和景点/演出路线接起来。",
+        "representative_angle": "典型内容是实用攻略，重点放在省时间、少踩坑和路线安排。",
+    },
+    "澳门景点打卡与旅行攻略": {
+        "summary": "集中在威尼斯人、巴黎人、伦敦人、官也街、摩天轮、贡多拉船这些标志性地点的打卡和自由行路线。",
+        "hot_point": "最热的是景点顺序、拍照点，以及一日游或两日游该怎么排最顺。",
+        "representative_angle": "多是和家人朋友来澳门玩的人在分享路线、照片和游玩体验。",
+    },
+    "澳门美食体验": {
+        "summary": "围绕自助餐、下午茶、旋转餐厅、米其林/必比登餐厅和酒店餐饮优惠展开，核心是吃什么、值不值。",
+        "hot_point": "最热的是酒店自助餐优惠和高空餐厅体验，尤其关注有没有值得专程去吃的菜。",
+        "representative_angle": "典型帖子是试吃、推荐和限时优惠信息。",
+    },
+    "澳门购物与商场消费": {
+        "summary": "围绕商场逛街、免税、折扣、专柜和手信购买展开，偏消费和比价。",
+        "hot_point": "最热的是哪里打折、哪些品牌值得逛，以及买什么伴手礼最划算。",
+        "representative_angle": "多是顺路购物、打卡商场或带货式分享。",
+    },
+    "澳门展览与艺术展陈": {
+        "summary": "围绕展览、博览会、艺术装置、快闪展和博物馆活动展开，偏看展和文化体验。",
+        "hot_point": "最热的是展览主题、现场装置和适不适合专门跑一趟。",
+        "representative_angle": "典型内容是现场照片、展陈细节和可打卡空间。",
+    },
+    "澳门体育赛事与观赛": {
+        "summary": "围绕乒乓球、篮球、足球、马拉松和各类锦标赛展开，内容多与赛事现场、选手和观赛体验有关。",
+        "hot_point": "最热的是具体比赛、明星选手/球队和场馆氛围。",
+        "representative_angle": "多是比赛现场、训练花絮和观赛打卡。",
+    },
+    "赴澳门看演出的行程讨论": {
+        "summary": "围绕去澳门看演出的行程安排、住宿、场馆和散场交通展开，重点是把观演前后衔接好。",
+        "hot_point": "最热的是演出当天住哪里、怎么去场馆、散场后怎么回口岸。",
+        "representative_angle": "典型内容是粉丝攻略、应援安排和现场观演记录。",
+    },
+    "澳门抢票与票务规则": {
+        "summary": "围绕演出和活动开票、票务平台、实名制和抢票节奏展开，核心是怎么顺利拿到票。",
+        "hot_point": "最热的是开票时间、票源紧张、补票/加场消息和实名制卡点。",
+        "representative_angle": "多是求票、问规则和交流购票经验。",
+    },
+    "澳门博彩与赌场话题": {
+        "summary": "围绕赌场、博彩、贵宾厅、赢钱/输钱和相关社会话题展开，偏行业观察或争议讨论。",
+        "hot_point": "最热的是赌场体验、博彩相关消息，以及资金、借款、欠款类内容。",
+        "representative_angle": "典型内容可能是行业观察、传闻讨论或带情绪的吐槽。",
+    },
+    "澳门娱乐活动讨论": {
+        "summary": "围绕演出、游行、节庆和大型活动动态展开，很多帖子会关注阵容、现场气氛和活动变化。",
+        "hot_point": "最热的是活动官宣、现场阵容、临时取消或改期，以及人流和舞台氛围。",
+        "representative_angle": "多是追现场、转发活动消息，或者记录舞台和游行现场。",
+    },
+    "泛澳门讨论": {
+        "summary": "内容比较杂，既包含澳门相关日常，也混有转发、感想、品牌内容和难以归类的话题。",
+        "hot_point": "最热的点通常不稳定，更多是零散提到澳门或相关人事物。",
+        "representative_angle": "适合作为兜底集合，不代表单一明确主题。",
+    },
+}
 FULL_WEB_ANALYSIS_FLOOR_DATE = date(2026, 1, 1)
 FULL_WEB_HEAT_SCORE_SCALE = 10.0
 FULL_WEB_HEAT_SCALE_META_KEY = "full_web_heat_score_scale"
-FULL_WEB_HEAT_SCALE_META_VALUE = "0_100_v1"
+FULL_WEB_HEAT_SCALE_META_VALUE = "0_100_v3_scaled"
 FULL_WEB_HEAT_WEIGHT_ENGAGEMENT = 0.45
 FULL_WEB_HEAT_WEIGHT_DISCUSSION = 0.25
 FULL_WEB_HEAT_WEIGHT_DIVERSITY = 0.15
@@ -175,6 +239,7 @@ def compute_full_web_heat_score(
     diversity_component: float,
     velocity_component: float,
 ) -> float:
+    """Return the raw weighted score before per-table 0-100 scaling."""
     weighted_score = (
         float(engagement_component) * FULL_WEB_HEAT_WEIGHT_ENGAGEMENT
         + float(discussion_component) * FULL_WEB_HEAT_WEIGHT_DISCUSSION
@@ -1744,6 +1809,7 @@ class ProjectAnalyticsService:
                 clusters=outputs["event_clusters"],
                 extracted_at=extracted_at,
             )
+            scale_heat_scores(cluster_rows)
             if cluster_rows:
                 conn.executemany(
                     """
@@ -1839,6 +1905,7 @@ class ProjectAnalyticsService:
                 clusters=outputs["topic_clusters"],
                 extracted_at=extracted_at,
             )
+            scale_heat_scores(topic_cluster_rows)
             if topic_cluster_rows:
                 conn.executemany(
                     """
@@ -2040,6 +2107,7 @@ class ProjectAnalyticsService:
                 week_start=week_start,
                 week_end=week_end,
             )
+            scale_heat_scores(weekly_event_cluster_rows)
             if weekly_event_cluster_rows:
                 conn.executemany(
                     """
@@ -2072,6 +2140,7 @@ class ProjectAnalyticsService:
                 week_start=week_start,
                 week_end=week_end,
             )
+            scale_heat_scores(weekly_topic_cluster_rows)
             if weekly_topic_cluster_rows:
                 conn.executemany(
                     """
@@ -2231,6 +2300,7 @@ class ProjectAnalyticsService:
                 month_start=month_start,
                 month_end=month_end,
             )
+            scale_heat_scores(monthly_event_cluster_rows)
             if monthly_event_cluster_rows:
                 conn.executemany(
                     """
@@ -2264,6 +2334,7 @@ class ProjectAnalyticsService:
                 month_start=month_start,
                 month_end=month_end,
             )
+            scale_heat_scores(monthly_topic_cluster_rows)
             if monthly_topic_cluster_rows:
                 conn.executemany(
                     """
@@ -2657,6 +2728,7 @@ class ProjectAnalyticsService:
             for item in items:
                 grouped.setdefault(str(item.get("cluster_key") or ""), []).append(item)
             items = [self._aggregate_cluster_group(group_rows, cluster_key) for cluster_key, group_rows in grouped.items()]
+            scale_heat_scores(items)
             items.sort(key=lambda item: (-float(item.get("heat_score") or 0.0), str(item.get("cluster_key") or "")))
 
         items = self._apply_cluster_feedback(
@@ -2668,6 +2740,7 @@ class ProjectAnalyticsService:
             month_key=month_key,
             quarter_key=quarter_key,
         )
+        scale_heat_scores(items)
         total = len(items)
         items = items[safe_offset : safe_offset + safe_limit]
 
@@ -2791,6 +2864,7 @@ class ProjectAnalyticsService:
             for item in items:
                 grouped.setdefault(str(item.get("cluster_key") or ""), []).append(item)
             items = [self._aggregate_cluster_group(group_rows, cluster_key) for cluster_key, group_rows in grouped.items()]
+            scale_heat_scores(items)
             items.sort(key=lambda item: (-float(item.get("heat_score") or 0.0), str(item.get("cluster_key") or "")))
 
         items = self._apply_cluster_feedback(
@@ -2802,6 +2876,9 @@ class ProjectAnalyticsService:
             month_key=month_key,
             quarter_key=quarter_key,
         )
+        scale_heat_scores(items)
+        for item in items:
+            item.update(self._build_topic_insight(item))
         total = len(items)
         items = items[safe_offset : safe_offset + safe_limit]
 
@@ -2943,6 +3020,7 @@ class ProjectAnalyticsService:
                     cluster_params,
                 ).fetchall()
                 summary_row = self._aggregate_cluster_summary_rows(summary_rows, canonical_cluster_key)
+                scale_heat_scores([summary_row])
 
                 extracted_filters = []
                 extracted_params: list[Any] = [normalized_platform, *aliases, *aliases]
@@ -3856,6 +3934,7 @@ class ProjectAnalyticsService:
             grouped.setdefault(canonical_key, []).append(row)
 
         merged_rows = [self._aggregate_cluster_group(group_rows, cluster_key) for cluster_key, group_rows in grouped.items()]
+        scale_heat_scores(merged_rows)
         merged_rows.sort(key=lambda item: (-float(item.get("heat_score") or 0.0), str(item.get("cluster_key") or "")))
         return merged_rows
 
@@ -3923,6 +4002,15 @@ class ProjectAnalyticsService:
             "discussion_total": sum(int(row.get("discussion_total") or 0) for row in normalized_rows),
             "post_count": sum(int(row.get("post_count") or 0) for row in normalized_rows),
             "unique_authors": sum(int(row.get("unique_authors") or 0) for row in normalized_rows),
+        }
+
+    def _build_topic_insight(self, row: dict[str, Any]) -> dict[str, str]:
+        cluster_key = str(row.get("cluster_key") or "").strip()
+        insight = TOPIC_INSIGHT_PRESETS.get(cluster_key) or TOPIC_INSIGHT_PRESETS["泛澳门讨论"]
+        return {
+            "topic_summary": insight.get("summary", ""),
+            "topic_hot_point": insight.get("hot_point", ""),
+            "topic_representative_angle": insight.get("representative_angle", ""),
         }
 
     def _load_event_ready_rows(
@@ -5061,42 +5149,88 @@ class ProjectAnalyticsService:
             "monthly_event_clusters",
             "monthly_topic_clusters",
         )
+
+        def raw_heat_score(row: sqlite3.Row) -> float:
+            return (
+                (
+                    float(row["engagement_component"] or 0.0) * FULL_WEB_HEAT_WEIGHT_ENGAGEMENT
+                    + float(row["discussion_component"] or 0.0) * FULL_WEB_HEAT_WEIGHT_DISCUSSION
+                    + float(row["diversity_component"] or 0.0) * FULL_WEB_HEAT_WEIGHT_DIVERSITY
+                    + float(row["velocity_component"] or 0.0) * FULL_WEB_HEAT_WEIGHT_VELOCITY
+                )
+                * FULL_WEB_HEAT_SCORE_SCALE
+            )
+
         for table_name in cluster_tables:
-            row = conn.execute(
-                f"SELECT COUNT(*) AS row_count, MAX(heat_score) AS max_heat_score FROM {table_name}"
-            ).fetchone()
-            if not row or int(row["row_count"] or 0) == 0:
-                continue
-            sample_row = conn.execute(
+            rows = conn.execute(
                 f"""
-                SELECT heat_score, engagement_component, discussion_component, diversity_component, velocity_component
+                SELECT *
                 FROM {table_name}
-                WHERE ABS(heat_score) > 0.0001
-                   OR ABS(engagement_component) > 0.0001
+                WHERE ABS(engagement_component) > 0.0001
                    OR ABS(discussion_component) > 0.0001
                    OR ABS(diversity_component) > 0.0001
                    OR ABS(velocity_component) > 0.0001
-                LIMIT 1
+                   OR ABS(heat_score) > 0.0001
                 """
-            ).fetchone()
-            if sample_row:
-                expected_scaled_score = compute_full_web_heat_score(
-                    float(sample_row["engagement_component"] or 0.0),
-                    float(sample_row["discussion_component"] or 0.0),
-                    float(sample_row["diversity_component"] or 0.0),
-                    float(sample_row["velocity_component"] or 0.0),
+            ).fetchall()
+            if not rows:
+                continue
+
+            raw_scores = [raw_heat_score(row) for row in rows]
+            max_raw = max(raw_scores)
+            scale = 100.0 / max_raw if max_raw > 100.0 else 1.0
+
+            update_rows: list[tuple[float, ...]] = []
+            if table_name in {"event_clusters", "topic_clusters"}:
+                for row, raw_score in zip(rows, raw_scores):
+                    update_rows.append(
+                        (
+                            round(raw_score * scale, 4),
+                            row["platform"],
+                            row["cluster_key"],
+                        )
+                    )
+                conn.executemany(
+                    f"UPDATE {table_name} SET heat_score = ? WHERE platform = ? AND cluster_key = ?",
+                    update_rows,
                 )
-                current_score = float(sample_row["heat_score"] or 0.0)
-                already_scaled = abs(current_score - expected_scaled_score) <= 0.05
-                legacy_scaled = abs((current_score * FULL_WEB_HEAT_SCORE_SCALE) - expected_scaled_score) <= 0.05
-                if already_scaled:
-                    continue
-                if not legacy_scaled:
-                    continue
-            conn.execute(
-                f"UPDATE {table_name} SET heat_score = ROUND(heat_score * ?, 4)",
-                (FULL_WEB_HEAT_SCORE_SCALE,),
-            )
+            elif table_name in {"weekly_event_clusters", "weekly_topic_clusters"}:
+                for row, raw_score in zip(rows, raw_scores):
+                    update_rows.append(
+                        (
+                            round(raw_score * scale, 4),
+                            row["platform"],
+                            row["week_start"],
+                            row["week_end"],
+                            row["cluster_key"],
+                        )
+                    )
+                conn.executemany(
+                    f"""
+                    UPDATE {table_name}
+                    SET heat_score = ?
+                    WHERE platform = ? AND week_start = ? AND week_end = ? AND cluster_key = ?
+                    """,
+                    update_rows,
+                )
+            else:
+                for row, raw_score in zip(rows, raw_scores):
+                    update_rows.append(
+                        (
+                            round(raw_score * scale, 4),
+                            row["platform"],
+                            row["month_key"],
+                            row["cluster_key"],
+                        )
+                    )
+                conn.executemany(
+                    f"""
+                    UPDATE {table_name}
+                    SET heat_score = ?
+                    WHERE platform = ? AND month_key = ? AND cluster_key = ?
+                    """,
+                    update_rows,
+                )
 
         self._set_meta_value(conn, FULL_WEB_HEAT_SCALE_META_KEY, FULL_WEB_HEAT_SCALE_META_VALUE)
 

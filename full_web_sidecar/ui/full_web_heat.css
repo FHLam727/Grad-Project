@@ -1184,6 +1184,14 @@ button.ghost-button-link:disabled {
   line-height: 1.45;
 }
 
+.topic-insight-merged {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: rgba(15, 23, 42, 0.74);
+  word-break: break-word;
+}
+
 .leaderboard-title-focus {
   display: inline-flex;
   align-items: center;
@@ -3624,6 +3632,20 @@ body.report-body {
 .overview-rich-sub {
   margin-top: 8px;
   font-size: 11px;
+}
+
+.overview-topic-summary {
+  display: block;
+  margin-top: 6px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: rgba(15, 23, 42, 0.72);
+}
+
+.topic-insight-merged {
+  margin-top: 7px;
+  font-size: 10px;
+  line-height: 1.5;
 }
 
 .heat-table-frame {

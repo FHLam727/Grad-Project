@@ -75,7 +75,6 @@ TOPIC_TO_DASHBOARD_CATEGORY = {
     "澳门博彩与赌场话题": "entertainment",
     "澳门娱乐活动讨论": "entertainment",
 }
-
 NON_DASHBOARD_TOPIC_KEYS = {
     "泛澳门讨论",
     "低信息量泛澳门表达",
@@ -1767,6 +1766,23 @@ def compute_cluster_heat(rows: list[dict[str, Any]], latest_ts: int) -> dict[str
     }
 
 
+def scale_heat_scores(rows: list[dict[str, Any]], *, score_key: str = "heat_score") -> float:
+    """Scale a leaderboard slice so its highest score becomes 100 when needed."""
+    if not rows:
+        return 1.0
+
+    max_score = max(float(row.get(score_key) or 0.0) for row in rows)
+    if max_score <= 0:
+        for row in rows:
+            row[score_key] = round(float(row.get(score_key) or 0.0), 4)
+        return 1.0
+
+    scale = 100.0 / max_score if max_score > 100.0 else 1.0
+    for row in rows:
+        row[score_key] = round(float(row.get(score_key) or 0.0) * scale, 4)
+    return scale
+
+
 def summarize_dashboard_category(
     rows: list[dict[str, Any]],
     *,
@@ -2100,6 +2116,9 @@ def build_heat_outputs(
         cluster_field="primary_topic",
         latest_ts=latest_ts,
     )
+
+    scale_heat_scores(event_clusters)
+    scale_heat_scores(topic_clusters)
 
     return {
         "posts": enriched_posts,

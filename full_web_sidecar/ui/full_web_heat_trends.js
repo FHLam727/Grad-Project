@@ -735,7 +735,7 @@ function renderHeatFocusCard(summary) {
     <p class="eyebrow">${isQuarterlyMode() ? "Quarter Heat Score" : "Final Heat Score"}</p>
     <h3>${getClusterDisplayText(summary, "-")}</h3>
     <div class="trend-heat-score">${formatScore(summary.heat_score || 0)}</div>
-    <p class="helper-copy">Normalized to a 0-100 scale for easier comparison across windows.</p>
+    <p class="helper-copy">Linearly scaled to a 0-100 leaderboard scale for easier comparison across windows.</p>
   `;
 }
 
