@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from openai import OpenAI
 from collections import defaultdict
 from db_manager import query_db_by_filters, get_ops_needing_crawl, backfill_event_dates, DB_PATH, query_fb_negative_monitor, query_ig_negative_monitor, query_weibo_negative_monitor, query_xhs_negative_monitor
-from task_manager import run_task_master, run_fb_negative_monitor_crawl, run_ig_negative_monitor_crawl, run_weibo_negative_monitor_crawl, run_xhs_negative_monitor_crawl ,XHS_NEGATIVE_MONITOR_DEFAULT_KEYWORDS, WEIBO_NEGATIVE_MONITOR_DEFAULT_KEYWORDS, IG_NEGATIVE_MONITOR_DEFAULT_KEYWORDS, FB_NEGATIVE_MONITOR_DEFAULT_KEYWORDS)
+from task_manager import run_task_master, run_fb_negative_monitor_crawl, run_ig_negative_monitor_crawl, run_weibo_negative_monitor_crawl, run_xhs_negative_monitor_crawl ,XHS_NEGATIVE_MONITOR_DEFAULT_KEYWORDS, WEIBO_NEGATIVE_MONITOR_DEFAULT_KEYWORDS, IG_NEGATIVE_MONITOR_DEFAULT_KEYWORDS, FB_NEGATIVE_MONITOR_DEFAULT_KEYWORDS
 import threading
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
@@ -1382,7 +1382,8 @@ async def api_footfall_event_allocate(payload: dict):
     allowed = _footfall_enumerate_dates(from_date, to_date)
     if len(allowed) > 150:
         return {"ok": False, "message": "日期範圍過長（最多 150 天）"}
-     allowed_set = set(allowed)
+    
+    allowed_set = set(allowed)
 
     footfall_dir = BRIDGE_ROOT / "footfall"
     # 默認 fast：逐日 CSV 连续变量 + Prophet，不调 DeepSeek。

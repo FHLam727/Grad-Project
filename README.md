@@ -1,322 +1,105 @@
-# 澳門活動監察系統
+# Macau Resort Analytics Platform
 
-爬取澳門六大運營商（永利、金沙、銀河、美高梅、新濠、葡京）及政府旅遊局的 XHS、微博、Instagram、Facebook 官方帳號，自動分類活動並透過介面展示，支援熱度排行與 AI 活動摘要。
+Demo video: [Watch the walkthrough on YouTube](https://youtu.be/6tE8i1ilmtg)
 
----
+This project addresses a practical data problem: event and campaign information from major Macau casino resort operators and related government accounts is spread across Xiaohongshu, Weibo, Instagram, and Facebook, where content formats differ by platform, the same event may appear multiple times, and key details are sometimes embedded in promotional images rather than captions. As a result, manual tracking, comparison, and reporting can be time-consuming and inconsistent.
 
-## 前置條件
+The system brings these sources into a single workflow by collecting posts across platforms, standardizing them into a shared structure, extracting additional event information from images with OCR, and grouping similar posts into event-level records. Building on that pipeline, it provides an operation panel, heat leaderboard, negative monitor, report export functions, trend views, and footfall forecasting, so that users can review, filter, rank, monitor, and analyze activity within one system rather than working directly from fragmented platform feeds.
 
-- 已安裝並設定好 [MediaCrawler](https://github.com/NanmiCoder/MediaCrawler)（XHS / 微博）
-- 已在 MediaCrawler 完成 XHS 同微博掃碼登入
-- 擁有有餘額的 [DeepSeek API Key](https://platform.deepseek.com)（活動分類與摘要）
-- 擁有 [Apify API Token](https://apify.com)（IG / FB 爬取）
-- 擁有 [阿里雲 DashScope API Key](https://dashscope.console.aliyun.com)（圖片 OCR 及文字 Embedding）
+From a business perspective, the project is designed to turn scattered promotional content into a more usable base for monitoring and review. Users can examine activity by operator, category, and date range, track which events are drawing more visible attention, monitor posts linked to negative keywords, export results for reporting, and use trend and forecasting functions to support period-based analysis.
 
----
+## Quick Start
 
-## 安裝步驟
+1. Configure the required API keys and environment variables.
+2. Make sure `macau_analytics.db` and `social_media_analytics.db` are in place.
+3. Start the application with `python bridge.py`.
+4. Open `http://127.0.0.1:9038` in a browser.
 
-### 1. Clone repo
+Example environment variables:
 
-```bash
-git clone https://github.com/FHLam727/Grad-Project.git
-```
-
-### 2. 將核心檔案複製入 MediaCrawler 根目錄
-
-```bash
-cp bridge.py db_manager.py task_manager.py post_normalizer.py \
-   media_analyzer.py heat_analyzer.py process_events.py \
-   trad_simp.py classifier_tester.py \
-   operation_panel.html heat_leaderboard_v2.html \
-   admin_page.html login_page.html \
-   macau_analytics.db negative_monitor.html \
-   /path/to/MediaCrawler/
-
-cp -R footfall /path/to/MediaCrawler/
-```
-
-### 3. 覆蓋 MediaCrawler 修改過的檔案
-
-```bash
-cp mediacrawler_patches/config/base_config.py /path/to/MediaCrawler/config/
-cp mediacrawler_patches/config/weibo_config.py /path/to/MediaCrawler/config/
-cp mediacrawler_patches/config/xhs_config.py /path/to/MediaCrawler/config/
-cp mediacrawler_patches/media_platform/weibo/client.py /path/to/MediaCrawler/media_platform/weibo/
-cp mediacrawler_patches/media_platform/weibo/core.py /path/to/MediaCrawler/media_platform/weibo/
-cp mediacrawler_patches/media_platform/xhs/login.py /path/to/MediaCrawler/media_platform/xhs/
-cp mediacrawler_patches/media_platform/xhs/core.py /path/to/MediaCrawler/media_platform/xhs/
-cp mediacrawler_patches/tools/negative_monitor_date.py /path/to/MediaCrawler/tools/
-```
-
-**改動摘要：**
-
-| 檔案 | 改動內容 |
-|------|----------|
-| `config/base_config.py` | `CRAWLER_MAX_NOTES_COUNT` 由 `15` 改為 `50`；`ENABLE_GET_IMAGES` 改為 `True` |
-| `media_platform/weibo/client.py` | `get_all_notes_by_creator()` 加入 `max_count` 上限 |
-| `media_platform/weibo/core.py` | 爬取時傳入 `config.CRAWLER_MAX_NOTES_COUNT`，改用固定 sleep interval |
-
-### 4. 安裝額外依賴
-
-```bash
-pip install -r requirements_extra.txt
-pip install openai python-dotenv httpx pillow opencc-python-reimplemented scikit-learn numpy
-```
-
-### 5. 設定 API Keys
-
-在 MediaCrawler 根目錄建立 `.env` 檔案：
-
-```
-DASHSCOPE_API_KEY=sk-xxxx        # 阿里雲 DashScope（圖片 OCR、Embedding）
-DEEPSEEK_API_KEY=sk-xxxx         # DeepSeek（活動分析與摘要）
+```env
+DASHSCOPE_API_KEY=your_dashscope_key
+DEEPSEEK_API_KEY=your_deepseek_key
 DEEPSEEK_BASE_URL=https://api.deepseek.com
-DB_PATH=C:/Users/user/MediaCrawler/macau_analytics.db
+APIFY_TOKEN=your_apify_token
+DB_PATH=C:/path/to/macau_analytics.db
+FULL_WEB_ANALYTICS_DB_PATH=C:/path/to/social_media_analytics.db
 ```
 
-打開 `task_manager.py`，換成自己的 Apify Token：
+## Key Capabilities
 
-```python
-APIFY_TOKEN = "你的TOKEN"
+The system supports cross-platform collection from Xiaohongshu, Weibo, Instagram, and Facebook, covering major Macau casino resort operators and selected government accounts. Collected posts are standardized into a shared dataset so that content from different platforms can be reviewed and analyzed in a more consistent way.
+
+To improve event-level visibility, the pipeline extracts text from promotional images with OCR and uses grouped event records instead of treating every post as a separate item. This helps surface duplicated promotions, missing caption details, and cross-platform activity more clearly. On top of that processed data, the system provides an operation panel for filtering by operator, category, and date range, a heat leaderboard for ranked event views, a negative monitor for keyword-based monitoring, report export functions, trend views for period-based analysis, and footfall forecasting as part of the broader analytics workflow.
+
+## System Workflow
+
+```mermaid
+flowchart LR
+    A["Xiaohongshu / Weibo / Instagram / Facebook"] --> B["Data Collection"]
+    B --> C["Normalization"]
+    C --> D["OCR Enrichment"]
+    D --> E["Event Grouping"]
+    E --> F["Heat Scoring and Monitoring"]
+    F --> G["Operation Panel / Leaderboard / Negative Monitor / Reports / Trend Views / Forecasting"]
 ```
 
----
+At a high level, the workflow starts with collecting posts across Xiaohongshu, Weibo, Instagram, and Facebook. The raw content is then cleaned and standardized into a shared structure, after which OCR is used to extract additional event details from images where necessary. Once the data is enriched, similar posts are grouped into event-level records so that duplicated promotions can be reviewed as single activities rather than separate posts.
 
-## 使用方式
+After grouping, the system calculates heat scores and prepares the processed data for dashboard views, monitoring functions, and reporting outputs. This allows users to move from raw platform posts to a more structured workflow for filtering, ranking, monitoring, exporting, and reviewing activity over time.
 
-### 啟動主服務
+## Repository Structure
 
-```bash
-python bridge.py
-```
+The repository is organized around several connected parts of the workflow. Core scripts such as `bridge.py`, `db_manager.py`, and `task_manager.py` handle API-facing logic, data access, orchestration, and monitoring workflows. Supporting scripts such as `media_analyzer.py`, `process_events.py`, and `heat_analyzer.py` handle OCR enrichment, event grouping, and heat-score generation, while the negative keyword monitor is supported through dedicated crawling, ingestion, and query flows for tracked keywords across platforms.
 
-服務預設運行於 `http://127.0.0.1:9038`，然後直接用瀏覽器打開 `operation_panel.html`。
+Other parts of the repository extend the same overall workflow. The `full_web_sidecar/` directory supports full-web heat analysis, trend views, and cluster-based analysis, while the `footfall/` directory supports forecasting-related analysis. The `data/` directory stores supporting databases and inputs, and `mediacrawler_patches/` contains project-specific crawler modifications used in data collection.
 
-### 圖片 OCR 分析（獨立執行）
+User-facing functionality is exposed through browser-based pages and views such as the operation panel, heat leaderboard, full-web heat analysis pages, negative monitor, login page, admin page, and report-related views. These pages provide the main entry points for reviewing processed activity, filtering results, monitoring tracked keywords, exploring trend outputs, and exporting results.
 
-```bash
-# 分析所有未處理帖文
-python media_analyzer.py --limit 100
+## Setup and Usage
 
-# 只做 dry-run 查看待處理列表
-python media_analyzer.py --dry-run
+The project depends on a local setup that combines this repository with crawler access, API keys, and SQLite databases. The main monitoring workflow uses `macau_analytics.db` for event records, processed posts, cached analysis results, and user-related data. A separate database, `social_media_analytics.db`, is used for the full-web heat analysis workflow. Some collection steps depend on a configured MediaCrawler environment for Xiaohongshu and Weibo, while external API services are used for OCR, embeddings, Instagram/Facebook data collection, event extraction, hot themes, and recommendations.
 
-# 清除失敗記錄並重新執行
-python media_analyzer.py --reset-failed --limit 100
-```
+After the required environment variables and dependencies are configured, the main application can be started through `bridge.py`, which serves the dashboard pages and API routes used by the operation panel, heat leaderboard, negative monitor, full-web analysis pages, and related views. Depending on the workflow being used, supporting scripts such as `media_analyzer.py`, `process_events.py`, and `heat_analyzer.py` can be run separately to enrich OCR text, group posts into event-level records, and calculate heat scores before reviewing the results in the interface.
 
-建議每次爬取新帖後執行一次 `media_analyzer.py`，補充圖片文字資料。
+Different parts of the system are used for different tasks, including data collection, processing, monitoring, review, and reporting.
 
-### 活動去重與聚類（獨立執行）
+## Data Model and Databases
 
-```bash
-# 對所有帖文按內容相似度去重，寫入 events_deduped 表
-python process_events.py --db macau_analytics.db
+The project uses SQLite as its main storage layer for both operational workflows and analysis outputs. The primary database, `macau_analytics.db`, supports the main monitoring system and stores collected event-related content, processed post records, grouped event records, cached analysis outputs, heat-related results, crawl logs, and user-related data used by the application interface.
 
-# 只處理特定運營商
-python process_events.py --db macau_analytics.db --operator wynn
+Within that workflow, raw and normalized social posts are stored separately so that content from different platforms can be cleaned, enriched, and reused in later stages of processing. OCR results, embeddings, grouped event records, heat scores, and cached outputs such as analysis results, hot themes, recommendations, and leaderboard-related data are also stored in the database so that the system does not need to recompute every step each time a user opens the interface.
 
-# 調整時間窗口（預設 90 天）
-python process_events.py --db macau_analytics.db --window 60
-```
+A separate database, `social_media_analytics.db`, is used for the full-web heat analysis workflow. This supports the trend, cluster, and broader review views exposed through the full-web analysis pages. Keeping that workflow in a separate database allows the project to support different analysis paths without mixing all outputs into the same store.
 
-### 熱度分析（獨立執行）
+## Limitations
 
-```bash
-# 計算所有活動熱度並寫入資料庫
-python heat_analyzer.py
+Several limitations should be acknowledged, as they may affect data completeness, accuracy, and timeliness.
 
-# 查看 PCA 權重說明及 Top 15
-python heat_analyzer.py --explain --top 15
+First, the system faces data-volume constraints. Under the monthly free tier of Apify, only ten posts are collected per account in each crawl cycle. This means older discussions may not always be captured, and the dataset may be biased toward more recent or more visible posts.
 
-# 調整半衰期（預設 14 天）
-python heat_analyzer.py --half-life 7
+Second, the seven-day crawling interval introduces a delay in data availability. This design helps reduce the risk of platform restrictions or account issues, but it also means the system is less suitable for near real-time monitoring. New events or emerging trends may not appear immediately in the dataset.
 
-# 只計算不寫入資料庫
-python heat_analyzer.py --dry-run
-```
+Third, event date extraction remains challenging because social media content is often unstructured. A single post may contain multiple date references, such as ticket-sale dates, event durations, or promotional periods. As a result, the same event may be assigned different dates across posts, which can affect event grouping and reporting accuracy.
 
-熱度分析完成後會自動觸發 `POST /api/heat/leaderboard-ai/refresh`，無需手動刷新排行榜。
+Fourth, the deduplication process is not fully precise. Although the system groups posts based on textual similarity, differences in wording, tone, or expression can lead to incomplete clustering. Posts referring to the same event may still be treated as separate entries, which in turn affects event counts, rankings, and heat scores.
 
-### 單獨重爬某個平台
+Finally, the current heat-score mechanism does not distinguish between positive and negative engagement. Likes, comments, and shares are treated as indicators of visibility rather than sentiment, so events receiving criticism or complaints may still appear highly ranked.
 
-```bash
-# 只重爬微博（唔影響其他平台）
-python -c "
-from task_manager import _crawl_platform
-_crawl_platform('wb', ['wynn','sands','galaxy','mgm','melco','sjm','government'], '')
-"
+Overall, the platform provides useful analytical support, but its outputs should be interpreted with these limitations in mind.
 
-# 重爬單一帳號（例如微博 UID 5577774461）
-python main.py --platform wb --type creator --creator_id 5577774461 --headless 0
-# 爬完後手動入庫
-python -c "
-from db_manager import ingest_crawler_data
-ingest_crawler_data('data/weibo/json/creator_contents_5577774461.json', 'weibo', '', operator='melco')
-"
-```
+## Future Improvements
 
-### 分類誤判測試工具
+Several improvements could further increase the analytical and business value of the platform.
 
-```bash
-python classifier_tester.py
-```
+First, the breadth and volume of data collection could be expanded. Increasing crawl volume and incorporating additional platforms such as Threads and Trip.com would make the dataset more representative and reduce sampling bias. Exploring paid collection tiers or distributing crawls across multiple accounts could also help address the current limits on crawl volume.
 
-瀏覽器打開 `http://localhost:8765`
+Second, the crawling cycle could be shortened for short-window events such as concerts, seasonal promotions, and campaign-based activities. A more frequent or event-triggered collection mechanism would allow the system to capture emerging trends more quickly and improve the timeliness of monitoring outputs.
 
----
+Third, the accuracy of event date extraction and deduplication could be improved further. Social posts often contain multiple date references, including ticket-sale dates, promotional periods, and actual event dates, and the current workflow does not always separate them consistently. A more structured extraction prompt with clearer prioritization rules could improve date consistency. Deduplication performance could also be strengthened by using a more domain-specific or fine-tuned similarity model.
 
-## 檔案說明
+Fourth, the platform could be extended to analyze video content more directly. At present, image-based OCR helps recover information from promotional visuals, but video posts may still contain important event details in spoken audio, subtitles, or embedded visuals that are not fully captured. Adding a dedicated video-analysis workflow would improve coverage for video-heavy promotional content.
 
-| 檔案 | 功能 |
-|------|------|
-| `bridge.py` | FastAPI 服務（端口 9038），處理前端請求、調用 DeepSeek 分析、提供活動卡片及熱度排行 API |
-| `db_manager.py` | 所有資料庫操作：入庫、查詢、日期解析、backfill |
-| `task_manager.py` | 控制 MediaCrawler（XHS/微博）及 Apify（IG/FB）爬蟲 |
-| `post_normalizer.py` | 將各平台原始帖文標準化入 `posts_*` 表（去 emoji、繁體化、清洗）|
-| `media_analyzer.py` | 圖片 OCR 工具，用 Qwen-VL 提取圖片文字存入 `media_text` 欄位（base64 本地下載模式，繞過防盜鏈）|
-| `process_events.py` | 基於帖文內容相似度（DashScope Embedding + SequenceMatcher fallback）去重聚類，寫入 `events_deduped` 表 |
-| `heat_analyzer.py` | 活動熱度分析：per-platform PCA 權重 + 時間衰減 + 跨平台加成，寫入 `heat_score` 欄位 |
-| `trad_simp.py` | 繁簡字符互轉工具（基於 opencc），支援搜尋時自動擴展繁簡變體 |
-| `classifier_tester.py` | 本地測試工具，對比規則分類同 AI 分類結果 |
-| `operation_panel.html` | 主前端介面，按運營商／類別／日期範圍查看活動卡片 |
-| `heat_leaderboard_v2.html` | 熱度排行榜介面，展示 AI 活動級別排名及各分類 Top 3 |
-| `admin_page.html` | 管理員介面，管理用戶帳號 |
-| `login_page.html` | 用戶登入頁面 |
-| `macau_analytics.db` | SQLite 資料庫，儲存所有爬取帖文、活動分組及熱度數據 |
-| `mediacrawler_patches/` | 修改過的 MediaCrawler 原始檔案，需覆蓋到對應路徑 |
+Fifth, the heat-score mechanism could be refined by incorporating sentiment analysis. At the moment, engagement is treated primarily as a visibility signal, regardless of whether the response is positive or negative. Distinguishing between positive and negative engagement would provide a more balanced view of event performance.
 
----
-
-## 資料庫結構
-
-```
-macau_events              — 原始爬取數據（raw_json、event_date）
-    ↓ post_normalizer.py
-posts_xhs                 — XHS 標準化帖文
-posts_ig                  — Instagram 標準化帖文
-posts_fb                  — Facebook 標準化帖文
-posts_weibo               — 微博標準化帖文
-    ↓ process_events.py
-events_deduped            — 去重後的活動分組（含 heat_score、heat_meta）
-    ↓ bridge.py
-analysis_cache            — DeepSeek 分析結果緩存（per operator × 日期範圍）
-heat_leaderboard_cache    — AI 活動熱度排行緩存（24 小時 TTL，自動後台更新）
-crawl_log                 — 記錄各運營商最後爬取時間（7 天有效期）
-users                     — 用戶帳號（登入鑑權）
-```
-
-### 重要欄位說明
-
-| 欄位 | 所在表 | 說明 |
-|------|--------|------|
-| `content` | `posts_*` | 清洗後純文字（去 emoji、去 hashtag、繁體化） |
-| `media_urls` | `posts_*` | 圖片／影片 URL（JSON array） |
-| `media_text` | `posts_*` | Qwen-VL OCR 從圖片提取的文字 |
-| `embedding` | `posts_*` | DashScope text-embedding-v3 向量（用於去重相似度計算） |
-| `raw_json` | `macau_events` | 原始爬取 JSON |
-| `source_post_ids` | `events_deduped` | 組成該活動分組的所有帖文 ID（JSON array） |
-| `heat_score` | `events_deduped` | 歸一化熱度分數（0–100） |
-| `heat_meta` | `events_deduped` | 熱度計算元數據（平台列表、衰減系數、最新帖文日期） |
-
----
-
-## AI 分析流程
-
-```
-posts_* (content + media_text)
-    ↓ process_events.py：Embedding 相似度去重聚類
-events_deduped
-    ↓ heat_analyzer.py：PCA 熱度計算 → heat_score
-    ↓ bridge.py /analyze：DeepSeek 提取活動資訊 → analysis_cache
-    ↓ bridge.py /api/heat/leaderboard-ai：AI 活動排行 → heat_leaderboard_cache
-前端 operation_panel.html / heat_leaderboard_v2.html 顯示
-```
-
-**API 端點說明（bridge.py，端口 9038）：**
-
-| 端點 | 說明 |
-|------|------|
-| `GET /analyze` | 按運營商／類別／日期查詢活動，調用 DeepSeek 生成摘要 |
-| `GET /api/heat/leaderboard` | 基於 `heat_score` 欄位的活動熱度排行（需先執行 `heat_analyzer.py`）|
-| `GET /api/heat/leaderboard-ai` | AI 活動級別熱度排行（從資料庫緩存即時回傳）|
-| `POST /api/heat/leaderboard-ai/refresh` | 強制重建 AI 排行緩存（`heat_analyzer.py` 完成後自動觸發）|
-
-**圖片 OCR 整合邏輯：**
-- `media_text` 由 Qwen-VL 從圖片自動 OCR 提取，可能含雜訊
-- 只有當中同時出現明確活動名稱同日期時，DeepSeek 才參考，否則忽略
-- 有助捕捉描述較短但海報資訊豐富的帖文
-
-**分析緩存機制：**
-- `analysis_cache`：同一運營商 + 日期範圍的 DeepSeek 結果緩存至 SQLite，避免重複調用
-- `heat_leaderboard_cache`：AI 排行結果緩存 24 小時，逾期後自動後台更新並先回傳舊緩存
-
----
-
-## 平台覆蓋
-
-| 運營商 | XHS | 微博 | Instagram | Facebook |
-|--------|-----|------|-----------|----------|
-| 永利 Wynn | ✅ | ✅ | ✅ | ✅ |
-| 金沙 Sands | ✅ | ✅ | ✅ | ✅ |
-| 銀河 Galaxy | ✅ | ✅ | ✅ | ✅ |
-| 美高梅 MGM | ✅ | ✅ | ✅ | ✅ |
-| 新濠 Melco | ✅ | ✅ | ✅ | ✅ |
-| 葡京 SJM | ✅ | ✅ | ✅ | ✅ |
-| 政府旅遊局 | ✅ | ✅ | ✅ | ✅ |
-
----
-
-## 活動分類
-
-系統按以下分類自動識別帖文內容：
-
-| 大類 | 子類 | 說明 |
-|------|------|------|
-| `entertainment` | `concert` | 演唱會、音樂會、舞台劇、音樂劇等 |
-| `entertainment` | `sport` | 馬拉松、UFC、球類賽事、F1 等 |
-| `entertainment` | `crossover` | 聯名、快閃、Pop-up 展覽 |
-| `experience` | — | 沉浸式體驗、主題樂園、常駐表演 |
-| `exhibition` | — | 藝術展、博物館、特展 |
-| `food` | — | 餐廳、自助餐、品酒、雞尾酒活動 |
-| `accommodation` | — | 酒店優惠、住宿套票 |
-| `shopping` | — | 折扣、購物優惠 |
-| `gaming` | — | 博彩、貴賓禮遇、積分兌換 |
-
----
-
-## 常見問題
-
-**DeepSeek 出現 402 錯誤**
-→ 帳戶餘額不足，前往 [platform.deepseek.com](https://platform.deepseek.com) 充值
-
-**爬不到 XHS 或微博**
-→ 登入狀態過期，重新在 MediaCrawler 掃碼登入
-
-**`media_analyzer.py` 圖片 OCR 失敗（400 Bad Request）**
-→ 代碼已改用 base64 本地下載模式處理防盜鏈問題，重新執行即可
-→ 如仍失敗，用 `--reset-failed` 清除記錄重試
-
-**`process_events.py` 執行很慢**
-→ 首次執行需為所有帖文調用 DashScope Embedding API，屬正常現象
-→ Embedding 結果會緩存至各 `posts_*` 表的 `embedding` 欄位，之後執行速度會快很多
-
-**熱度排行榜沒有數據**
-→ 需先執行 `python heat_analyzer.py` 計算並寫入 `heat_score`
-→ 之後 `bridge.py` 會自動觸發排行榜緩存更新
-
-**`heat_leaderboard_v2.html` 顯示舊緩存**
-→ 緩存超過 24 小時後系統會後台自動重建，稍後重新整理頁面即可
-→ 或手動執行：`POST http://127.0.0.1:9038/api/heat/leaderboard-ai/refresh`
-
-**分類全都是 experience**
-→ 正常，`experience` 係預設分類（帖文沒有符合任何關鍵字時）
-→ 可用 `classifier_tester.py` 測試及調整分類規則
-
-**`posts_*` 表的 `media_text` 全部是 NULL**
-→ 需要執行 `python media_analyzer.py` 填充圖片 OCR 結果
-
-**Paraformer 影片語音轉錄 Connection error**
-→ 阿里雲 Paraformer `/audio/transcriptions` 端點澳門連接不上，已移除此功能
-→ 影片帖文改為 OCR 封面圖提取文字
+Finally, the platform could be strengthened by linking social activity with business performance indicators such as occupancy rates, revenue, or profitability. This would make it possible to examine whether changes in social engagement are associated with operational outcomes for Wynn and its competitors, and would move the system closer to business performance analysis rather than promotional monitoring alone.
